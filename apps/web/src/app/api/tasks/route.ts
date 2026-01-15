@@ -10,6 +10,26 @@ interface Task {
   createdAt: string
 }
 
+function ensureAgelumStructure(agelumDir: string) {
+  const directories = [
+    'plan',
+    'ideas',
+    'epics',
+    'docs',
+    'context',
+    'actions',
+    'skills',
+    path.join('tasks', 'doing'),
+    path.join('tasks', 'done'),
+    path.join('tasks', 'pending')
+  ]
+
+  fs.mkdirSync(agelumDir, { recursive: true })
+  for (const dir of directories) {
+    fs.mkdirSync(path.join(agelumDir, dir), { recursive: true })
+  }
+}
+
 function fileNameToId(fileName: string): string {
   return fileName.replace('.md', '')
 }
@@ -48,7 +68,9 @@ function parseTaskFile(filePath: string, state: 'pending' | 'doing' | 'done'): T
 function readTasks(repo: string): Task[] {
   const homeDir = (process.env.HOME || process.env.USERPROFILE || process.cwd())
   const gitDir = path.join(homeDir, 'git')
-  const tasksDir = path.join(gitDir, repo, 'agelum', 'tasks')
+  const agelumDir = path.join(gitDir, repo, 'agelum')
+  ensureAgelumStructure(agelumDir)
+  const tasksDir = path.join(agelumDir, 'tasks')
 
   const tasks: Task[] = []
   const states = ['pending', 'doing', 'done'] as const
@@ -71,7 +93,9 @@ function readTasks(repo: string): Task[] {
 function createTask(repo: string, data: { title: string; description?: string; state?: string }): Task {
   const homeDir = (process.env.HOME || process.env.USERPROFILE || process.cwd())
   const gitDir = path.join(homeDir, 'git')
-  const tasksDir = path.join(gitDir, repo, 'agelum', 'tasks')
+  const agelumDir = path.join(gitDir, repo, 'agelum')
+  ensureAgelumStructure(agelumDir)
+  const tasksDir = path.join(agelumDir, 'tasks')
   const state = (data.state as 'pending' | 'doing' | 'done') || 'pending'
 
   const id = `task-${Date.now()}`
@@ -102,7 +126,9 @@ state: ${state}
 function moveTask(repo: string, taskId: string, fromState: string, toState: string): void {
   const homeDir = (process.env.HOME || process.env.USERPROFILE || process.cwd())
   const gitDir = path.join(homeDir, 'git')
-  const tasksDir = path.join(gitDir, repo, 'agelum', 'tasks')
+  const agelumDir = path.join(gitDir, repo, 'agelum')
+  ensureAgelumStructure(agelumDir)
+  const tasksDir = path.join(agelumDir, 'tasks')
 
   const fromPath = path.join(tasksDir, fromState, `${taskId}.md`)
   const toPath = path.join(tasksDir, toState, `${taskId}.md`)

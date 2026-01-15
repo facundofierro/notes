@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen } from 'lucide-react'
 
 interface FileNode {
@@ -89,8 +89,22 @@ function FileTreeNode({
   )
 }
 
-export default function FileBrowser({ fileTree, currentPath, onFileSelect, basePath }: FileBrowserProps) {
+export default function FileBrowser({ fileTree, onFileSelect }: FileBrowserProps) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!fileTree) return
+    
+    const allPaths = new Set<string>()
+    const collectPaths = (node: FileNode) => {
+      if (node.type === 'directory') {
+        allPaths.add(node.path)
+        node.children?.forEach(collectPaths)
+      }
+    }
+    collectPaths(fileTree)
+    setExpandedPaths(allPaths)
+  }, [fileTree])
 
   const toggleExpand = (path: string) => {
     const newExpanded = new Set(expandedPaths)
@@ -104,10 +118,6 @@ export default function FileBrowser({ fileTree, currentPath, onFileSelect, baseP
 
   return (
     <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-      <div className="p-3 border-b border-gray-700">
-        <h2 className="font-semibold text-sm text-gray-300">Files</h2>
-        <p className="text-xs text-gray-500 truncate">{currentPath || 'Select a repository'}</p>
-      </div>
       <div className="flex-1 overflow-y-auto p-2">
         {fileTree ? (
           <FileTreeNode

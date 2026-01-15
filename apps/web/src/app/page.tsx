@@ -130,7 +130,7 @@ export default function Home() {
             </>
           ) : (
             <div className="flex-1 flex">
-              <div className="flex-1">
+              <div className="flex-1 dark bg-background">
                 {selectedRepo && (
                   <TaskKanban
                     repo={selectedRepo}

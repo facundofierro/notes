@@ -9,6 +9,26 @@ interface FileNode {
   children?: FileNode[]
 }
 
+function ensureAgelumStructure(agelumDir: string) {
+  const directories = [
+    'plan',
+    'ideas',
+    'epics',
+    'docs',
+    'context',
+    'actions',
+    'skills',
+    path.join('tasks', 'doing'),
+    path.join('tasks', 'done'),
+    path.join('tasks', 'pending')
+  ]
+
+  fs.mkdirSync(agelumDir, { recursive: true })
+  for (const dir of directories) {
+    fs.mkdirSync(path.join(agelumDir, dir), { recursive: true })
+  }
+}
+
 function buildFileTree(dir: string, basePath: string): FileNode | null {
   if (!fs.existsSync(dir)) return null
 
@@ -68,12 +88,15 @@ export async function GET(request: Request) {
     
     const repoPath = path.join(gitDir, repo)
     const basePath = gitDir
+    const agelumDir = path.join(repoPath, 'agelum')
 
-    const tree = buildFileTree(repoPath, basePath)
+    ensureAgelumStructure(agelumDir)
+
+    const tree = buildFileTree(agelumDir, basePath)
 
     return NextResponse.json({
-      tree: tree || { name: repo, path: repoPath, type: 'directory', children: [] },
-      rootPath: repoPath
+      tree: tree || { name: 'agelum', path: agelumDir, type: 'directory', children: [] },
+      rootPath: agelumDir
     })
   } catch (error) {
     return NextResponse.json({ tree: null, rootPath: '' }, { status: 500 })

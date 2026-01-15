@@ -135,7 +135,7 @@ export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
   }
 
   return (
-    <div className="h-full">
+    <div className="h-full dataviews-hide-header">
       <DataViews
         schema={taskSchema}
         dbClient={dbClient}
