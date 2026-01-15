@@ -127,25 +127,7 @@ export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
 
   const dbClient: IDataViewsClient = {
     getRecords: async () => {
-      const debugEpics: Epic[] = [
-        {
-          id: 'debug-pending',
-          title: 'Debug Pending Epic',
-          description: 'Hardcoded pending epic for kanban test.',
-          state: 'pending',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'debug-doing',
-          title: 'Debug Doing Epic',
-          description: 'Hardcoded doing epic for kanban test.',
-          state: 'doing',
-          createdAt: new Date().toISOString()
-        }
-      ]
-      const combinedEpics = [...epics, ...debugEpics]
-      const records = combinedEpics.map(epic => {
-        console.log(`Epic ${epic.id}: state="${epic.state}", type=${typeof epic.state}`)
+      const records = epics.map(epic => {
         return {
           id: epic.id,
           fields: {
@@ -157,9 +139,6 @@ export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
           createdAt: epic.createdAt
         }
       })
-      console.log('Epics records:', JSON.stringify(records, null, 2))
-      console.log('Epics schema:', JSON.stringify(epicSchema, null, 2))
-      console.log('Schema status options:', epicSchema.fields.find(f => f.id === 'status'))
       return records
     },
     createRecord,

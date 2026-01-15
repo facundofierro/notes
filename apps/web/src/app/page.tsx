@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Sidebar from "@/components/Sidebar";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
 import TestKanban from "@/components/TestKanban";
-import { Kanban, Files, FolderOpen, Layers } from "lucide-react";
+import { Kanban, Files, Layers, FolderGit2 } from "lucide-react";
 
 interface FileNode {
   name: string;
@@ -105,15 +104,17 @@ export default function Home() {
   };
 
   return (
-    <div className="flex w-full h-full">
-      <Sidebar
-        repositories={repositories}
-        selectedRepo={selectedRepo}
-        onSelectRepo={setSelectedRepo}
-      />
-      <div className="flex-1 flex flex-col">
-        <div className="flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800">
+    <div className="flex flex-col w-full h-full">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
+            <FolderGit2 className="w-6 h-6 text-blue-400" />
+            <span className="text-xl font-bold">Agelum</span>
+          </div>
+
+          <div className="h-6 w-px bg-gray-700 mx-2" />
+
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setViewMode("browser")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
@@ -148,13 +149,25 @@ export default function Home() {
               Tasks
             </button>
           </div>
-          {selectedRepo && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <FolderOpen className="w-4 h-4" />
-              <span>{selectedRepo}</span>
-            </div>
-          )}
         </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedRepo || ""}
+            onChange={(e) => setSelectedRepo(e.target.value)}
+            className="bg-gray-700 text-gray-100 text-sm rounded-lg border-none focus:ring-2 focus:ring-blue-500 p-1.5 min-w-[160px]"
+          >
+            <option value="" disabled>Select repository</option>
+            {repositories.map((repo) => (
+              <option key={repo} value={repo}>
+                {repo}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col">
         <div className="flex-1 flex overflow-hidden">
           {viewMode === "browser" ? (
             <>
