@@ -118,6 +118,7 @@ function buildFrontmatter(args: {
   state?: TaskState;
   priority?: number;
   storyPoints?: number;
+  epic?: string;
 }): string {
   const lines: string[] = [
     '---',
@@ -133,6 +134,7 @@ function buildFrontmatter(args: {
       lines.push(`priority: ${formatPriority(args.priority)}`);
     if (args.storyPoints !== undefined)
       lines.push(`storyPoints: ${formatStoryPoints(args.storyPoints)}`);
+    if (args.epic) lines.push(`epic: ${args.epic}`);
   } else {
     if (args.storyPoints !== undefined)
       lines.push(`storyPoints: ${formatStoryPoints(args.storyPoints)}`);
@@ -189,6 +191,10 @@ const tools: Record<string, Tool> = {
           type: 'string',
           description: 'Override file name (optional, with or without .md)',
         },
+        epic: {
+          type: 'string',
+          description: 'Epic name to group this task under (only for type=task)',
+        },
       },
       required: ['type', 'title'],
     },
@@ -220,6 +226,10 @@ const tools: Record<string, Tool> = {
           type: 'string',
           enum: ['pending', 'doing', 'done'],
           description: 'Target state',
+        },
+        epic: {
+          type: 'string',
+          description: 'Epic name if the task is grouped',
         },
       },
       required: ['type', 'fromState', 'toState'],
@@ -267,6 +277,10 @@ const tools: Record<string, Tool> = {
         fileName: {
           type: 'string',
           description: 'Override file name (optional)',
+        },
+        epic: {
+          type: 'string',
+          description: 'Epic name if the task is grouped (only for type=task)',
         },
       },
       required: ['type'],
@@ -359,6 +373,7 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             priority,
             storyPoints,
             fileName,
+            epic,
           } = args as {
             type: DocumentType;
             title: string;
@@ -367,6 +382,7 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             priority?: number;
             storyPoints?: number;
             fileName?: string;
+            epic?: string;
           };
 
           const resolvedFileName = ensureMdExtension(
@@ -375,10 +391,14 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             )
           );
 
-          const targetDir =
+          let targetDir =
             type === 'task'
               ? path.join(agelumPath, 'tasks', state)
               : path.join(agelumPath, nonTaskTypeToDir[type]);
+
+          if (type === 'task' && epic) {
+            targetDir = path.join(targetDir, sanitizeFileNamePart(epic));
+          }
 
           fs.mkdirSync(targetDir, { recursive: true });
           const filePath = path.join(targetDir, resolvedFileName);
@@ -392,6 +412,7 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             state,
             priority,
             storyPoints,
+            epic,
           });
           const body = `\n# ${title}\n\n${content}\n`;
           fs.writeFileSync(filePath, `${frontmatter}${body}`);
@@ -415,6 +436,7 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             fileName,
             fromState,
             toState,
+            epic,
           } = args as {
             type: 'task';
             title?: string;
@@ -423,6 +445,7 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             fileName?: string;
             fromState: TaskState;
             toState: TaskState;
+            epic?: string;
           };
 
           if (fromState === toState) {
@@ -436,14 +459,22 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
           }
           sourceFileName = ensureMdExtension(sourceFileName);
 
-          const sourceDir = path.join(agelumPath, 'tasks', fromState);
+          let sourceDir = path.join(agelumPath, 'tasks', fromState);
+          if (epic) {
+             sourceDir = path.join(sourceDir, sanitizeFileNamePart(epic));
+          }
+          
           const sourcePath = path.join(sourceDir, sourceFileName);
 
           if (!fs.existsSync(sourcePath)) {
             throw new Error(`Source file not found: ${sourcePath}`);
           }
 
-          const targetDir = path.join(agelumPath, 'tasks', toState);
+          let targetDir = path.join(agelumPath, 'tasks', toState);
+          if (epic) {
+             targetDir = path.join(targetDir, sanitizeFileNamePart(epic));
+          }
+          
           fs.mkdirSync(targetDir, { recursive: true });
           const targetPath = path.join(targetDir, sourceFileName);
 
@@ -471,6 +502,7 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             priority,
             storyPoints,
             fileName,
+            epic,
           } = args as {
             type: DocumentType;
             title?: string;
@@ -478,69 +510,78 @@ export function createAgelumMcpServer(globalConfigRoot?: string) {
             priority?: number;
             storyPoints?: number;
             fileName?: string;
+            epic?: string;
           };
 
           let resolvedFileName = fileName;
           if (!resolvedFileName) {
              if (!title) throw new Error('title is required if fileName is not provided');
-             // For tasks, we might not have priority/storyPoints when getting, so we might need to search?
-             // But the user simplified requirements: "get will return the path only".
-             // If the user provides partial info, we can't build the exact filename if it relies on priority.
-             // Assuming strict inputs for now as per "buildFileName".
              if (type === 'task') {
                  if (priority !== undefined && storyPoints !== undefined) {
                      resolvedFileName = buildFileName({ type, title, priority, storyPoints });
                  } else {
-                     // If we lack details, we might want to SEARCH for the file by title?
-                     // For now, let's assume exact match or fail if params missing.
-                     // But let's allow "fuzzy" get if just title is provided?
-                     // The user requirement "get will return the path only" implies resolution.
+                     // For get, if priority/SP missing, we assume title matches (might fail if not exact)
+                     // Or could assume user provided exact filename in title? No, buildFileName handles logic.
+                     // If incomplete, let's try just title if it's the simple case, but buildFileName throws.
+                     // Let's assume user provides correct params or fileName.
+                     try {
+                        resolvedFileName = buildFileName({ type, title, priority, storyPoints });
+                     } catch (e) {
+                        // Fallback: try just title.md? No, convention is strict.
+                        throw new Error('Insufficient arguments to build filename. Provide fileName or all task attributes.');
+                     }
                  }
              } else {
                  resolvedFileName = buildFileName({ type, title, priority, storyPoints });
              }
           }
           
-          if (!resolvedFileName && type === 'task') {
-               // Fallback: search for file starting with title? Or containing title?
-               // Given strict naming, maybe we search.
-               // Let's keep it simple: if we can't build it, we return what we think it is.
-               resolvedFileName = ensureMdExtension(sanitizeFileNamePart(title));
-          }
-          
-          if (resolvedFileName) {
-              resolvedFileName = ensureMdExtension(resolvedFileName);
-          } else {
-             throw new Error("Could not resolve filename from arguments");
-          }
-
-          let possiblePaths: string[] = [];
+          let searchPath = '';
           if (type === 'task') {
-            if (state) {
-              possiblePaths.push(path.join(agelumPath, 'tasks', state, resolvedFileName));
-            } else {
-              possiblePaths.push(path.join(agelumPath, 'tasks', 'pending', resolvedFileName));
-              possiblePaths.push(path.join(agelumPath, 'tasks', 'doing', resolvedFileName));
-              possiblePaths.push(path.join(agelumPath, 'tasks', 'done', resolvedFileName));
-            }
+             if (state) {
+                 searchPath = path.join(agelumPath, 'tasks', state);
+                 if (epic) {
+                    searchPath = path.join(searchPath, sanitizeFileNamePart(epic));
+                 }
+                 searchPath = path.join(searchPath, resolvedFileName);
+             } else {
+                 // Search in all states?
+                 // "get" usually implies knowing where it is.
+                 // But for convenience, we could check pending/doing/done?
+                 // For now, let's just return what we can if state is provided.
+                 // If state is NOT provided, we can't reliably find it without searching.
+                 // Let's assume state is optional but we try to find it.
+                 const states: TaskState[] = ['pending', 'doing', 'done'];
+                 let foundPath: string | null = null;
+                 
+                 for (const s of states) {
+                     let dir = path.join(agelumPath, 'tasks', s);
+                     if (epic) dir = path.join(dir, sanitizeFileNamePart(epic));
+                     const p = path.join(dir, resolvedFileName);
+                     if (fs.existsSync(p)) {
+                         foundPath = p;
+                         break;
+                     }
+                 }
+                 
+                 if (!foundPath) {
+                     throw new Error(`File not found: ${resolvedFileName} (searched in ${epic ? 'epic ' + epic : 'all states'})`);
+                 }
+                 searchPath = foundPath;
+             }
           } else {
-            possiblePaths.push(path.join(agelumPath, nonTaskTypeToDir[type], resolvedFileName));
+              searchPath = path.join(agelumPath, nonTaskTypeToDir[type], resolvedFileName);
           }
 
-          const existingPath = possiblePaths.find(p => fs.existsSync(p));
-          
-          if (existingPath) {
-             return {
-                content: [{ type: 'text', text: JSON.stringify({ path: existingPath, exists: true }) }]
-             };
+          if (!fs.existsSync(searchPath)) {
+            throw new Error(`File not found: ${searchPath}`);
           }
 
-          // If not found, return the expected path (first option)
           return {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify({ path: possiblePaths[0], exists: false }),
+                text: JSON.stringify({ path: searchPath }),
               },
             ],
           };
