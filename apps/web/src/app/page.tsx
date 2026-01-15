@@ -46,7 +46,7 @@ export default function Home() {
     content: string;
   } | null>(null);
   const [basePath, setBasePath] = useState<string>("");
-  const [viewMode, setViewMode] = useState<ViewMode>("browser");
+  const [viewMode, setViewMode] = useState<ViewMode>("epics");
 
   useEffect(() => {
     fetch("/api/repositories")
