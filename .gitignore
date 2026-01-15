@@ -8,6 +8,7 @@ out/
 # Build
 dist/
 .turbo
+.pnpm-store/*
 
 # pnpm
 pnpm-lock.yaml

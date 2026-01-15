@@ -42,3 +42,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to write file' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const filePath = searchParams.get('path')
+
+    if (!filePath) {
+      return NextResponse.json({ error: 'Path is required' }, { status: 400 })
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ error: 'Path does not exist' }, { status: 404 })
+    }
+
+    const stats = fs.statSync(filePath)
+    if (stats.isDirectory()) {
+      fs.rmSync(filePath, { recursive: true, force: true })
+    } else {
+      fs.unlinkSync(filePath)
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
+  }
+}

@@ -59,7 +59,7 @@ export default function Home() {
       });
   }, []);
 
-  useEffect(() => {
+  const loadFileTree = () => {
     if (selectedRepo) {
       fetch(`/api/files?repo=${selectedRepo}`)
         .then((res) => res.json())
@@ -68,6 +68,10 @@ export default function Home() {
           setCurrentPath(data.rootPath);
         });
     }
+  };
+
+  useEffect(() => {
+    loadFileTree();
   }, [selectedRepo]);
 
   const handleFileSelect = async (node: FileNode) => {
@@ -176,8 +180,9 @@ export default function Home() {
                 currentPath={currentPath}
                 onFileSelect={handleFileSelect}
                 basePath={basePath}
+                onRefresh={loadFileTree}
               />
-              <FileViewer file={selectedFile} />
+              <FileViewer file={selectedFile} onFileSaved={loadFileTree} />
             </>
           ) : viewMode === "epics" ? (
             <div className="flex-1 bg-background">
