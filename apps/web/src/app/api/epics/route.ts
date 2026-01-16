@@ -6,12 +6,14 @@ interface Epic {
   id: string
   title: string
   description: string
-  state: 'pending' | 'doing' | 'done'
+  state: 'backlog' | 'priority' | 'pending' | 'doing' | 'done'
   createdAt: string
 }
 
 function ensureEpicStructure(agelumDir: string) {
   const directories = [
+    path.join('epics', 'backlog'),
+    path.join('epics', 'priority'),
     path.join('epics', 'pending'),
     path.join('epics', 'doing'),
     path.join('epics', 'done')
@@ -26,7 +28,7 @@ function fileNameToId(fileName: string): string {
   return fileName.replace('.md', '')
 }
 
-function parseEpicFile(filePath: string, state: 'pending' | 'doing' | 'done'): Epic | null {
+function parseEpicFile(filePath: string, state: 'backlog' | 'priority' | 'pending' | 'doing' | 'done'): Epic | null {
   try {
     const content = fs.readFileSync(filePath, 'utf-8')
     const fileName = path.basename(filePath)
@@ -65,7 +67,7 @@ function readEpics(repo: string): Epic[] {
   const epicsDir = path.join(agelumDir, 'epics')
 
   const epics: Epic[] = []
-  const states = ['pending', 'doing', 'done'] as const
+  const states = ['backlog', 'priority', 'pending', 'doing', 'done'] as const
 
   for (const state of states) {
     const stateDir = path.join(epicsDir, state)
@@ -88,7 +90,7 @@ function createEpic(repo: string, data: { title: string; description?: string; s
   const agelumDir = path.join(gitDir, repo, 'agelum')
   ensureEpicStructure(agelumDir)
   const epicsDir = path.join(agelumDir, 'epics')
-  const state = (data.state as 'pending' | 'doing' | 'done') || 'pending'
+  const state = (data.state as 'backlog' | 'priority' | 'pending' | 'doing' | 'done') || 'backlog'
 
   const id = `epic-${Date.now()}`
   const stateDir = path.join(epicsDir, state)

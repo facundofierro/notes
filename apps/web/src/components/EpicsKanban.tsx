@@ -7,7 +7,7 @@ interface Epic {
   id: string
   title: string
   description: string
-  state: 'pending' | 'doing' | 'done'
+  state: 'backlog' | 'priority' | 'pending' | 'doing' | 'done'
   createdAt: string
 }
 
@@ -18,6 +18,8 @@ const epicSchema: TableSchema = {
     { id: 'title', name: 'Title', type: 'text', isPrimary: true },
     { id: 'description', name: 'Description', type: 'text' },
     { id: 'status', name: 'Status', type: 'select', options: [
+      { id: 'backlog', name: 'Backlog', color: 'gray' },
+      { id: 'priority', name: 'Priority', color: 'red' },
       { id: 'pending', name: 'Pending', color: 'yellow' },
       { id: 'doing', name: 'Doing', color: 'blue' },
       { id: 'done', name: 'Done', color: 'green' }
@@ -55,7 +57,7 @@ export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
   const createRecord = useCallback(async (record: Partial<IRecord>): Promise<IRecord> => {
     const title = record.fields?.title as string || 'Untitled Epic'
     const description = record.fields?.description as string || ''
-    const state = toEpicApiStatus((record.fields?.status as string) || 'pending')
+    const state = toEpicApiStatus((record.fields?.status as string) || 'backlog')
 
     const res = await fetch('/api/epics', {
       method: 'POST',

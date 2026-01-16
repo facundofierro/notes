@@ -31,7 +31,7 @@ interface Epic {
   id: string;
   title: string;
   description: string;
-  state: "pending" | "doing" | "done";
+  state: "backlog" | "priority" | "pending" | "doing" | "done";
   createdAt: string;
 }
 
