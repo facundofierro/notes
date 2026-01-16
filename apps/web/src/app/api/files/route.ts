@@ -74,6 +74,7 @@ function buildFileTree(dir: string, basePath: string): FileNode | null {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const repo = searchParams.get('repo')
+  const subPath = searchParams.get('path')
 
   if (!repo) {
     return NextResponse.json({ tree: null, rootPath: '' })
@@ -92,11 +93,12 @@ export async function GET(request: Request) {
 
     ensureAgelumStructure(agelumDir)
 
-    const tree = buildFileTree(agelumDir, basePath)
+    const targetDir = subPath ? path.join(agelumDir, subPath) : agelumDir
+    const tree = buildFileTree(targetDir, basePath)
 
     return NextResponse.json({
-      tree: tree || { name: 'agelum', path: agelumDir, type: 'directory', children: [] },
-      rootPath: agelumDir
+      tree: tree || { name: subPath || 'agelum', path: targetDir, type: 'directory', children: [] },
+      rootPath: targetDir
     })
   } catch (error) {
     return NextResponse.json({ tree: null, rootPath: '' }, { status: 500 })

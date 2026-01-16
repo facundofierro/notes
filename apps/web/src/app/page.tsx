@@ -6,7 +6,7 @@ import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
 import TestKanban from "@/components/TestKanban";
-import { Kanban, Files, Layers, FolderGit2 } from "lucide-react";
+import { Kanban, Files, Layers, FolderGit2, Lightbulb, BookOpen, Map, Terminal, ListTodo } from "lucide-react";
 
 interface FileNode {
   name: string;
@@ -16,7 +16,7 @@ interface FileNode {
   content?: string;
 }
 
-type ViewMode = "browser" | "epics" | "kanban";
+type ViewMode = "ideas" | "docs" | "plan" | "epics" | "tasks" | "commands" | "browser" | "kanban";
 
 interface Task {
   id: string;
@@ -61,7 +61,13 @@ export default function Home() {
 
   const loadFileTree = () => {
     if (selectedRepo) {
-      fetch(`/api/files?repo=${selectedRepo}`)
+      let url = `/api/files?repo=${selectedRepo}`;
+      if (viewMode === 'ideas') url += '&path=ideas';
+      if (viewMode === 'docs') url += '&path=docs';
+      if (viewMode === 'plan') url += '&path=plan';
+      if (viewMode === 'commands') url += '&path=commands';
+      
+      fetch(url)
         .then((res) => res.json())
         .then((data) => {
           setFileTree(data.tree);
@@ -72,7 +78,7 @@ export default function Home() {
 
   useEffect(() => {
     loadFileTree();
-  }, [selectedRepo]);
+  }, [selectedRepo, viewMode]);
 
   const handleFileSelect = async (node: FileNode) => {
     if (node.type === "file") {
@@ -120,15 +126,37 @@ export default function Home() {
 
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setViewMode("browser")}
+              onClick={() => setViewMode("ideas")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "browser"
+                viewMode === "ideas"
                   ? "bg-blue-600 text-white"
                   : "text-gray-300 hover:bg-gray-700"
               }`}
             >
-              <Files className="w-4 h-4" />
-              Files
+              <Lightbulb className="w-4 h-4" />
+              Ideas
+            </button>
+            <button
+              onClick={() => setViewMode("docs")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "docs"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              Docs
+            </button>
+            <button
+              onClick={() => setViewMode("plan")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "plan"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <Map className="w-4 h-4" />
+              Plan
             </button>
             <button
               onClick={() => setViewMode("epics")}
@@ -149,8 +177,30 @@ export default function Home() {
                   : "text-gray-300 hover:bg-gray-700"
               }`}
             >
-              <Kanban className="w-4 h-4" />
+              <ListTodo className="w-4 h-4" />
               Tasks
+            </button>
+            <button
+              onClick={() => setViewMode("commands")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "commands"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <Terminal className="w-4 h-4" />
+              Commands
+            </button>
+            <button
+              onClick={() => setViewMode("browser")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "browser"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <Files className="w-4 h-4" />
+              Files
             </button>
           </div>
         </div>
@@ -173,7 +223,7 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col">
         <div className="flex-1 flex overflow-hidden">
-          {viewMode === "browser" ? (
+          {["browser", "ideas", "docs", "plan", "commands"].includes(viewMode) ? (
             <>
               <FileBrowser
                 fileTree={fileTree}
