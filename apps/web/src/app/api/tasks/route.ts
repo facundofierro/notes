@@ -9,6 +9,8 @@ interface Task {
   state: 'pending' | 'doing' | 'done'
   createdAt: string
   epic?: string
+  assignee?: string
+  path: string
 }
 
 function ensureAgelumStructure(agelumDir: string) {
@@ -46,11 +48,13 @@ function parseTaskFile(filePath: string, state: 'pending' | 'doing' | 'done', ep
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/)
     let title = fileNameToId(fileName)
     let description = ''
+    let assignee = ''
 
     if (frontmatterMatch) {
       const frontmatter = frontmatterMatch[1]
       const titleMatch = frontmatter.match(/title:\s*(.+)/)
       description = frontmatter.match(/description:\s*(.+)/)?.[1] || ''
+      assignee = frontmatter.match(/assignee:\s*(.+)/)?.[1]?.trim() || ''
       if (titleMatch) {
         title = titleMatch[1].trim()
       }
@@ -62,14 +66,16 @@ function parseTaskFile(filePath: string, state: 'pending' | 'doing' | 'done', ep
       description,
       state,
       createdAt: stats.mtime.toISOString(),
-      ...(epic && { epic })
+      ...(epic && { epic }),
+      assignee,
+      path: filePath
     }
   } catch {
     return null
   }
 }
 
-function readTasksRecursively(dir: string, state: 'pending' | 'doing' | 'done', baseDir: string): Task[] {
+function readTasksRecursively(dir: string, state: 'pending' | 'doing' | 'done'): Task[] {
   const tasks: Task[] = []
   
   if (!fs.existsSync(dir)) return tasks
@@ -82,7 +88,7 @@ function readTasksRecursively(dir: string, state: 'pending' | 'doing' | 'done', 
     if (item.isDirectory()) {
       // This is an epic folder, read tasks from it
       const epicName = item.name
-      const epicTasks = readTasksRecursively(fullPath, state, baseDir)
+      const epicTasks = readTasksRecursively(fullPath, state)
       // Add epic name to each task
       tasks.push(...epicTasks.map(task => ({ ...task, epic: epicName })))
     } else if (item.isFile() && item.name.endsWith('.md')) {
@@ -107,14 +113,14 @@ function readTasks(repo: string): Task[] {
 
   for (const state of states) {
     const stateDir = path.join(tasksDir, state)
-    const stateTasks = readTasksRecursively(stateDir, state, stateDir)
+    const stateTasks = readTasksRecursively(stateDir, state)
     tasks.push(...stateTasks)
   }
 
   return tasks
 }
 
-function createTask(repo: string, data: { title: string; description?: string; state?: string }): Task {
+function createTask(repo: string, data: { title: string; description?: string; state?: string; assignee?: string }): Task {
   const homeDir = (process.env.HOME || process.env.USERPROFILE || process.cwd())
   const gitDir = path.join(homeDir, 'git')
   const agelumDir = path.join(gitDir, repo, 'agelum')
@@ -129,12 +135,15 @@ function createTask(repo: string, data: { title: string; description?: string; s
   const filePath = path.join(stateDir, `${id}.md`)
   const createdAt = new Date().toISOString()
 
-  const frontmatter = `---
-title: ${data.title}
-created: ${createdAt}
-state: ${state}
----
-`
+  const frontmatterLines = [
+    '---',
+    `title: ${data.title}`,
+    `created: ${createdAt}`,
+    `state: ${state}`,
+    ...(data.assignee ? [`assignee: ${data.assignee}`] : []),
+    '---'
+  ]
+  const frontmatter = `${frontmatterLines.join('\n')}\n`
 
   fs.writeFileSync(filePath, `${frontmatter}\n# ${data.title}\n\n${data.description || ''}\n`)
 
@@ -143,7 +152,9 @@ state: ${state}
     title: data.title,
     description: data.description || '',
     state,
-    createdAt
+    createdAt,
+    assignee: '',
+    path: filePath
   }
 }
 

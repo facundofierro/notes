@@ -8,6 +8,7 @@ interface Epic {
   description: string
   state: 'backlog' | 'priority' | 'pending' | 'doing' | 'done'
   createdAt: string
+  path: string
 }
 
 function ensureEpicStructure(agelumDir: string) {
@@ -52,7 +53,8 @@ function parseEpicFile(filePath: string, state: 'backlog' | 'priority' | 'pendin
       title,
       description,
       state,
-      createdAt: stats.mtime.toISOString()
+      createdAt: stats.mtime.toISOString(),
+      path: filePath
     }
   } catch {
     return null
@@ -113,7 +115,8 @@ state: ${state}
     title: data.title,
     description: data.description || '',
     state,
-    createdAt
+    createdAt,
+    path: filePath
   }
 }
 

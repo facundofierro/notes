@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { DataViews, tableSchema, type IRecord, type IDataViewsClient, type TableSchema } from 'shadcn-data-views'
 
 interface Task {
@@ -10,9 +10,11 @@ interface Task {
   state: 'pending' | 'doing' | 'done'
   createdAt: string
   epic?: string
+  assignee?: string
+  path?: string
 }
 
-const taskSchema: TableSchema = {
+const baseTaskSchema: TableSchema = {
   id: 'tasks',
   name: 'Tasks',
   fields: [
@@ -24,11 +26,12 @@ const taskSchema: TableSchema = {
       { id: 'doing', name: 'Doing', color: 'blue' },
       { id: 'done', name: 'Done', color: 'green' }
     ]},
+    { id: 'assignee', name: 'Assignee', type: 'select', options: [] },
     { id: 'createdAt', name: 'Created', type: 'date' }
   ]
 }
 
-const taskStatusOptions = taskSchema.fields.find((f) => f.id === 'status' && f.type === 'select')?.options || []
+const taskStatusOptions = baseTaskSchema.fields.find((f) => f.id === 'status' && f.type === 'select')?.options || []
 const taskStatusIdToName = new Map(taskStatusOptions.map((o) => [o.id, o.name]))
 const taskStatusNameToId = new Map(taskStatusOptions.map((o) => [o.name, o.id]))
 
@@ -43,6 +46,8 @@ interface TaskKanbanProps {
 export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
+  const [users, setUsers] = useState<string[]>([])
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
 
   const fetchTasks = useCallback(async () => {
     const res = await fetch(`/api/tasks?repo=${encodeURIComponent(repo)}`)
@@ -54,9 +59,32 @@ export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
     fetchTasks()
   }, [fetchTasks, refreshKey])
 
+  useEffect(() => {
+    if (!repo) return
+    fetch(`/api/users?repo=${encodeURIComponent(repo)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setUsers(Array.isArray(data.users) ? data.users : [])
+      })
+      .catch(() => {
+        setUsers([])
+      })
+  }, [repo])
+
+  const taskSchema = useMemo<TableSchema>(() => {
+    const assigneeOptions = users.map((user) => ({ id: user, name: user, color: 'gray' }))
+    return {
+      ...baseTaskSchema,
+      fields: baseTaskSchema.fields.map((field) =>
+        field.id === 'assignee' ? { ...field, options: assigneeOptions } : field
+      )
+    }
+  }, [users])
+
   const createRecord = useCallback(async (record: Partial<IRecord>): Promise<IRecord> => {
     const title = record.fields?.title as string || 'Untitled Task'
     const description = record.fields?.description as string || ''
+    const assignee = record.fields?.assignee as string || ''
     const state = toTaskApiStatus((record.fields?.status as string) || 'pending')
 
     const res = await fetch('/api/tasks', {
@@ -65,7 +93,7 @@ export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
       body: JSON.stringify({
         repo,
         action: 'create',
-        data: { title, description, state }
+        data: { title, description, state, assignee }
       })
     })
 
@@ -80,6 +108,7 @@ export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
         title: data.task.title,
         description: data.task.description,
         status: toTaskUiStatus(data.task.state),
+        assignee: data.task.assignee || '',
         createdAt: data.task.createdAt
       },
       createdAt: data.task.createdAt
@@ -129,19 +158,23 @@ export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
 
   const dbClient: IDataViewsClient = {
     getRecords: async () => {
-      const records = tasks.map(task => ({
+      const filteredTasks = tasks.filter((task) => {
+        if (assigneeFilter === 'all') return true
+        if (assigneeFilter === 'unassigned') return !task.assignee
+        return task.assignee === assigneeFilter
+      })
+      const records = filteredTasks.map(task => ({
         id: task.id,
         fields: {
           title: task.title,
           description: task.description,
           epic: task.epic || '',
           status: toTaskUiStatus(task.state),
+          assignee: task.assignee || '',
           createdAt: task.createdAt
         },
         createdAt: task.createdAt
       }))
-      console.log('Tasks records:', JSON.stringify(records, null, 2))
-      console.log('Tasks schema:', JSON.stringify(taskSchema, null, 2))
       return records
     },
     createRecord,
@@ -151,6 +184,25 @@ export default function TaskKanban({ repo, onTaskSelect }: TaskKanbanProps) {
 
   return (
     <div className="h-full dataviews-hide-header">
+      <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-border">
+        <label className="text-sm text-muted-foreground" htmlFor="assignee-filter">
+          Assignee
+        </label>
+        <select
+          id="assignee-filter"
+          value={assigneeFilter}
+          onChange={(e) => setAssigneeFilter(e.target.value)}
+          className="bg-background text-foreground text-sm rounded-md border border-border px-2 py-1"
+        >
+          <option value="all">All</option>
+          <option value="unassigned">Unassigned</option>
+          {users.map((user) => (
+            <option key={user} value={user}>
+              {user}
+            </option>
+          ))}
+        </select>
+      </div>
       <DataViews
         schema={taskSchema}
         dbClient={dbClient}

@@ -25,6 +25,8 @@ interface Task {
   state: "pending" | "doing" | "done";
   createdAt: string;
   epic?: string;
+  assignee?: string;
+  path?: string;
 }
 
 interface Epic {
@@ -33,6 +35,7 @@ interface Epic {
   description: string;
   state: "backlog" | "priority" | "pending" | "doing" | "done";
   createdAt: string;
+  path?: string;
 }
 
 export default function Home() {
@@ -90,27 +93,39 @@ export default function Home() {
   };
 
   const handleTaskSelect = (task: Task) => {
-    if (selectedRepo && task.id) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      const filePath = `${homeDir}/git/${selectedRepo}/agelum/tasks/${task.state}/${task.id}.md`;
-      fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setSelectedFile({ path: filePath, content: data.content || "" });
-        });
-    }
+    if (!selectedRepo || !task.id) return;
+
+    const fallbackPath =
+      basePath && selectedRepo
+        ? `${basePath}/${selectedRepo}/agelum/tasks/${task.state}/${task.epic ? `${task.epic}/` : ""}${task.id}.md`
+        : "";
+
+    const filePath = task.path || fallbackPath;
+    if (!filePath) return;
+
+    fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSelectedFile({ path: filePath, content: data.content || "" });
+      });
   };
 
   const handleEpicSelect = (epic: Epic) => {
-    if (selectedRepo && epic.id) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      const filePath = `${homeDir}/git/${selectedRepo}/agelum/epics/${epic.state}/${epic.id}.md`;
-      fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setSelectedFile({ path: filePath, content: data.content || "" });
-        });
-    }
+    if (!selectedRepo || !epic.id) return;
+
+    const fallbackPath =
+      basePath && selectedRepo
+        ? `${basePath}/${selectedRepo}/agelum/epics/${epic.state}/${epic.id}.md`
+        : "";
+
+    const filePath = epic.path || fallbackPath;
+    if (!filePath) return;
+
+    fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSelectedFile({ path: filePath, content: data.content || "" });
+      });
   };
 
   return (

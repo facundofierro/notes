@@ -9,6 +9,7 @@ interface Epic {
   description: string
   state: 'backlog' | 'priority' | 'pending' | 'doing' | 'done'
   createdAt: string
+  path: string
 }
 
 const epicSchema: TableSchema = {
