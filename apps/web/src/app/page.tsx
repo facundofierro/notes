@@ -5,8 +5,9 @@ import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
+import IdeasKanban from "@/components/IdeasKanban";
 import { MonochromeLogo } from "@agelum/shadcn";
-import { Kanban, Files, Layers, FolderGit2, Lightbulb, BookOpen, Map, Terminal, ListTodo } from "lucide-react";
+import { Kanban, Files, Layers, FolderGit2, Lightbulb, BookOpen, Map, Terminal, ListTodo, FlaskConical } from "lucide-react";
 
 interface FileNode {
   name: string;
@@ -16,7 +17,7 @@ interface FileNode {
   content?: string;
 }
 
-type ViewMode = "ideas" | "docs" | "plan" | "epics" | "tasks" | "commands" | "browser" | "kanban";
+type ViewMode = "ideas" | "research" | "docs" | "plan" | "epics" | "tasks" | "commands" | "browser" | "kanban";
 
 interface Task {
   id: string;
@@ -34,6 +35,15 @@ interface Epic {
   title: string;
   description: string;
   state: "backlog" | "priority" | "pending" | "doing" | "done";
+  createdAt: string;
+  path?: string;
+}
+
+interface Idea {
+  id: string;
+  title: string;
+  description: string;
+  state: "thinking" | "important" | "priority" | "planned" | "done";
   createdAt: string;
   path?: string;
 }
@@ -75,7 +85,7 @@ export default function Home() {
   const loadFileTree = React.useCallback(() => {
     if (selectedRepo) {
       let url = `/api/files?repo=${selectedRepo}`;
-      if (viewMode === 'ideas') url += '&path=ideas';
+      if (viewMode === 'research') url += '&path=research';
       if (viewMode === 'docs') url += '&path=docs';
       if (viewMode === 'plan') url += '&path=plan';
       if (viewMode === 'commands') url += '&path=commands';
@@ -138,6 +148,24 @@ export default function Home() {
       });
   };
 
+  const handleIdeaSelect = (idea: Idea) => {
+    if (!selectedRepo || !idea.id) return;
+
+    const fallbackPath =
+      basePath && selectedRepo
+        ? `${basePath}/${selectedRepo}/agelum/ideas/${idea.state}/${idea.id}.md`
+        : "";
+
+    const filePath = idea.path || fallbackPath;
+    if (!filePath) return;
+
+    fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSelectedFile({ path: filePath, content: data.content || "" });
+      });
+  };
+
   return (
     <div className="flex flex-col w-full h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
@@ -157,6 +185,17 @@ export default function Home() {
             >
               <Lightbulb className="w-4 h-4" />
               Ideas
+            </button>
+            <button
+              onClick={() => setViewMode("research")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "research"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <FlaskConical className="w-4 h-4" />
+              Research
             </button>
             <button
               onClick={() => setViewMode("docs")}
@@ -245,7 +284,7 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col">
         <div className="flex-1 flex overflow-hidden">
-          {["browser", "ideas", "docs", "plan", "commands"].includes(viewMode) ? (
+          {["browser", "research", "docs", "plan", "commands"].includes(viewMode) ? (
             <>
               <FileBrowser
                 fileTree={fileTree}
@@ -256,6 +295,21 @@ export default function Home() {
               />
               <FileViewer file={selectedFile} onFileSaved={loadFileTree} />
             </>
+          ) : viewMode === "ideas" ? (
+            <div className="flex-1 bg-background">
+              {selectedFile ? (
+                <FileViewer
+                  file={selectedFile}
+                  onFileSaved={loadFileTree}
+                  onBack={() => setSelectedFile(null)}
+                />
+              ) : selectedRepo ? (
+                <IdeasKanban
+                  repo={selectedRepo}
+                  onIdeaSelect={handleIdeaSelect}
+                />
+              ) : null}
+            </div>
           ) : viewMode === "epics" ? (
             <div className="flex-1 bg-background">
               {selectedFile ? (

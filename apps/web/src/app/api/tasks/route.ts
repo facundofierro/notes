@@ -16,11 +16,16 @@ interface Task {
 function ensureAgelumStructure(agelumDir: string) {
   const directories = [
     'plan',
-    'ideas',
+    'research',
     'docs',
     'context',
     'actions',
     'skills',
+    path.join('ideas', 'thinking'),
+    path.join('ideas', 'important'),
+    path.join('ideas', 'priority'),
+    path.join('ideas', 'planned'),
+    path.join('ideas', 'done'),
     path.join('epics', 'backlog'),
     path.join('epics', 'priority'),
     path.join('epics', 'pending'),
