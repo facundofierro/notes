@@ -1,7 +1,21 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { KanbanBoard, type KanbanCardType, type KanbanColumnType } from '@agelum/kanban'
+import { 
+  KanbanBoard, 
+  type KanbanCardType, 
+  type KanbanColumnType,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Textarea,
+  Button
+} from '@agelum/kanban'
 
 interface Epic {
   id: string
@@ -28,6 +42,10 @@ interface EpicsKanbanProps {
 export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
   const [epics, setEpics] = useState<Epic[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [newEpicColumn, setNewEpicColumn] = useState('')
+  const [newEpicTitle, setNewEpicTitle] = useState('')
+  const [newEpicDescription, setNewEpicDescription] = useState('')
 
   const fetchEpics = useCallback(async () => {
     const res = await fetch(`/api/epics?repo=${encodeURIComponent(repo)}`)
@@ -49,9 +67,17 @@ export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
 
   const handleAddCard = useCallback(
     async (columnId: string) => {
-      const title = window.prompt('Epic title')
-      if (!title) return
-      const description = window.prompt('Epic description') || ''
+      setNewEpicColumn(columnId)
+      setNewEpicTitle('')
+      setNewEpicDescription('')
+      setIsAddDialogOpen(true)
+    },
+    []
+  )
+
+  const handleCreateEpic = useCallback(
+    async () => {
+      if (!newEpicTitle.trim()) return
 
       const res = await fetch('/api/epics', {
         method: 'POST',
@@ -59,7 +85,11 @@ export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
         body: JSON.stringify({
           repo,
           action: 'create',
-          data: { title, description, state: columnId },
+          data: { 
+            title: newEpicTitle.trim(), 
+            description: newEpicDescription.trim(), 
+            state: newEpicColumn 
+          },
         }),
       })
 
@@ -67,8 +97,11 @@ export default function EpicsKanban({ repo, onEpicSelect }: EpicsKanbanProps) {
       if (!res.ok) throw new Error(data.error || 'Failed to create epic')
 
       setRefreshKey((k) => k + 1)
+      setIsAddDialogOpen(false)
+      setNewEpicTitle('')
+      setNewEpicDescription('')
     },
-    [repo]
+    [repo, newEpicTitle, newEpicDescription, newEpicColumn]
   )
 
   const handleCardMove = useCallback(

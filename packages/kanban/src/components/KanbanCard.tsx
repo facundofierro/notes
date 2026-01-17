@@ -4,24 +4,12 @@ import * as React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  MoreHorizontal,
-  Pencil,
-  Trash2,
   Calendar,
   AlertCircle,
-  GripVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
@@ -115,49 +103,13 @@ export function KanbanCard({
         'hover:shadow-lg hover:shadow-black/20 hover:border-gray-600/60 hover:bg-gray-800/90',
         isCurrentlyDragging && 'opacity-50 shadow-xl scale-[1.02] ring-2 ring-blue-500/40 border-blue-500/30',
         isOverlay && 'rotate-2 shadow-2xl scale-105 border-blue-400/50',
-        onClick && 'cursor-pointer'
+        onClick && 'cursor-pointer',
+        !isCurrentlyDragging && 'cursor-grab active:cursor-grabbing'
       )}
       onClick={() => onClick?.(card)}
+      {...attributes}
+      {...listeners}
     >
-      {/* Drag Handle & Actions */}
-      <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 rounded-lg cursor-grab active:cursor-grabbing hover:bg-muted/60"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg hover:bg-muted/60">
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-xl" onClick={(e) => e.stopPropagation()}>
-            {onEdit && (
-              <DropdownMenuItem className="rounded-lg" onClick={() => onEdit(card)}>
-                <Pencil className="mr-2 h-3.5 w-3.5" />
-                Edit
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive rounded-lg"
-                  onClick={() => onDelete(card.id)}
-                >
-                  <Trash2 className="mr-2 h-3.5 w-3.5" />
-                  Delete
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
 
       {/* Labels */}
       {card.labels && card.labels.length > 0 && (
@@ -175,7 +127,7 @@ export function KanbanCard({
       )}
 
       {/* Title */}
-      <h4 className="text-[13px] font-medium leading-snug pr-12 text-gray-100">{card.title}</h4>
+      <h4 className="text-[13px] font-medium leading-snug text-gray-100">{card.title}</h4>
 
       {/* Description */}
       {card.description && (
