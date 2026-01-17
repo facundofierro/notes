@@ -43,6 +43,63 @@ function fileNameToId(fileName: string): string {
   return fileName.replace('.md', '')
 }
 
+function sanitizeTaskTitleToFileBase(title: string): string {
+  return title
+    .trim()
+    .replace(/[\\/]/g, '-')
+    .replace(/[<>:"|?*\u0000-\u001F]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^\.+/, '')
+    .replace(/\.+$/, '')
+    .slice(0, 120)
+    .trim() || 'untitled'
+}
+
+function resolveUniqueFilePath(dir: string, baseName: string): string {
+  const normalizedDir = path.resolve(dir)
+  let candidateBase = baseName
+  let suffix = 2
+
+  while (fs.existsSync(path.join(normalizedDir, `${candidateBase}.md`))) {
+    candidateBase = `${baseName}-${suffix}`
+    suffix += 1
+  }
+
+  return path.join(normalizedDir, `${candidateBase}.md`)
+}
+
+function removeTitleFromFrontmatter(content: string): string {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?/)
+  if (!match) return content
+
+  const frontmatter = match[1]
+  const updatedFrontmatter = frontmatter
+    .split('\n')
+    .filter((line) => !/^title:\s*/.test(line.trim()))
+    .join('\n')
+
+  return `---\n${updatedFrontmatter}\n---\n${content.slice(match[0].length)}`
+}
+
+function updateMarkdownTitle(content: string, newTitle: string): string {
+  const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n?/)
+  const startIndex = frontmatterMatch ? frontmatterMatch[0].length : 0
+  const body = content.slice(startIndex)
+
+  const headingMatch = body.match(/^\s*#\s+(.+)\s*$/m)
+  if (!headingMatch) {
+    const prefix = content.slice(0, startIndex)
+    const rest = body.trimStart()
+    const separator = prefix && !prefix.endsWith('\n') ? '\n' : ''
+    return `${prefix}${separator}\n# ${newTitle}\n\n${rest}`
+  }
+
+  const headingLine = headingMatch[0]
+  const updatedBody = body.replace(headingLine, `# ${newTitle}`)
+  return `${content.slice(0, startIndex)}${updatedBody}`
+}
+
 function parseTaskFile(filePath: string, state: 'backlog' | 'priority' | 'pending' | 'doing' | 'done', epic?: string): Task | null {
   try {
     const content = fs.readFileSync(filePath, 'utf-8')
@@ -132,16 +189,16 @@ function createTask(repo: string, data: { title: string; description?: string; s
   const tasksDir = path.join(agelumDir, 'tasks')
   const state = (data.state as 'backlog' | 'priority' | 'pending' | 'doing' | 'done') || 'pending'
 
-  const id = `task-${Date.now()}`
   const stateDir = path.join(tasksDir, state)
   fs.mkdirSync(stateDir, { recursive: true })
 
-  const filePath = path.join(stateDir, `${id}.md`)
   const createdAt = new Date().toISOString()
+  const safeTitle = sanitizeTaskTitleToFileBase(data.title || '')
+  const filePath = resolveUniqueFilePath(stateDir, safeTitle)
+  const id = fileNameToId(path.basename(filePath))
 
   const frontmatterLines = [
     '---',
-    `title: ${data.title}`,
     `created: ${createdAt}`,
     `state: ${state}`,
     ...(data.assignee ? [`assignee: ${data.assignee}`] : []),
@@ -149,11 +206,11 @@ function createTask(repo: string, data: { title: string; description?: string; s
   ]
   const frontmatter = `${frontmatterLines.join('\n')}\n`
 
-  fs.writeFileSync(filePath, `${frontmatter}\n# ${data.title}\n\n${data.description || ''}\n`)
+  fs.writeFileSync(filePath, `${frontmatter}\n# ${safeTitle}\n\n${data.description || ''}\n`)
 
   return {
     id,
-    title: data.title,
+    title: safeTitle,
     description: data.description || '',
     state,
     createdAt,
@@ -218,6 +275,48 @@ function moveTask(repo: string, taskId: string, fromState: string, toState: stri
   fs.renameSync(fromPath, toPath)
 }
 
+function renameTask(repo: string, filePath: string, newTitle: string): { path: string; content: string; id: string; title: string } {
+  const homeDir = (process.env.HOME || process.env.USERPROFILE || process.cwd())
+  const gitDir = path.join(homeDir, 'git')
+  const agelumDir = path.join(gitDir, repo, 'agelum')
+  const tasksDir = path.join(agelumDir, 'tasks')
+
+  const resolvedTasksDir = path.resolve(tasksDir)
+  const resolvedFilePath = path.resolve(filePath)
+  if (!resolvedFilePath.startsWith(resolvedTasksDir + path.sep)) {
+    throw new Error('Invalid task path')
+  }
+
+  if (!fs.existsSync(resolvedFilePath)) {
+    throw new Error('Task file not found')
+  }
+
+  const dir = path.dirname(resolvedFilePath)
+  const safeTitle = sanitizeTaskTitleToFileBase(newTitle)
+  const targetPathCandidate = path.join(dir, `${safeTitle}.md`)
+  const targetPath =
+    resolvedFilePath === targetPathCandidate
+      ? resolvedFilePath
+      : resolveUniqueFilePath(dir, safeTitle)
+
+  const existingContent = fs.readFileSync(resolvedFilePath, 'utf-8')
+  let updatedContent = removeTitleFromFrontmatter(existingContent)
+  updatedContent = updateMarkdownTitle(updatedContent, safeTitle)
+
+  if (resolvedFilePath !== targetPath) {
+    fs.renameSync(resolvedFilePath, targetPath)
+  }
+
+  fs.writeFileSync(targetPath, updatedContent)
+
+  return {
+    path: targetPath,
+    content: updatedContent,
+    id: fileNameToId(path.basename(targetPath)),
+    title: fileNameToId(path.basename(targetPath))
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const repo = searchParams.get('repo')
@@ -233,7 +332,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { repo, action, taskId, fromState, toState, data } = body
+    const { repo, action, taskId, fromState, toState, data, path: taskPath, newTitle } = body
 
     if (!repo) {
       return NextResponse.json({ error: 'Repository is required' }, { status: 400 })
@@ -247,6 +346,11 @@ export async function POST(request: Request) {
     if (action === 'move' && taskId && fromState && toState) {
       moveTask(repo, taskId, fromState, toState)
       return NextResponse.json({ success: true })
+    }
+
+    if (action === 'rename' && typeof taskPath === 'string' && typeof newTitle === 'string') {
+      const result = renameTask(repo, taskPath, newTitle)
+      return NextResponse.json({ ...result })
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

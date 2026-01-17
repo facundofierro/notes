@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { FileText, Edit, Save, X, ArrowLeft } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import '@uiw/react-md-editor/markdown-editor.css'
@@ -20,17 +20,23 @@ interface FileViewerProps {
   file: { path: string; content: string } | null
   onFileSaved?: () => void
   onBack?: () => void
+  onRename?: (newTitle: string) => Promise<{ path: string; content: string } | void>
 }
 
-export default function FileViewer({ file, onFileSaved, onBack }: FileViewerProps) {
+export default function FileViewer({ file, onFileSaved, onBack, onRename }: FileViewerProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [content, setContent] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [isRenamingSaving, setIsRenamingSaving] = useState(false)
 
   useEffect(() => {
     if (file) {
       setContent(file.content)
       setIsEditing(false)
+      setIsRenaming(false)
+      setRenameValue('')
     }
   }, [file])
 
@@ -61,6 +67,62 @@ export default function FileViewer({ file, onFileSaved, onBack }: FileViewerProp
     setIsEditing(false)
   }
 
+  const displayedFileName = file?.path.split('/').pop() || ''
+  const displayedTitle = displayedFileName.endsWith('.md')
+    ? displayedFileName.replace(/\.md$/, '')
+    : displayedFileName
+
+  const commitRename = useCallback(async () => {
+    if (!file || !onRename) return
+
+    const nextTitle = renameValue.trim()
+    if (!nextTitle) {
+      setIsRenaming(false)
+      setRenameValue('')
+      return
+    }
+
+    setIsRenamingSaving(true)
+    try {
+      const result = await onRename(nextTitle)
+      if (result?.content !== undefined) {
+        setContent(result.content)
+      }
+      setIsRenaming(false)
+    } finally {
+      setIsRenamingSaving(false)
+    }
+  }, [file, onRename, renameValue])
+
+  useEffect(() => {
+    if (!file) return
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+
+      if (isRenaming) {
+        e.preventDefault()
+        setIsRenaming(false)
+        setRenameValue('')
+        return
+      }
+
+      if (isEditing) {
+        e.preventDefault()
+        handleCancel()
+        return
+      }
+
+      if (onBack) {
+        e.preventDefault()
+        onBack()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [file, isEditing, isRenaming, onBack])
+
   if (!file) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-900">
@@ -85,7 +147,41 @@ export default function FileViewer({ file, onFileSaved, onBack }: FileViewerProp
             </button>
           )}
           <FileText className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-200 truncate">{file.path.split('/').pop()}</span>
+          {isRenaming ? (
+            <input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={() => {
+                if (!isRenamingSaving) commitRename()
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (!isRenamingSaving) commitRename()
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setIsRenaming(false)
+                  setRenameValue('')
+                }
+              }}
+              className="bg-gray-700 text-gray-100 text-sm rounded border border-gray-600 px-2 py-1 w-[320px]"
+              autoFocus
+              disabled={isRenamingSaving}
+            />
+          ) : (
+            <span
+              className={`text-sm font-medium text-gray-200 truncate ${onRename ? 'cursor-text' : ''}`}
+              onDoubleClick={() => {
+                if (!onRename) return
+                setRenameValue(displayedTitle)
+                setIsRenaming(true)
+              }}
+              title={onRename ? 'Double click to rename' : undefined}
+            >
+              {displayedTitle}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 truncate max-w-md mr-4">{file.path}</span>

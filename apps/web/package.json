@@ -14,6 +14,7 @@
     "@uiw/react-markdown-preview": "^5.1.5",
     "@uiw/react-md-editor": "^4.0.4",
     "@agelum/kanban": "workspace:*",
+    "@agelum/shadcn": "workspace:*",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.400.0",
     "next": "14.2.0",

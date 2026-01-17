@@ -5,6 +5,7 @@ import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
+import { MonochromeLogo } from "@agelum/shadcn";
 import { Kanban, Files, Layers, FolderGit2, Lightbulb, BookOpen, Map, Terminal, ListTodo } from "lucide-react";
 
 interface FileNode {
@@ -21,7 +22,7 @@ interface Task {
   id: string;
   title: string;
   description: string;
-  state: "pending" | "doing" | "done";
+  state: "backlog" | "priority" | "pending" | "doing" | "done";
   createdAt: string;
   epic?: string;
   assignee?: string;
@@ -131,10 +132,7 @@ export default function Home() {
     <div className="flex flex-col w-full h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <FolderGit2 className="w-6 h-6 text-blue-400" />
-            <span className="text-xl font-bold">Agelum</span>
-          </div>
+          <MonochromeLogo size="sm" color="text-white" />
 
           <div className="h-6 w-px bg-gray-700 mx-2" />
 
@@ -270,6 +268,29 @@ export default function Home() {
                   file={selectedFile}
                   onFileSaved={loadFileTree}
                   onBack={() => setSelectedFile(null)}
+                  onRename={
+                    viewMode === 'kanban' && selectedRepo
+                      ? async (newTitle: string) => {
+                          const res = await fetch('/api/tasks', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              repo: selectedRepo,
+                              action: 'rename',
+                              path: selectedFile.path,
+                              newTitle
+                            })
+                          })
+
+                          const data = await res.json()
+                          if (!res.ok) throw new Error(data.error || 'Failed to rename task')
+
+                          const next = { path: data.path as string, content: data.content as string }
+                          setSelectedFile(next)
+                          return next
+                        }
+                      : undefined
+                  }
                 />
               ) : selectedRepo ? (
                 <TaskKanban
