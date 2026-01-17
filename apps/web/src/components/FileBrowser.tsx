@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, FilePlus, FolderPlus, Trash2, MoreVertical } from 'lucide-react'
 import { 
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -11,8 +12,7 @@ import {
   DialogTitle,
   Input,
   Label
-} from '@agelum/kanban'
-import { Button } from '@agelum/shadcn'
+} from '@agelum/shadcn'
 
 interface FileNode {
   name: string

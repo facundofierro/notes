@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { 
   KanbanBoard, 
   type KanbanCardType, 
-  type KanbanColumnType,
+  type KanbanColumnType
+} from '@agelum/kanban'
+import { 
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,8 +17,7 @@ import {
   Input,
   Label,
   Textarea
-} from '@agelum/kanban'
-import { Button } from '@agelum/shadcn'
+} from '@agelum/shadcn'
 
 interface Epic {
   id: string

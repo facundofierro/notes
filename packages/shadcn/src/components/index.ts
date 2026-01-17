@@ -1,6 +1,10 @@
 export { Button, buttonVariants } from './ui/button'
 export type { ButtonProps } from './ui/button'
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip'
+export { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from './ui/dialog'
+export { Input } from './ui/input'
+export { Label } from './ui/label'
+export { Textarea } from './ui/textarea'
 
 // Logo components
 export { PrimaryLogo } from './logo/PrimaryLogo'
