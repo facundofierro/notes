@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
@@ -39,18 +39,18 @@ interface Epic {
 }
 
 export default function Home() {
-  const [repositories, setRepositories] = useState<string[]>([]);
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState<string>("");
-  const [fileTree, setFileTree] = useState<FileNode | null>(null);
-  const [selectedFile, setSelectedFile] = useState<{
+  const [repositories, setRepositories] = React.useState<string[]>([]);
+  const [selectedRepo, setSelectedRepo] = React.useState<string | null>(null);
+  const [currentPath, setCurrentPath] = React.useState<string>("");
+  const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
+  const [selectedFile, setSelectedFile] = React.useState<{
     path: string;
     content: string;
   } | null>(null);
-  const [basePath, setBasePath] = useState<string>("");
-  const [viewMode, setViewMode] = useState<ViewMode>("epics");
+  const [basePath, setBasePath] = React.useState<string>("");
+  const [viewMode, setViewMode] = React.useState<ViewMode>("epics");
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetch("/api/repositories")
       .then((res) => res.json())
       .then((data) => {
@@ -79,7 +79,7 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadFileTree();
   }, [selectedRepo, viewMode]);
 

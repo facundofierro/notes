@@ -1,6 +1,6 @@
 'use client'
 
-import { DataViews, type IDataViewsClient, type TableSchema } from 'shadcn-data-views'
+import { DataViews, type IDataViewsClient, type TableSchema } from 'kanban'
 
 const testSchema: TableSchema = {
   id: 'test',
