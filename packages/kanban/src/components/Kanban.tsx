@@ -145,7 +145,7 @@ export function KanbanBoard({
       >
         <div
           className={cn(
-            'flex h-full gap-4 overflow-x-auto p-4 bg-background',
+            'flex h-full gap-3 p-4 bg-transparent',
             className
           )}
         >
@@ -163,10 +163,10 @@ export function KanbanBoard({
 
           {/* Add Column Button */}
           {onColumnAdd && (
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex-1 min-w-[200px]">
               <Button
-                variant="outline"
-                className="h-12 w-[320px] gap-2 border-dashed"
+                variant="ghost"
+                className="h-12 w-full gap-2 border border-dashed border-border/40 rounded-2xl text-muted-foreground hover:text-foreground hover:border-border/60 hover:bg-muted/30 transition-all"
                 onClick={onColumnAdd}
               >
                 <Plus className="h-4 w-4" />

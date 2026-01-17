@@ -27,45 +27,24 @@ interface KanbanColumnProps {
 }
 
 const columnColorMap: Record<KanbanColumnColor, string> = {
-  gray: 'bg-gray-500',
-  red: 'bg-red-500',
-  orange: 'bg-orange-500',
-  amber: 'bg-amber-500',
-  yellow: 'bg-yellow-500',
-  lime: 'bg-lime-500',
-  green: 'bg-green-500',
-  emerald: 'bg-emerald-500',
-  teal: 'bg-teal-500',
-  cyan: 'bg-cyan-500',
-  sky: 'bg-sky-500',
-  blue: 'bg-blue-500',
-  indigo: 'bg-indigo-500',
-  violet: 'bg-violet-500',
-  purple: 'bg-purple-500',
-  fuchsia: 'bg-fuchsia-500',
-  pink: 'bg-pink-500',
-  rose: 'bg-rose-500',
-};
-
-const columnBgMap: Record<KanbanColumnColor, string> = {
-  gray: 'bg-gray-50 dark:bg-gray-900/20',
-  red: 'bg-red-50 dark:bg-red-900/20',
-  orange: 'bg-orange-50 dark:bg-orange-900/20',
-  amber: 'bg-amber-50 dark:bg-amber-900/20',
-  yellow: 'bg-yellow-50 dark:bg-yellow-900/20',
-  lime: 'bg-lime-50 dark:bg-lime-900/20',
-  green: 'bg-green-50 dark:bg-green-900/20',
-  emerald: 'bg-emerald-50 dark:bg-emerald-900/20',
-  teal: 'bg-teal-50 dark:bg-teal-900/20',
-  cyan: 'bg-cyan-50 dark:bg-cyan-900/20',
-  sky: 'bg-sky-50 dark:bg-sky-900/20',
-  blue: 'bg-blue-50 dark:bg-blue-900/20',
-  indigo: 'bg-indigo-50 dark:bg-indigo-900/20',
-  violet: 'bg-violet-50 dark:bg-violet-900/20',
-  purple: 'bg-purple-50 dark:bg-purple-900/20',
-  fuchsia: 'bg-fuchsia-50 dark:bg-fuchsia-900/20',
-  pink: 'bg-pink-50 dark:bg-pink-900/20',
-  rose: 'bg-rose-50 dark:bg-rose-900/20',
+  gray: 'bg-gray-400 dark:bg-gray-500',
+  red: 'bg-red-400 dark:bg-red-500',
+  orange: 'bg-orange-400 dark:bg-orange-500',
+  amber: 'bg-amber-400 dark:bg-amber-500',
+  yellow: 'bg-yellow-400 dark:bg-yellow-500',
+  lime: 'bg-lime-400 dark:bg-lime-500',
+  green: 'bg-green-400 dark:bg-green-500',
+  emerald: 'bg-emerald-400 dark:bg-emerald-500',
+  teal: 'bg-teal-400 dark:bg-teal-500',
+  cyan: 'bg-cyan-400 dark:bg-cyan-500',
+  sky: 'bg-sky-400 dark:bg-sky-500',
+  blue: 'bg-blue-400 dark:bg-blue-500',
+  indigo: 'bg-indigo-400 dark:bg-indigo-500',
+  violet: 'bg-violet-400 dark:bg-violet-500',
+  purple: 'bg-purple-400 dark:bg-purple-500',
+  fuchsia: 'bg-fuchsia-400 dark:bg-fuchsia-500',
+  pink: 'bg-pink-400 dark:bg-pink-500',
+  rose: 'bg-rose-400 dark:bg-rose-500',
 };
 
 export function KanbanColumn({
@@ -90,44 +69,47 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        'flex h-full w-[320px] flex-shrink-0 flex-col rounded-xl border',
-        columnBgMap[color],
-        isOver && 'ring-2 ring-primary/50'
+        'flex h-full flex-1 min-w-[240px] flex-col rounded-2xl bg-muted/30 dark:bg-white/[0.02] transition-all duration-200',
+        isOver && 'bg-muted/50 dark:bg-white/[0.05] ring-1 ring-primary/20'
       )}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <div className={cn('h-2.5 w-2.5 rounded-full', columnColorMap[color])} />
-          <h3 className="font-semibold text-sm">{column.title}</h3>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className={cn('h-2 w-2 rounded-full', columnColorMap[color])} />
+          <h3 className="font-medium text-sm text-foreground/80">{column.title}</h3>
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted/60 dark:bg-white/5 px-1.5 text-[11px] font-medium text-muted-foreground">
             {cards.length}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {onAddCard && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
               onClick={() => onAddCard(column.id)}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <MoreHorizontal className="h-4 w-4" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
       {/* Cards Container */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 px-2">
         <div
           ref={setNodeRef}
           className={cn(
-            'flex flex-col gap-2 p-2 min-h-[100px]',
-            isOver && 'bg-primary/5'
+            'flex flex-col gap-2 pb-2 min-h-[80px] transition-colors duration-200',
+            isOver && 'bg-primary/[0.02]'
           )}
         >
           <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
@@ -142,7 +124,7 @@ export function KanbanColumn({
             ))}
           </SortableContext>
           {cards.length === 0 && (
-            <div className="flex items-center justify-center h-20 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center h-16 text-xs text-muted-foreground/60">
               No cards
             </div>
           )}
@@ -151,13 +133,13 @@ export function KanbanColumn({
 
       {/* Add Card Button */}
       {onAddCard && (
-        <div className="p-2 border-t border-border/50">
+        <div className="p-2 pt-0">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            className="w-full h-9 justify-start gap-2 text-muted-foreground/70 hover:text-foreground hover:bg-muted/50 rounded-xl text-xs font-normal"
             onClick={() => onAddCard(column.id)}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             Add card
           </Button>
         </div>
