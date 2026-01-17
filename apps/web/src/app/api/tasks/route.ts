@@ -107,18 +107,14 @@ function parseTaskFile(filePath: string, state: 'backlog' | 'priority' | 'pendin
     const stats = fs.statSync(filePath)
 
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/)
-    let title = fileNameToId(fileName)
+    const title = fileNameToId(fileName)
     let description = ''
     let assignee = ''
 
     if (frontmatterMatch) {
       const frontmatter = frontmatterMatch[1]
-      const titleMatch = frontmatter.match(/title:\s*(.+)/)
       description = frontmatter.match(/description:\s*(.+)/)?.[1] || ''
       assignee = frontmatter.match(/assignee:\s*(.+)/)?.[1]?.trim() || ''
-      if (titleMatch) {
-        title = titleMatch[1].trim()
-      }
     }
 
     return {
@@ -206,11 +202,11 @@ function createTask(repo: string, data: { title: string; description?: string; s
   ]
   const frontmatter = `${frontmatterLines.join('\n')}\n`
 
-  fs.writeFileSync(filePath, `${frontmatter}\n# ${safeTitle}\n\n${data.description || ''}\n`)
+  fs.writeFileSync(filePath, `${frontmatter}\n# ${id}\n\n${data.description || ''}\n`)
 
   return {
     id,
-    title: safeTitle,
+    title: id,
     description: data.description || '',
     state,
     createdAt,
@@ -298,10 +294,11 @@ function renameTask(repo: string, filePath: string, newTitle: string): { path: s
     resolvedFilePath === targetPathCandidate
       ? resolvedFilePath
       : resolveUniqueFilePath(dir, safeTitle)
+  const finalBase = fileNameToId(path.basename(targetPath))
 
   const existingContent = fs.readFileSync(resolvedFilePath, 'utf-8')
   let updatedContent = removeTitleFromFrontmatter(existingContent)
-  updatedContent = updateMarkdownTitle(updatedContent, safeTitle)
+  updatedContent = updateMarkdownTitle(updatedContent, finalBase)
 
   if (resolvedFilePath !== targetPath) {
     fs.renameSync(resolvedFilePath, targetPath)
@@ -312,8 +309,8 @@ function renameTask(repo: string, filePath: string, newTitle: string): { path: s
   return {
     path: targetPath,
     content: updatedContent,
-    id: fileNameToId(path.basename(targetPath)),
-    title: fileNameToId(path.basename(targetPath))
+    id: finalBase,
+    title: finalBase
   }
 }
 

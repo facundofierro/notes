@@ -38,6 +38,7 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const [activeCard, setActiveCard] = React.useState<KanbanCardType | null>(null);
   const [localCards, setLocalCards] = React.useState(cards);
+  const dragSourceColumnIdRef = React.useRef<string | null>(null);
 
   // Update local cards when props change
   React.useEffect(() => {
@@ -66,6 +67,7 @@ export function KanbanBoard({
     const card = localCards.find((c) => c.id === active.id);
     if (card) {
       setActiveCard(card);
+      dragSourceColumnIdRef.current = card.columnId;
     }
   };
 
@@ -112,10 +114,12 @@ export function KanbanBoard({
     const overColumn = columns.find((c) => c.id === overId);
     const overCard = localCards.find((c) => c.id === overId);
     const targetColumnId = overColumn?.id || overCard?.columnId || activeCard.columnId;
+    const sourceColumnId = dragSourceColumnIdRef.current || activeCard.columnId;
+    dragSourceColumnIdRef.current = null;
 
     // If moved to a different column, call onCardMove
-    if (activeCard.columnId !== targetColumnId) {
-      onCardMove?.(activeId, activeCard.columnId, targetColumnId);
+    if (sourceColumnId !== targetColumnId) {
+      onCardMove?.(activeId, sourceColumnId, targetColumnId);
     }
 
     // Reorder within column

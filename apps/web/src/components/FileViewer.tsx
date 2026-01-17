@@ -62,10 +62,10 @@ export default function FileViewer({ file, onFileSaved, onBack, onRename }: File
     }
   }
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setContent(file?.content || '')
     setIsEditing(false)
-  }
+  }, [file?.content])
 
   const displayedFileName = file?.path.split('/').pop() || ''
   const displayedTitle = displayedFileName.endsWith('.md')
@@ -121,7 +121,7 @@ export default function FileViewer({ file, onFileSaved, onBack, onRename }: File
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [file, isEditing, isRenaming, onBack])
+  }, [file, handleCancel, isEditing, isRenaming, onBack])
 
   if (!file) {
     return (
@@ -219,7 +219,7 @@ export default function FileViewer({ file, onFileSaved, onBack, onRename }: File
         {isEditing ? (
           <MDEditor
             value={content}
-            onChange={(val) => setContent(val || '')}
+            onChange={(val: string | undefined) => setContent(val || '')}
             height="100%"
             preview="edit"
             hideToolbar={false}

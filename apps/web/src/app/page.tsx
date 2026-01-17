@@ -49,20 +49,30 @@ export default function Home() {
   } | null>(null);
   const [basePath, setBasePath] = React.useState<string>("");
   const [viewMode, setViewMode] = React.useState<ViewMode>("epics");
+  const selectedRepoStorageKey = "agelum.selectedRepo";
 
   React.useEffect(() => {
     fetch("/api/repositories")
       .then((res) => res.json())
       .then((data) => {
-        setRepositories(data.repositories || []);
+        const nextRepos = (data.repositories || []) as string[];
+        setRepositories(nextRepos);
         if (data.basePath) setBasePath(data.basePath);
-        if (data.repositories?.length > 0) {
-          setSelectedRepo(data.repositories[0]);
+
+        if (nextRepos.length > 0) {
+          const saved = window.localStorage.getItem(selectedRepoStorageKey);
+          const nextSelected = saved && nextRepos.includes(saved) ? saved : nextRepos[0];
+          setSelectedRepo(nextSelected);
         }
       });
   }, []);
 
-  const loadFileTree = () => {
+  React.useEffect(() => {
+    if (!selectedRepo) return;
+    window.localStorage.setItem(selectedRepoStorageKey, selectedRepo);
+  }, [selectedRepo]);
+
+  const loadFileTree = React.useCallback(() => {
     if (selectedRepo) {
       let url = `/api/files?repo=${selectedRepo}`;
       if (viewMode === 'ideas') url += '&path=ideas';
@@ -77,11 +87,11 @@ export default function Home() {
           setCurrentPath(data.rootPath);
         });
     }
-  };
+  }, [selectedRepo, viewMode]);
 
   React.useEffect(() => {
     loadFileTree();
-  }, [selectedRepo, viewMode]);
+  }, [loadFileTree]);
 
   const handleFileSelect = async (node: FileNode) => {
     if (node.type === "file") {
