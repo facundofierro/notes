@@ -36,6 +36,22 @@ interface FileNode {
   content?: string;
 }
 
+type TestsSetupState =
+  | "missing"
+  | "initializing"
+  | "installing"
+  | "ready"
+  | "error";
+
+interface TestsSetupStatus {
+  state: TestsSetupState;
+  startedAt?: string;
+  updatedAt: string;
+  pid?: number;
+  log: string;
+  error?: string;
+}
+
 type ViewMode =
   | "ideas"
   | "docs"
@@ -129,6 +145,17 @@ export default function Home() {
     isTestDialogOpen,
     setIsTestDialogOpen,
   ] = React.useState(false);
+  const [
+    testsSetupStatus,
+    setTestsSetupStatus,
+  ] =
+    React.useState<TestsSetupStatus | null>(
+      null,
+    );
+  const [
+    isSetupLogsVisible,
+    setIsSetupLogsVisible,
+  ] = React.useState(true);
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
@@ -196,6 +223,50 @@ export default function Home() {
   React.useEffect(() => {
     loadFileTree();
   }, [loadFileTree]);
+
+  React.useEffect(() => {
+    if (viewMode !== "tests") return;
+    if (!selectedRepo) return;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/tests/status?repo=${selectedRepo}`,
+        );
+        const data =
+          (await res.json()) as {
+            status: TestsSetupStatus | null;
+          };
+        if (cancelled) return;
+        setTestsSetupStatus(
+          data.status,
+        );
+        if (!data.status) return;
+        if (
+          data.status.state ===
+            "ready" &&
+          !data.status.error
+        )
+          return;
+        setIsSetupLogsVisible(true);
+      } catch {
+        if (cancelled) return;
+        setTestsSetupStatus(null);
+      }
+    };
+
+    poll();
+    const id = window.setInterval(
+      poll,
+      1500,
+    );
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [selectedRepo, viewMode]);
 
   const handleFileSelect = async (
     node: FileNode,
@@ -342,14 +413,14 @@ export default function Home() {
 
   return (
     <div className="flex flex-col w-full h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
-        <div className="flex items-center gap-6">
+      <div className="flex justify-between items-center px-4 py-2 bg-gray-800 border-b border-gray-700">
+        <div className="flex gap-6 items-center">
           <MonochromeLogo
             size="sm"
             color="text-white"
           />
 
-          <div className="flex items-center gap-1">
+          <div className="flex gap-1 items-center">
             {/* Doc Section */}
             <button
               onClick={() =>
@@ -391,7 +462,7 @@ export default function Home() {
               Plan
             </button>
 
-            <div className="h-6 w-px bg-gray-700 mx-2" />
+            <div className="mx-2 w-px h-6 bg-gray-700" />
 
             {/* Work Section */}
             <button
@@ -434,7 +505,7 @@ export default function Home() {
               Tests
             </button>
 
-            <div className="h-6 w-px bg-gray-700 mx-2" />
+            <div className="mx-2 w-px h-6 bg-gray-700" />
 
             {/* AI Section */}
             <button
@@ -453,7 +524,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2 items-center">
           <select
             value={selectedRepo || ""}
             onChange={(e) =>
@@ -478,9 +549,9 @@ export default function Home() {
             )}
           </select>
 
-          <div className="h-6 w-px bg-gray-700 mx-2" />
+          <div className="mx-2 w-px h-6 bg-gray-700" />
 
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
+          <button className="p-2 text-gray-400 rounded-lg transition-colors hover:text-white hover:bg-gray-700">
             <Settings className="w-5 h-5" />
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg text-sm transition-colors">
@@ -490,8 +561,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-col flex-1">
+        <div className="flex overflow-hidden flex-1">
           {[
             "docs",
             "plan",
@@ -515,17 +586,72 @@ export default function Home() {
                     : undefined
                 }
               />
-              <FileViewer
-                file={selectedFile}
-                onFileSaved={
-                  loadFileTree
-                }
-                onRun={
-                  viewMode === "tests"
-                    ? handleRunTest
-                    : undefined
-                }
-              />
+              {viewMode === "tests" ? (
+                <div className="flex overflow-hidden flex-col flex-1">
+                  {testsSetupStatus &&
+                  testsSetupStatus.state !==
+                    "ready" ? (
+                    <div className="bg-gray-800 border-b border-gray-700">
+                      <div className="flex justify-between items-center px-3 py-2">
+                        <div className="text-sm text-gray-300">
+                          Setup:{" "}
+                          <span
+                            className={
+                              testsSetupStatus.state ===
+                              "error"
+                                ? "text-red-400"
+                                : "text-yellow-300"
+                            }
+                          >
+                            {
+                              testsSetupStatus.state
+                            }
+                          </span>
+                          {testsSetupStatus.error
+                            ? ` — ${testsSetupStatus.error}`
+                            : ""}
+                        </div>
+                        <button
+                          onClick={() =>
+                            setIsSetupLogsVisible(
+                              (v) => !v,
+                            )
+                          }
+                          className="px-2 py-1 text-xs text-gray-200 rounded transition-colors hover:text-white hover:bg-gray-700"
+                        >
+                          {isSetupLogsVisible
+                            ? "Hide logs"
+                            : "Show logs"}
+                        </button>
+                      </div>
+                      {isSetupLogsVisible ? (
+                        <div className="px-3 pb-3">
+                          <div className="bg-black p-3 rounded overflow-auto font-mono text-xs text-gray-200 whitespace-pre-wrap max-h-[240px]">
+                            {testsSetupStatus.log ||
+                              `State: ${testsSetupStatus.state}`}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <FileViewer
+                    file={selectedFile}
+                    onFileSaved={
+                      loadFileTree
+                    }
+                    onRun={
+                      handleRunTest
+                    }
+                  />
+                </div>
+              ) : (
+                <FileViewer
+                  file={selectedFile}
+                  onFileSaved={
+                    loadFileTree
+                  }
+                />
+              )}
             </>
           ) : viewMode === "ideas" ? (
             <div className="flex-1 bg-background">
@@ -661,7 +787,7 @@ export default function Home() {
               Test Execution
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 bg-black p-4 rounded overflow-auto font-mono text-sm text-green-400 whitespace-pre-wrap">
+          <div className="overflow-auto flex-1 p-4 font-mono text-sm text-green-400 whitespace-pre-wrap bg-black rounded">
             {testOutput}
             {isTestRunning && (
               <span className="animate-pulse">

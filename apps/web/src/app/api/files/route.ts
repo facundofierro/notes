@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
+import { spawn } from "child_process";
 
 interface FileNode {
   name: string;
@@ -13,24 +10,162 @@ interface FileNode {
   children?: FileNode[];
 }
 
-async function initStagehand(
+type TestsSetupState =
+  | "missing"
+  | "initializing"
+  | "installing"
+  | "ready"
+  | "error";
+
+interface TestsSetupStatus {
+  state: TestsSetupState;
+  startedAt?: string;
+  updatedAt: string;
+  pid?: number;
+  log: string;
+  error?: string;
+}
+
+const TESTS_SETUP_STATUS_FILE =
+  ".agelum-tests-setup.json";
+const TESTS_SETUP_LOCK_FILE =
+  ".agelum-tests-setup.lock";
+const MAX_STATUS_LOG_CHARS = 50_000;
+
+const runningSetups = new Map<
+  string,
+  number
+>();
+
+function readTestsSetupStatus(
   testsDir: string,
-) {
-  const packageJsonPath = path.join(
+): TestsSetupStatus | null {
+  const p = path.join(
     testsDir,
-    "package.json",
+    TESTS_SETUP_STATUS_FILE,
   );
+  if (!fs.existsSync(p)) return null;
+  try {
+    const raw = fs.readFileSync(
+      p,
+      "utf8",
+    );
+    return JSON.parse(
+      raw,
+    ) as TestsSetupStatus;
+  } catch {
+    return null;
+  }
+}
+
+function writeTestsSetupStatus(
+  testsDir: string,
+  status: TestsSetupStatus,
+) {
+  const p = path.join(
+    testsDir,
+    TESTS_SETUP_STATUS_FILE,
+  );
+  fs.writeFileSync(
+    p,
+    JSON.stringify(status, null, 2),
+  );
+}
+
+function truncateLog(
+  log: string,
+): string {
+  if (
+    log.length <= MAX_STATUS_LOG_CHARS
+  )
+    return log;
+  return log.slice(
+    log.length - MAX_STATUS_LOG_CHARS,
+  );
+}
+
+function appendTestsSetupLog(
+  testsDir: string,
+  chunk: string,
+) {
+  const prev = readTestsSetupStatus(
+    testsDir,
+  ) ?? {
+    state: "missing" as const,
+    updatedAt: new Date().toISOString(),
+    log: "",
+  };
+  const next: TestsSetupStatus = {
+    ...prev,
+    updatedAt: new Date().toISOString(),
+    log: truncateLog(prev.log + chunk),
+  };
+  writeTestsSetupStatus(testsDir, next);
+}
+
+function isPidRunning(
+  pid?: number,
+): boolean {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function shouldStartInstall(
+  testsDir: string,
+  status: TestsSetupStatus | null,
+): boolean {
   const nodeModulesPath = path.join(
     testsDir,
     "node_modules",
   );
+  if (fs.existsSync(nodeModulesPath))
+    return false;
 
-  // If fully initialized, return
+  const runningPid =
+    runningSetups.get(testsDir);
   if (
-    fs.existsSync(packageJsonPath) &&
-    fs.existsSync(nodeModulesPath)
+    runningPid &&
+    isPidRunning(runningPid)
   )
-    return;
+    return false;
+
+  const lockPath = path.join(
+    testsDir,
+    TESTS_SETUP_LOCK_FILE,
+  );
+  if (fs.existsSync(lockPath)) {
+    try {
+      const stat =
+        fs.statSync(lockPath);
+      const ageMs =
+        Date.now() - stat.mtimeMs;
+      if (ageMs < 30 * 60 * 1000)
+        return false;
+    } catch {
+      return false;
+    }
+  }
+
+  if (status?.state === "installing") {
+    if (isPidRunning(status.pid))
+      return false;
+  }
+
+  return true;
+}
+
+function ensureStagehandSetup(
+  testsDir: string,
+): TestsSetupStatus {
+  const packageJsonPath = path.join(
+    testsDir,
+    "package.json",
+  );
 
   const srcDir = path.join(
     testsDir,
@@ -46,6 +181,7 @@ async function initStagehand(
     const packageJson = {
       name: "browser-tests",
       version: "1.0.0",
+      packageManager: "pnpm@9.0.0",
       dependencies: {
         "@browserbasehq/stagehand":
           "latest",
@@ -125,23 +261,209 @@ if (require.main === module) {
     );
   }
 
-  // Try to install dependencies if not present
-  if (!fs.existsSync(nodeModulesPath)) {
+  const nodeModulesPath = path.join(
+    testsDir,
+    "node_modules",
+  );
+  const nowIso =
+    new Date().toISOString();
+  const prev =
+    readTestsSetupStatus(testsDir);
+  const baseStatus: TestsSetupStatus = {
+    state: fs.existsSync(
+      nodeModulesPath,
+    )
+      ? "ready"
+      : prev?.state === "error"
+        ? "error"
+        : prev?.state === "installing"
+          ? "installing"
+          : "initializing",
+    startedAt:
+      prev?.startedAt ?? nowIso,
+    updatedAt: nowIso,
+    pid: prev?.pid,
+    log: prev?.log ?? "",
+    error: prev?.error,
+  };
+
+  if (fs.existsSync(nodeModulesPath)) {
+    const ready: TestsSetupStatus = {
+      ...baseStatus,
+      state: "ready",
+      error: undefined,
+    };
+    writeTestsSetupStatus(
+      testsDir,
+      ready,
+    );
+    return ready;
+  }
+
+  writeTestsSetupStatus(
+    testsDir,
+    baseStatus,
+  );
+
+  if (
+    shouldStartInstall(
+      testsDir,
+      baseStatus,
+    )
+  ) {
+    const lockPath = path.join(
+      testsDir,
+      TESTS_SETUP_LOCK_FILE,
+    );
     try {
-      console.log(
-        "Installing dependencies in",
-        testsDir,
+      fs.writeFileSync(
+        lockPath,
+        nowIso,
       );
-      await execAsync("npm install", {
+    } catch {}
+
+    appendTestsSetupLog(
+      testsDir,
+      `\n[${nowIso}] Running: pnpm install\n`,
+    );
+
+    const child = spawn(
+      "pnpm",
+      ["install"],
+      {
         cwd: testsDir,
-      });
-    } catch (e) {
-      console.error(
-        "Failed to install dependencies:",
-        e,
+        env: process.env,
+        shell: true,
+      },
+    );
+
+    if (child.pid) {
+      runningSetups.set(
+        testsDir,
+        child.pid,
+      );
+      const installing: TestsSetupStatus =
+        {
+          ...(readTestsSetupStatus(
+            testsDir,
+          ) ?? baseStatus),
+          state: "installing",
+          pid: child.pid,
+          updatedAt:
+            new Date().toISOString(),
+          error: undefined,
+        };
+      writeTestsSetupStatus(
+        testsDir,
+        installing,
       );
     }
+
+    child.stdout.on("data", (d) => {
+      appendTestsSetupLog(
+        testsDir,
+        d.toString(),
+      );
+    });
+    child.stderr.on("data", (d) => {
+      appendTestsSetupLog(
+        testsDir,
+        d.toString(),
+      );
+    });
+    child.on("error", (err) => {
+      runningSetups.delete(testsDir);
+      try {
+        fs.unlinkSync(lockPath);
+      } catch {}
+
+      const updatedAt =
+        new Date().toISOString();
+      const message =
+        err instanceof Error
+          ? err.stack || err.message
+          : String(err);
+      const failed: TestsSetupStatus = {
+        ...(readTestsSetupStatus(
+          testsDir,
+        ) ?? baseStatus),
+        state: "error",
+        updatedAt,
+        error: message,
+      };
+      writeTestsSetupStatus(
+        testsDir,
+        failed,
+      );
+      appendTestsSetupLog(
+        testsDir,
+        `\n[${updatedAt}] Failed: ${failed.error}\n`,
+      );
+    });
+    child.on(
+      "close",
+      (code, signal) => {
+        runningSetups.delete(testsDir);
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {}
+
+        const updatedAt =
+          new Date().toISOString();
+        if (code === 0) {
+          const done: TestsSetupStatus =
+            {
+              ...(readTestsSetupStatus(
+                testsDir,
+              ) ?? baseStatus),
+              state: "ready",
+              updatedAt,
+              error: undefined,
+            };
+          writeTestsSetupStatus(
+            testsDir,
+            done,
+          );
+          appendTestsSetupLog(
+            testsDir,
+            `\n[${updatedAt}] Done.\n`,
+          );
+          return;
+        }
+
+        const reasonParts = [
+          `pnpm install exited with code ${code ?? "null"}`,
+        ];
+        if (signal)
+          reasonParts.push(
+            `signal ${signal}`,
+          );
+        const failed: TestsSetupStatus =
+          {
+            ...(readTestsSetupStatus(
+              testsDir,
+            ) ?? baseStatus),
+            state: "error",
+            updatedAt,
+            error:
+              reasonParts.join(" "),
+          };
+        writeTestsSetupStatus(
+          testsDir,
+          failed,
+        );
+        appendTestsSetupLog(
+          testsDir,
+          `\n[${updatedAt}] Failed: ${failed.error}\n`,
+        );
+      },
+    );
   }
+
+  return (
+    readTestsSetupStatus(testsDir) ??
+    baseStatus
+  );
 }
 
 function ensureAgelumStructure(
@@ -178,6 +500,9 @@ function ensureAgelumStructure(
 function buildFileTree(
   dir: string,
   basePath: string,
+  allowedFileExtensions: string[] = [
+    ".md",
+  ],
 ): FileNode | null {
   if (!fs.existsSync(dir)) return null;
 
@@ -185,10 +510,7 @@ function buildFileTree(
   if (!stats.isDirectory()) return null;
 
   const name = path.basename(dir);
-  const relativePath = path.relative(
-    basePath,
-    dir,
-  );
+  void basePath;
 
   const entries = fs.readdirSync(dir, {
     withFileTypes: true,
@@ -201,7 +523,10 @@ function buildFileTree(
         return true;
       return (
         entry.isFile() &&
-        entry.name.endsWith(".md")
+        allowedFileExtensions.some(
+          (ext) =>
+            entry.name.endsWith(ext),
+        )
       );
     })
     .map((entry) => {
@@ -213,6 +538,7 @@ function buildFileTree(
         return buildFileTree(
           fullPath,
           basePath,
+          allowedFileExtensions,
         )!;
       } else {
         return {
@@ -398,15 +724,29 @@ export async function GET(
 
     // Check if we are targeting tests
     if (subPath === "work/tests") {
-      await initStagehand(targetDir);
-      // Redirect to src if it exists
       const srcDir = path.join(
         targetDir,
         "src",
       );
-      if (fs.existsSync(srcDir)) {
-        targetDir = srcDir;
-      }
+      const status =
+        ensureStagehandSetup(targetDir);
+      const tree = buildFileTree(
+        srcDir,
+        basePath,
+        [".ts", ".tsx", ".md"],
+      );
+      const root: FileNode = {
+        name: "tests",
+        path: srcDir,
+        type: "directory",
+        children: tree?.children ?? [],
+      };
+
+      return NextResponse.json({
+        tree: root,
+        rootPath: srcDir,
+        setupStatus: status,
+      });
     }
 
     const tree = buildFileTree(
