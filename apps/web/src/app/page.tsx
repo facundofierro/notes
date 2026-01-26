@@ -7,7 +7,20 @@ import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
 import IdeasKanban from "@/components/IdeasKanban";
 import { MonochromeLogo } from "@agelum/shadcn";
-import { Kanban, Files, Layers, FolderGit2, Lightbulb, BookOpen, Map, Terminal, ListTodo, FlaskConical } from "lucide-react";
+import {
+  Kanban,
+  Files,
+  Layers,
+  FolderGit2,
+  Lightbulb,
+  BookOpen,
+  Map,
+  Terminal,
+  ListTodo,
+  TestTube,
+  Settings,
+  LogIn,
+} from "lucide-react";
 
 interface FileNode {
   name: string;
@@ -17,13 +30,27 @@ interface FileNode {
   content?: string;
 }
 
-type ViewMode = "ideas" | "research" | "docs" | "plan" | "epics" | "tasks" | "commands" | "browser" | "kanban";
+type ViewMode =
+  | "ideas"
+  | "docs"
+  | "plan"
+  | "epics"
+  | "tasks"
+  | "commands"
+  | "browser"
+  | "kanban"
+  | "tests";
 
 interface Task {
   id: string;
   title: string;
   description: string;
-  state: "backlog" | "priority" | "pending" | "doing" | "done";
+  state:
+    | "backlog"
+    | "priority"
+    | "pending"
+    | "doing"
+    | "done";
   createdAt: string;
   epic?: string;
   assignee?: string;
@@ -34,7 +61,12 @@ interface Epic {
   id: string;
   title: string;
   description: string;
-  state: "backlog" | "priority" | "pending" | "doing" | "done";
+  state:
+    | "backlog"
+    | "priority"
+    | "pending"
+    | "doing"
+    | "done";
   createdAt: string;
   path?: string;
 }
@@ -43,35 +75,68 @@ interface Idea {
   id: string;
   title: string;
   description: string;
-  state: "thinking" | "important" | "priority" | "planned" | "done";
+  state:
+    | "thinking"
+    | "important"
+    | "priority"
+    | "planned"
+    | "done";
   createdAt: string;
   path?: string;
 }
 
 export default function Home() {
-  const [repositories, setRepositories] = React.useState<string[]>([]);
-  const [selectedRepo, setSelectedRepo] = React.useState<string | null>(null);
-  const [currentPath, setCurrentPath] = React.useState<string>("");
-  const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
-  const [selectedFile, setSelectedFile] = React.useState<{
+  const [
+    repositories,
+    setRepositories,
+  ] = React.useState<string[]>([]);
+  const [
+    selectedRepo,
+    setSelectedRepo,
+  ] = React.useState<string | null>(
+    null,
+  );
+  const [currentPath, setCurrentPath] =
+    React.useState<string>("");
+  const [fileTree, setFileTree] =
+    React.useState<FileNode | null>(
+      null,
+    );
+  const [
+    selectedFile,
+    setSelectedFile,
+  ] = React.useState<{
     path: string;
     content: string;
   } | null>(null);
-  const [basePath, setBasePath] = React.useState<string>("");
-  const [viewMode, setViewMode] = React.useState<ViewMode>("epics");
-  const selectedRepoStorageKey = "agelum.selectedRepo";
+  const [basePath, setBasePath] =
+    React.useState<string>("");
+  const [viewMode, setViewMode] =
+    React.useState<ViewMode>("epics");
+  const selectedRepoStorageKey =
+    "agelum.selectedRepo";
 
   React.useEffect(() => {
     fetch("/api/repositories")
       .then((res) => res.json())
       .then((data) => {
-        const nextRepos = (data.repositories || []) as string[];
+        const nextRepos =
+          (data.repositories ||
+            []) as string[];
         setRepositories(nextRepos);
-        if (data.basePath) setBasePath(data.basePath);
+        if (data.basePath)
+          setBasePath(data.basePath);
 
         if (nextRepos.length > 0) {
-          const saved = window.localStorage.getItem(selectedRepoStorageKey);
-          const nextSelected = saved && nextRepos.includes(saved) ? saved : nextRepos[0];
+          const saved =
+            window.localStorage.getItem(
+              selectedRepoStorageKey,
+            );
+          const nextSelected =
+            saved &&
+            nextRepos.includes(saved)
+              ? saved
+              : nextRepos[0];
           setSelectedRepo(nextSelected);
         }
       });
@@ -79,90 +144,134 @@ export default function Home() {
 
   React.useEffect(() => {
     if (!selectedRepo) return;
-    window.localStorage.setItem(selectedRepoStorageKey, selectedRepo);
+    window.localStorage.setItem(
+      selectedRepoStorageKey,
+      selectedRepo,
+    );
   }, [selectedRepo]);
 
-  const loadFileTree = React.useCallback(() => {
-    if (selectedRepo) {
-      let url = `/api/files?repo=${selectedRepo}`;
-      if (viewMode === 'research') url += '&path=research';
-      if (viewMode === 'docs') url += '&path=docs';
-      if (viewMode === 'plan') url += '&path=plan';
-      if (viewMode === 'commands') url += '&path=commands';
-      
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => {
-          setFileTree(data.tree);
-          setCurrentPath(data.rootPath);
-        });
-    }
-  }, [selectedRepo, viewMode]);
+  const loadFileTree =
+    React.useCallback(() => {
+      if (selectedRepo) {
+        let url = `/api/files?repo=${selectedRepo}`;
+        if (viewMode === "ideas")
+          url += "&path=doc/ideas";
+        if (viewMode === "docs")
+          url += "&path=doc/docs";
+        if (viewMode === "plan")
+          url += "&path=doc/plan";
+        if (viewMode === "commands")
+          url += "&path=ai/commands";
+        if (viewMode === "tests")
+          url += "&path=work/tests";
+
+        fetch(url)
+          .then((res) => res.json())
+          .then((data) => {
+            setFileTree(data.tree);
+            setCurrentPath(
+              data.rootPath,
+            );
+          });
+      }
+    }, [selectedRepo, viewMode]);
 
   React.useEffect(() => {
     loadFileTree();
   }, [loadFileTree]);
 
-  const handleFileSelect = async (node: FileNode) => {
+  const handleFileSelect = async (
+    node: FileNode,
+  ) => {
     if (node.type === "file") {
       const content = await fetch(
-        `/api/file?path=${encodeURIComponent(node.path)}`
+        `/api/file?path=${encodeURIComponent(node.path)}`,
       ).then((res) => res.json());
-      setSelectedFile({ path: node.path, content: content.content || "" });
+      setSelectedFile({
+        path: node.path,
+        content: content.content || "",
+      });
     }
   };
 
-  const handleTaskSelect = (task: Task) => {
-    if (!selectedRepo || !task.id) return;
+  const handleTaskSelect = (
+    task: Task,
+  ) => {
+    if (!selectedRepo || !task.id)
+      return;
 
     const fallbackPath =
       basePath && selectedRepo
         ? `${basePath}/${selectedRepo}/agelum/tasks/${task.state}/${task.epic ? `${task.epic}/` : ""}${task.id}.md`
         : "";
 
-    const filePath = task.path || fallbackPath;
+    const filePath =
+      task.path || fallbackPath;
     if (!filePath) return;
 
-    fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
+    fetch(
+      `/api/file?path=${encodeURIComponent(filePath)}`,
+    )
       .then((res) => res.json())
       .then((data) => {
-        setSelectedFile({ path: filePath, content: data.content || "" });
+        setSelectedFile({
+          path: filePath,
+          content: data.content || "",
+        });
       });
   };
 
-  const handleEpicSelect = (epic: Epic) => {
-    if (!selectedRepo || !epic.id) return;
+  const handleEpicSelect = (
+    epic: Epic,
+  ) => {
+    if (!selectedRepo || !epic.id)
+      return;
 
     const fallbackPath =
       basePath && selectedRepo
         ? `${basePath}/${selectedRepo}/agelum/epics/${epic.state}/${epic.id}.md`
         : "";
 
-    const filePath = epic.path || fallbackPath;
+    const filePath =
+      epic.path || fallbackPath;
     if (!filePath) return;
 
-    fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
+    fetch(
+      `/api/file?path=${encodeURIComponent(filePath)}`,
+    )
       .then((res) => res.json())
       .then((data) => {
-        setSelectedFile({ path: filePath, content: data.content || "" });
+        setSelectedFile({
+          path: filePath,
+          content: data.content || "",
+        });
       });
   };
 
-  const handleIdeaSelect = (idea: Idea) => {
-    if (!selectedRepo || !idea.id) return;
+  const handleIdeaSelect = (
+    idea: Idea,
+  ) => {
+    if (!selectedRepo || !idea.id)
+      return;
 
     const fallbackPath =
       basePath && selectedRepo
         ? `${basePath}/${selectedRepo}/agelum/ideas/${idea.state}/${idea.id}.md`
         : "";
 
-    const filePath = idea.path || fallbackPath;
+    const filePath =
+      idea.path || fallbackPath;
     if (!filePath) return;
 
-    fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
+    fetch(
+      `/api/file?path=${encodeURIComponent(filePath)}`,
+    )
       .then((res) => res.json())
       .then((data) => {
-        setSelectedFile({ path: filePath, content: data.content || "" });
+        setSelectedFile({
+          path: filePath,
+          content: data.content || "",
+        });
       });
   };
 
@@ -170,13 +279,17 @@ export default function Home() {
     <div className="flex flex-col w-full h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
         <div className="flex items-center gap-6">
-          <MonochromeLogo size="sm" color="text-white" />
-
-          <div className="h-6 w-px bg-gray-700 mx-2" />
+          <MonochromeLogo
+            size="sm"
+            color="text-white"
+          />
 
           <div className="flex items-center gap-1">
+            {/* Doc Section */}
             <button
-              onClick={() => setViewMode("ideas")}
+              onClick={() =>
+                setViewMode("ideas")
+              }
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 viewMode === "ideas"
                   ? "bg-blue-600 text-white"
@@ -187,18 +300,9 @@ export default function Home() {
               Ideas
             </button>
             <button
-              onClick={() => setViewMode("research")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "research"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <FlaskConical className="w-4 h-4" />
-              Research
-            </button>
-            <button
-              onClick={() => setViewMode("docs")}
+              onClick={() =>
+                setViewMode("docs")
+              }
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 viewMode === "docs"
                   ? "bg-blue-600 text-white"
@@ -209,7 +313,9 @@ export default function Home() {
               Docs
             </button>
             <button
-              onClick={() => setViewMode("plan")}
+              onClick={() =>
+                setViewMode("plan")
+              }
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 viewMode === "plan"
                   ? "bg-blue-600 text-white"
@@ -219,8 +325,14 @@ export default function Home() {
               <Map className="w-4 h-4" />
               Plan
             </button>
+
+            <div className="h-6 w-px bg-gray-700 mx-2" />
+
+            {/* Work Section */}
             <button
-              onClick={() => setViewMode("epics")}
+              onClick={() =>
+                setViewMode("epics")
+              }
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 viewMode === "epics"
                   ? "bg-blue-600 text-white"
@@ -231,7 +343,9 @@ export default function Home() {
               Epics
             </button>
             <button
-              onClick={() => setViewMode("kanban")}
+              onClick={() =>
+                setViewMode("kanban")
+              }
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 viewMode === "kanban"
                   ? "bg-blue-600 text-white"
@@ -242,7 +356,26 @@ export default function Home() {
               Tasks
             </button>
             <button
-              onClick={() => setViewMode("commands")}
+              onClick={() =>
+                setViewMode("tests")
+              }
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "tests"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <TestTube className="w-4 h-4" />
+              Tests
+            </button>
+
+            <div className="h-6 w-px bg-gray-700 mx-2" />
+
+            {/* AI Section */}
+            <button
+              onClick={() =>
+                setViewMode("commands")
+              }
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 viewMode === "commands"
                   ? "bg-blue-600 text-white"
@@ -252,61 +385,93 @@ export default function Home() {
               <Terminal className="w-4 h-4" />
               Commands
             </button>
-            <button
-              onClick={() => setViewMode("browser")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "browser"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <Files className="w-4 h-4" />
-              Files
-            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <select
             value={selectedRepo || ""}
-            onChange={(e) => setSelectedRepo(e.target.value)}
+            onChange={(e) =>
+              setSelectedRepo(
+                e.target.value,
+              )
+            }
             className="bg-gray-700 text-gray-100 text-sm rounded-lg border-none focus:ring-2 focus:ring-blue-500 p-1.5 min-w-[160px]"
           >
-            <option value="" disabled>Select repository</option>
-            {repositories.map((repo) => (
-              <option key={repo} value={repo}>
-                {repo}
-              </option>
-            ))}
+            <option value="" disabled>
+              Select repository
+            </option>
+            {repositories.map(
+              (repo) => (
+                <option
+                  key={repo}
+                  value={repo}
+                >
+                  {repo}
+                </option>
+              ),
+            )}
           </select>
+
+          <div className="h-6 w-px bg-gray-700 mx-2" />
+
+          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
+            <Settings className="w-5 h-5" />
+          </button>
+          <button className="flex items-center gap-2 px-3 py-1.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg text-sm transition-colors">
+            <LogIn className="w-4 h-4" />
+            Login
+          </button>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col">
         <div className="flex-1 flex overflow-hidden">
-          {["browser", "research", "docs", "plan", "commands"].includes(viewMode) ? (
+          {[
+            "docs",
+            "plan",
+            "commands",
+            "tests",
+          ].includes(viewMode) ? (
             <>
               <FileBrowser
                 fileTree={fileTree}
-                currentPath={currentPath}
-                onFileSelect={handleFileSelect}
+                currentPath={
+                  currentPath
+                }
+                onFileSelect={
+                  handleFileSelect
+                }
                 basePath={basePath}
                 onRefresh={loadFileTree}
               />
-              <FileViewer file={selectedFile} onFileSaved={loadFileTree} />
+              <FileViewer
+                file={selectedFile}
+                onFileSaved={
+                  loadFileTree
+                }
+              />
             </>
           ) : viewMode === "ideas" ? (
             <div className="flex-1 bg-background">
               {selectedFile ? (
                 <FileViewer
                   file={selectedFile}
-                  onFileSaved={loadFileTree}
-                  onBack={() => setSelectedFile(null)}
+                  onFileSaved={
+                    loadFileTree
+                  }
+                  onBack={() =>
+                    setSelectedFile(
+                      null,
+                    )
+                  }
                 />
               ) : selectedRepo ? (
                 <IdeasKanban
                   repo={selectedRepo}
-                  onIdeaSelect={handleIdeaSelect}
+                  onIdeaSelect={
+                    handleIdeaSelect
+                  }
                 />
               ) : null}
             </div>
@@ -315,13 +480,21 @@ export default function Home() {
               {selectedFile ? (
                 <FileViewer
                   file={selectedFile}
-                  onFileSaved={loadFileTree}
-                  onBack={() => setSelectedFile(null)}
+                  onFileSaved={
+                    loadFileTree
+                  }
+                  onBack={() =>
+                    setSelectedFile(
+                      null,
+                    )
+                  }
                 />
               ) : selectedRepo ? (
                 <EpicsKanban
                   repo={selectedRepo}
-                  onEpicSelect={handleEpicSelect}
+                  onEpicSelect={
+                    handleEpicSelect
+                  }
                 />
               ) : null}
             </div>
@@ -330,28 +503,61 @@ export default function Home() {
               {selectedFile ? (
                 <FileViewer
                   file={selectedFile}
-                  onFileSaved={loadFileTree}
-                  onBack={() => setSelectedFile(null)}
+                  onFileSaved={
+                    loadFileTree
+                  }
+                  onBack={() =>
+                    setSelectedFile(
+                      null,
+                    )
+                  }
                   onRename={
-                    viewMode === 'kanban' && selectedRepo
-                      ? async (newTitle: string) => {
-                          const res = await fetch('/api/tasks', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              repo: selectedRepo,
-                              action: 'rename',
-                              path: selectedFile.path,
-                              newTitle
-                            })
-                          })
+                    viewMode ===
+                      "kanban" &&
+                    selectedRepo
+                      ? async (
+                          newTitle: string,
+                        ) => {
+                          const res =
+                            await fetch(
+                              "/api/tasks",
+                              {
+                                method:
+                                  "POST",
+                                headers:
+                                  {
+                                    "Content-Type":
+                                      "application/json",
+                                  },
+                                body: JSON.stringify(
+                                  {
+                                    repo: selectedRepo,
+                                    action:
+                                      "rename",
+                                    path: selectedFile.path,
+                                    newTitle,
+                                  },
+                                ),
+                              },
+                            );
 
-                          const data = await res.json()
-                          if (!res.ok) throw new Error(data.error || 'Failed to rename task')
+                          const data =
+                            await res.json();
+                          if (!res.ok)
+                            throw new Error(
+                              data.error ||
+                                "Failed to rename task",
+                            );
 
-                          const next = { path: data.path as string, content: data.content as string }
-                          setSelectedFile(next)
-                          return next
+                          const next = {
+                            path: data.path as string,
+                            content:
+                              data.content as string,
+                          };
+                          setSelectedFile(
+                            next,
+                          );
+                          return next;
                         }
                       : undefined
                   }
@@ -359,7 +565,9 @@ export default function Home() {
               ) : selectedRepo ? (
                 <TaskKanban
                   repo={selectedRepo}
-                  onTaskSelect={handleTaskSelect}
+                  onTaskSelect={
+                    handleTaskSelect
+                  }
                 />
               ) : null}
             </div>
