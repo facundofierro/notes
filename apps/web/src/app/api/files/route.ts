@@ -1,12 +1,147 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 interface FileNode {
   name: string;
   path: string;
   type: "file" | "directory";
   children?: FileNode[];
+}
+
+async function initStagehand(
+  testsDir: string,
+) {
+  const packageJsonPath = path.join(
+    testsDir,
+    "package.json",
+  );
+  const nodeModulesPath = path.join(
+    testsDir,
+    "node_modules",
+  );
+
+  // If fully initialized, return
+  if (
+    fs.existsSync(packageJsonPath) &&
+    fs.existsSync(nodeModulesPath)
+  )
+    return;
+
+  const srcDir = path.join(
+    testsDir,
+    "src",
+  );
+  if (!fs.existsSync(srcDir)) {
+    fs.mkdirSync(srcDir, {
+      recursive: true,
+    });
+  }
+
+  if (!fs.existsSync(packageJsonPath)) {
+    const packageJson = {
+      name: "browser-tests",
+      version: "1.0.0",
+      dependencies: {
+        "@browserbasehq/stagehand":
+          "latest",
+        dotenv: "latest",
+        zod: "latest",
+      },
+      devDependencies: {
+        tsx: "latest",
+        typescript: "latest",
+      },
+    };
+    fs.writeFileSync(
+      packageJsonPath,
+      JSON.stringify(
+        packageJson,
+        null,
+        2,
+      ),
+    );
+  }
+
+  const tsConfigPath = path.join(
+    testsDir,
+    "tsconfig.json",
+  );
+  if (!fs.existsSync(tsConfigPath)) {
+    const tsConfig = {
+      compilerOptions: {
+        target: "es2020",
+        module: "commonjs",
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true,
+      },
+    };
+    fs.writeFileSync(
+      tsConfigPath,
+      JSON.stringify(tsConfig, null, 2),
+    );
+  }
+
+  // Create example test
+  const exampleTest = `import { Stagehand } from "@browserbasehq/stagehand";
+import { z } from "zod";
+
+export async function main() {
+  const stagehand = new Stagehand({
+    env: "LOCAL",
+  });
+
+  await stagehand.init();
+  const page = stagehand.page;
+  await page.goto("https://example.com");
+
+  const title = await page.extract({
+    instruction: "get the title of the page",
+    schema: z.object({ title: z.string() })
+  });
+
+  console.log("Page title:", title);
+  await stagehand.close();
+}
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+`;
+  if (
+    !fs.existsSync(
+      path.join(srcDir, "example.ts"),
+    )
+  ) {
+    fs.writeFileSync(
+      path.join(srcDir, "example.ts"),
+      exampleTest,
+    );
+  }
+
+  // Try to install dependencies if not present
+  if (!fs.existsSync(nodeModulesPath)) {
+    try {
+      console.log(
+        "Installing dependencies in",
+        testsDir,
+      );
+      await execAsync("npm install", {
+        cwd: testsDir,
+      });
+    } catch (e) {
+      console.error(
+        "Failed to install dependencies:",
+        e,
+      );
+    }
+  }
 }
 
 function ensureAgelumStructure(
@@ -257,9 +392,23 @@ export async function GET(
 
     ensureAgelumStructure(agelumDir);
 
-    const targetDir = subPath
+    let targetDir = subPath
       ? path.join(agelumDir, subPath)
       : agelumDir;
+
+    // Check if we are targeting tests
+    if (subPath === "work/tests") {
+      await initStagehand(targetDir);
+      // Redirect to src if it exists
+      const srcDir = path.join(
+        targetDir,
+        "src",
+      );
+      if (fs.existsSync(srcDir)) {
+        targetDir = srcDir;
+      }
+    }
+
     const tree = buildFileTree(
       targetDir,
       basePath,

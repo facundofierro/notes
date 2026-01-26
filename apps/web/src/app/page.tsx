@@ -1,6 +1,12 @@
 "use client";
 
 import * as React from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@agelum/shadcn";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
@@ -113,6 +119,17 @@ export default function Home() {
     React.useState<string>("");
   const [viewMode, setViewMode] =
     React.useState<ViewMode>("epics");
+  const [testOutput, setTestOutput] =
+    React.useState<string>("");
+  const [
+    isTestRunning,
+    setIsTestRunning,
+  ] = React.useState(false);
+  const [
+    isTestDialogOpen,
+    setIsTestDialogOpen,
+  ] = React.useState(false);
+
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
 
@@ -273,6 +290,54 @@ export default function Home() {
           content: data.content || "",
         });
       });
+  };
+
+  const handleRunTest = async (
+    path: string,
+  ) => {
+    setTestOutput("");
+    setIsTestRunning(true);
+    setIsTestDialogOpen(true);
+
+    try {
+      const response = await fetch(
+        "/api/tests/run",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            path,
+          }),
+        },
+      );
+
+      const reader =
+        response.body?.getReader();
+      if (!reader) return;
+
+      while (true) {
+        const { done, value } =
+          await reader.read();
+        if (done) break;
+        const text =
+          new TextDecoder().decode(
+            value,
+          );
+        setTestOutput(
+          (prev) => prev + text,
+        );
+      }
+    } catch (error) {
+      setTestOutput(
+        (prev) =>
+          prev + "\nError running test",
+      );
+    } finally {
+      setIsTestRunning(false);
+    }
   };
 
   return (
@@ -444,11 +509,21 @@ export default function Home() {
                 }
                 basePath={basePath}
                 onRefresh={loadFileTree}
+                onRunFolder={
+                  viewMode === "tests"
+                    ? handleRunTest
+                    : undefined
+                }
               />
               <FileViewer
                 file={selectedFile}
                 onFileSaved={
                   loadFileTree
+                }
+                onRun={
+                  viewMode === "tests"
+                    ? handleRunTest
+                    : undefined
                 }
               />
             </>
@@ -574,6 +649,28 @@ export default function Home() {
           )}
         </div>
       </div>
+      <Dialog
+        open={isTestDialogOpen}
+        onOpenChange={
+          setIsTestDialogOpen
+        }
+      >
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-gray-900 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Test Execution
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 bg-black p-4 rounded overflow-auto font-mono text-sm text-green-400 whitespace-pre-wrap">
+            {testOutput}
+            {isTestRunning && (
+              <span className="animate-pulse">
+                _
+              </span>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

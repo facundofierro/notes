@@ -1,0 +1,13 @@
+{
+  "name": "browser-tests",
+  "version": "1.0.0",
+  "dependencies": {
+    "@browserbasehq/stagehand": "latest",
+    "dotenv": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
