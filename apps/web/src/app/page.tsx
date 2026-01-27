@@ -22,6 +22,7 @@ import {
   BookOpen,
   Map,
   Terminal,
+  Wrench,
   ListTodo,
   TestTube,
   Settings,
@@ -69,6 +70,7 @@ type ViewMode =
   | "epics"
   | "tasks"
   | "commands"
+  | "cli-tools"
   | "browser"
   | "kanban"
   | "tests";
@@ -314,6 +316,8 @@ export default function Home() {
           url += "&path=doc/plan";
         if (viewMode === "commands")
           url += "&path=ai/commands";
+        if (viewMode === "cli-tools")
+          url += "&path=ai/cli-tools";
         if (viewMode === "tests")
           url += "&path=work/tests";
 
@@ -1305,6 +1309,19 @@ Context and Instructions:
               <Terminal className="w-4 h-4" />
               Commands
             </button>
+            <button
+              onClick={() =>
+                setViewMode("cli-tools")
+              }
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                viewMode === "cli-tools"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              <Wrench className="w-4 h-4" />
+              Cli tools
+            </button>
           </div>
         </div>
 
@@ -1357,6 +1374,7 @@ Context and Instructions:
             "docs",
             "plan",
             "commands",
+            "cli-tools",
             "tests",
           ].includes(viewMode) ? (
             <>

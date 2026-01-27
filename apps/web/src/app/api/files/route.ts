@@ -474,6 +474,7 @@ function ensureAgelumStructure(
     path.join("doc", "research"),
     path.join("doc", "docs"),
     path.join("ai", "commands"),
+    path.join("ai", "cli-tools"),
     path.join("doc", "ideas"),
     path.join("work", "epics"),
     path.join("work", "tests"),
