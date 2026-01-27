@@ -1,12 +1,21 @@
 import { ChildProcess } from "child_process";
 
-// Global store for active agent processes
-// Key: Process ID (UUID)
-// Value: ChildProcess instance
-export const activeProcesses = new Map<
-  string,
-  ChildProcess
->();
+// Use globalThis to persist the store across hot reloads in development
+const globalStore =
+  globalThis as unknown as {
+    activeProcesses?: Map<
+      string,
+      ChildProcess
+    >;
+  };
+
+if (!globalStore.activeProcesses) {
+  globalStore.activeProcesses =
+    new Map();
+}
+
+export const activeProcesses =
+  globalStore.activeProcesses;
 
 export function registerProcess(
   id: string,

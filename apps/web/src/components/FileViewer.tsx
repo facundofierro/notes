@@ -357,8 +357,8 @@ export default function FileViewer({
             />
           ) : (
             <span
-              className={`text-sm font-medium text-gray-200 truncate ${onRename ? "cursor-text" : ""}`}
-              onDoubleClick={() => {
+              className={`text-sm font-medium text-gray-200 truncate ${onRename ? "cursor-pointer hover:text-white" : ""}`}
+              onClick={() => {
                 if (!onRename) return;
                 setRenameValue(
                   displayedTitle,
@@ -367,7 +367,7 @@ export default function FileViewer({
               }}
               title={
                 onRename
-                  ? "Double click to rename"
+                  ? "Click to rename"
                   : undefined
               }
             >

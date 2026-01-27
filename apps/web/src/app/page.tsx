@@ -1432,6 +1432,32 @@ Context and Instructions:
                     onRun={
                       handleRunTest
                     }
+                    onRename={async (newTitle) => {
+                      if (!selectedFile) return;
+                      const oldPath = selectedFile.path;
+                      const dir = oldPath.split('/').slice(0, -1).join('/');
+                      const fileName = oldPath.split('/').pop() || '';
+                      const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
+                      const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ''}`;
+                      
+                      const res = await fetch('/api/file', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          path: oldPath,
+                          newPath: newPath,
+                          action: 'rename'
+                        })
+                      });
+                      
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Failed to rename file');
+                      
+                      const next = { path: data.path, content: selectedFile.content };
+                      setSelectedFile(next);
+                      loadFileTree();
+                      return next;
+                    }}
                   />
                 </div>
               ) : (
@@ -1440,6 +1466,32 @@ Context and Instructions:
                   onFileSaved={
                     loadFileTree
                   }
+                  onRename={async (newTitle) => {
+                    if (!selectedFile) return;
+                    const oldPath = selectedFile.path;
+                    const dir = oldPath.split('/').slice(0, -1).join('/');
+                    const fileName = oldPath.split('/').pop() || '';
+                    const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
+                    const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ''}`;
+                    
+                    const res = await fetch('/api/file', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        path: oldPath,
+                        newPath: newPath,
+                        action: 'rename'
+                      })
+                    });
+                    
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to rename file');
+                    
+                    const next = { path: data.path, content: selectedFile.content };
+                    setSelectedFile(next);
+                    loadFileTree();
+                    return next;
+                  }}
                 />
               )}
             </>
@@ -1451,6 +1503,53 @@ Context and Instructions:
                     setSelectedFile(
                       null,
                     ),
+                  onRename:
+                    selectedRepo
+                      ? async (
+                          newTitle: string,
+                        ) => {
+                          const res =
+                            await fetch(
+                              "/api/ideas",
+                              {
+                                method:
+                                  "POST",
+                                headers:
+                                  {
+                                    "Content-Type":
+                                      "application/json",
+                                  },
+                                body: JSON.stringify(
+                                  {
+                                    repo: selectedRepo,
+                                    action:
+                                      "rename",
+                                    path: selectedFile.path,
+                                    newTitle,
+                                  },
+                                ),
+                              },
+                            );
+
+                          const data =
+                            await res.json();
+                          if (!res.ok)
+                            throw new Error(
+                              data.error ||
+                                "Failed to rename idea",
+                            );
+
+                          const next = {
+                            path: data.path as string,
+                            content:
+                              data.content as string,
+                          };
+                          setSelectedFile(
+                            next,
+                          );
+                          return next;
+                        }
+                      : undefined,
                 })
               ) : selectedRepo ? (
                 <IdeasKanban
@@ -1477,6 +1576,53 @@ Context and Instructions:
                     setSelectedFile(
                       null,
                     ),
+                  onRename:
+                    selectedRepo
+                      ? async (
+                          newTitle: string,
+                        ) => {
+                          const res =
+                            await fetch(
+                              "/api/epics",
+                              {
+                                method:
+                                  "POST",
+                                headers:
+                                  {
+                                    "Content-Type":
+                                      "application/json",
+                                  },
+                                body: JSON.stringify(
+                                  {
+                                    repo: selectedRepo,
+                                    action:
+                                      "rename",
+                                    path: selectedFile.path,
+                                    newTitle,
+                                  },
+                                ),
+                              },
+                            );
+
+                          const data =
+                            await res.json();
+                          if (!res.ok)
+                            throw new Error(
+                              data.error ||
+                                "Failed to rename epic",
+                            );
+
+                          const next = {
+                            path: data.path as string,
+                            content:
+                              data.content as string,
+                          };
+                          setSelectedFile(
+                            next,
+                          );
+                          return next;
+                        }
+                      : undefined,
                 })
               ) : selectedRepo ? (
                 <EpicsKanban

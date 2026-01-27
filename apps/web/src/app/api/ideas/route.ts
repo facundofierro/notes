@@ -311,6 +311,146 @@ function moveIdea(
   fs.renameSync(fromPath, toPath);
 }
 
+function updateMarkdownTitle(
+  content: string,
+  newTitle: string,
+): string {
+  const frontmatterMatch =
+    content.match(
+      /^---\n[\s\S]*?\n---\n?/,
+    );
+  const startIndex = frontmatterMatch
+    ? frontmatterMatch[0].length
+    : 0;
+  const body =
+    content.slice(startIndex);
+
+  const headingMatch = body.match(
+    /^\s*#\s+(.+)\s*$/m,
+  );
+  if (!headingMatch) {
+    const prefix = content.slice(
+      0,
+      startIndex,
+    );
+    const rest = body.trimStart();
+    const separator =
+      prefix && !prefix.endsWith("\n")
+        ? "\n"
+        : "";
+    return `${prefix}${separator}\n# ${newTitle}\n\n${rest}`;
+  }
+
+  const headingLine = headingMatch[0];
+  const updatedBody = body.replace(
+    headingLine,
+    `# ${newTitle}`,
+  );
+  return `${content.slice(0, startIndex)}${updatedBody}`;
+}
+
+function resolveUniqueFilePath(
+  dir: string,
+  baseName: string,
+): string {
+  const normalizedDir =
+    path.resolve(dir);
+  let candidateBase = baseName;
+  let suffix = 2;
+
+  while (
+    fs.existsSync(
+      path.join(
+        normalizedDir,
+        `${candidateBase}.md`,
+      ),
+    )
+  ) {
+    candidateBase = `${baseName}-${suffix}`;
+    suffix += 1;
+  }
+
+  return path.join(
+    normalizedDir,
+    `${candidateBase}.md`,
+  );
+}
+
+function sanitizeFileBase(
+  input: string,
+): string {
+  return (
+    input
+      .trim()
+      .replace(/[\\/]/g, "-")
+      .replace(
+        /[<>:"|?*\u0000-\u001F]/g,
+        "",
+      )
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^\.+/, "")
+      .replace(/\.+$/, "")
+      .slice(0, 120)
+      .trim() || "untitled"
+  );
+}
+
+function renameIdea(
+  repo: string,
+  filePath: string,
+  newTitle: string,
+): {
+  path: string;
+  content: string;
+} {
+  const resolvedFilePath =
+    path.resolve(filePath);
+  
+  if (!fs.existsSync(resolvedFilePath)) {
+    throw new Error("Idea file not found");
+  }
+
+  const content = fs.readFileSync(resolvedFilePath, "utf-8");
+  const updatedMarkdown = updateMarkdownTitle(content, newTitle);
+  
+  // Also update frontmatter title if present
+  const frontmatterMatch = updatedMarkdown.match(/^---\n([\s\S]*?)\n---/);
+  let finalContent = updatedMarkdown;
+  if (frontmatterMatch) {
+    const frontmatter = frontmatterMatch[1];
+    if (frontmatter.includes("title:")) {
+       const updatedFrontmatter = frontmatter.replace(/title:\s*.*/, `title: ${newTitle}`);
+       finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
+    } else {
+       const updatedFrontmatter = `title: ${newTitle}\n${frontmatter}`;
+       finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
+    }
+  }
+
+  const dir = path.dirname(resolvedFilePath);
+  const safeTitle = sanitizeFileBase(newTitle);
+  
+  const currentFileName = path.basename(resolvedFilePath, ".md");
+  let targetPath = resolvedFilePath;
+  
+  const targetPathCandidate = path.join(dir, `${safeTitle}.md`);
+  if (resolvedFilePath !== targetPathCandidate) {
+    targetPath = resolveUniqueFilePath(dir, safeTitle);
+  }
+
+  if (resolvedFilePath !== targetPath) {
+    fs.renameSync(resolvedFilePath, targetPath);
+  }
+  
+  fs.writeFileSync(targetPath, finalContent);
+
+  return {
+    path: targetPath,
+    content: finalContent,
+  };
+}
+
 export async function GET(
   request: Request,
 ) {
@@ -351,6 +491,11 @@ export async function POST(
         },
         { status: 400 },
       );
+    }
+
+    if (action === "rename" && body.path && body.newTitle) {
+      const result = renameIdea(repo, body.path, body.newTitle);
+      return NextResponse.json(result);
     }
 
     if (action === "create") {
