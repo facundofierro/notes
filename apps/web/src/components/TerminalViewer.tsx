@@ -8,11 +8,13 @@ import "xterm/css/xterm.css";
 interface TerminalViewerProps {
   output: string;
   className?: string;
+  onInput?: (data: string) => void;
 }
 
 export function TerminalViewer({
   output,
   className,
+  onInput,
 }: TerminalViewerProps) {
   const containerRef =
     React.useRef<HTMLDivElement>(null);
@@ -22,6 +24,12 @@ export function TerminalViewer({
     React.useRef<FitAddon | null>(null);
   const writtenLengthRef =
     React.useRef(0);
+  const onInputRef = React.useRef(onInput);
+
+  // Update onInput ref
+  React.useEffect(() => {
+    onInputRef.current = onInput;
+  }, [onInput]);
 
   // Initialize terminal
   React.useEffect(() => {
@@ -44,7 +52,11 @@ export function TerminalViewer({
           "rgba(255, 255, 255, 0.3)",
       },
       convertEol: true, // Treat \n as \r\n
-      disableStdin: true, // Read-only terminal
+      disableStdin: false, // Allow input
+    });
+
+    term.onData((data) => {
+      onInputRef.current?.(data);
     });
 
     const fitAddon = new FitAddon();

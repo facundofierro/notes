@@ -9,6 +9,7 @@ import {
   resolveCommandPath,
 } from "@/lib/agent-tools";
 
+import { registerProcess } from "@/lib/agent-store";
 import type { AgentToolName } from "@/lib/agent-tools";
 
 export async function GET(
@@ -132,6 +133,9 @@ export async function POST(
     );
 
     const encoder = new TextEncoder();
+    const processId =
+      crypto.randomUUID();
+
     const stream = new ReadableStream({
       start(controller) {
         // Log debug info to the stream
@@ -141,47 +145,80 @@ export async function POST(
           ),
         );
 
+        // Use python pty to emulate TTY
+        // This is more reliable than 'script' on macOS/Linux for non-interactive shells
+        const usePty =
+          process.platform ===
+            "darwin" ||
+          process.platform === "linux";
+
+        let spawnCommand =
+          resolvedCommand;
+        let spawnArgs = args;
+
+        if (usePty) {
+          spawnCommand = "python3";
+          // -u for unbuffered output
+          spawnArgs = [
+            "-u",
+            "-c",
+            "import pty, sys; pty.spawn(sys.argv[1:])",
+            resolvedCommand,
+            ...args,
+          ];
+        }
+
         const child = spawn(
-          resolvedCommand,
-          args,
+          spawnCommand,
+          spawnArgs,
           {
             cwd: cwd || undefined,
             env: {
               ...process.env,
               PATH: process.env.PATH,
-              COLUMNS: "300", // Force wider output for terminal viewer
-              LINES: "200",
+              COLUMNS: "200", // Force wider output for terminal viewer
+              LINES: "50",
               FORCE_COLOR: "1", // Ensure colors are preserved
+              TERM: "xterm-256color",
             },
             stdio: [
-              "ignore",
-              "pipe",
-              "pipe",
-            ], // Ignore stdin to prevent hanging if it waits for input
+              "pipe", // stdin - allow input
+              "pipe", // stdout
+              "pipe", // stderr
+            ],
           },
         );
 
-        child.stdout.on(
-          "data",
-          (data) => {
-            controller.enqueue(
-              encoder.encode(
-                data.toString(),
-              ),
-            );
-          },
+        registerProcess(
+          processId,
+          child,
         );
 
-        child.stderr.on(
-          "data",
-          (data) => {
-            controller.enqueue(
-              encoder.encode(
-                data.toString(),
-              ),
-            );
-          },
-        );
+        if (child.stdout) {
+          child.stdout.on(
+            "data",
+            (data) => {
+              controller.enqueue(
+                encoder.encode(
+                  data.toString(),
+                ),
+              );
+            },
+          );
+        }
+
+        if (child.stderr) {
+          child.stderr.on(
+            "data",
+            (data) => {
+              controller.enqueue(
+                encoder.encode(
+                  data.toString(),
+                ),
+              );
+            },
+          );
+        }
 
         child.on("close", (code) => {
           if (code !== 0) {
@@ -208,8 +245,10 @@ export async function POST(
     return new Response(stream, {
       headers: {
         "Content-Type":
-          "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
+          "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Agent-Process-ID": processId,
       },
     });
   } catch (error) {
@@ -217,12 +256,11 @@ export async function POST(
       "Agent execution error:",
       error,
     );
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to execute agent";
     return NextResponse.json(
-      { error: message },
+      {
+        error:
+          "Failed to execute agent",
+      },
       { status: 500 },
     );
   }

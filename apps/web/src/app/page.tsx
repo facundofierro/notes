@@ -559,18 +559,56 @@ Context and Instructions:
       [],
     );
 
+  const [
+    terminalProcessId,
+    setTerminalProcessId,
+  ] = React.useState<string | null>(
+    null,
+  );
+
   const cancelTerminal =
     React.useCallback(() => {
       terminalAbortControllerRef.current?.abort();
       terminalAbortControllerRef.current =
         null;
       setIsTerminalRunning(false);
+      setTerminalProcessId(null);
       setTerminalOutput((prev) =>
         prev
           ? `${prev}\n\nCancelled`
           : "Cancelled",
       );
     }, []);
+
+  const handleTerminalInput =
+    React.useCallback(
+      async (data: string) => {
+        if (!terminalProcessId) return;
+
+        try {
+          await fetch(
+            "/api/agents/input",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                id: terminalProcessId,
+                data,
+              }),
+            },
+          );
+        } catch (error) {
+          console.error(
+            "Failed to send input:",
+            error,
+          );
+        }
+      },
+      [terminalProcessId],
+    );
 
   const runTool = React.useCallback(
     async (toolName: string) => {
@@ -587,6 +625,7 @@ Context and Instructions:
 
       setTerminalToolName(toolName);
       setTerminalOutput("");
+      setTerminalProcessId(null);
       setIsTerminalRunning(true);
       setRightSidebarView("terminal");
 
@@ -631,6 +670,17 @@ Context and Instructions:
             signal: controller.signal,
           },
         );
+
+        const processId =
+          res.headers.get(
+            "X-Agent-Process-ID",
+          );
+        if (processId) {
+          setTerminalProcessId(
+            processId,
+          );
+        }
+
         const reader =
           res.body?.getReader();
         if (!reader) {
@@ -898,8 +948,8 @@ Context and Instructions:
         >
           {rightSidebarView ===
           "terminal" ? (
-            <div className="flex flex-col flex-1 h-full overflow-hidden">
-              <div className="flex-1 bg-black min-h-0">
+            <div className="flex overflow-hidden flex-col flex-1 h-full">
+              <div className="flex-1 min-h-0 bg-black">
                 {terminalOutput ||
                 isTerminalRunning ? (
                   <TerminalViewer
@@ -909,10 +959,13 @@ Context and Instructions:
                         ? "Initializing..."
                         : "")
                     }
-                    className="h-full w-full"
+                    className="w-full h-full"
+                    onInput={
+                      handleTerminalInput
+                    }
                   />
                 ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 text-xs">
+                  <div className="flex justify-center items-center h-full text-xs text-gray-500">
                     No terminal output
                   </div>
                 )}
