@@ -46,6 +46,8 @@ interface FileViewerProps {
     path: string;
     content: string;
   } | null;
+  value?: string;
+  editing?: boolean;
   onFileSaved?: () => void;
   onBack?: () => void;
   onRename?: (
@@ -54,14 +56,32 @@ interface FileViewerProps {
     path: string;
     content: string;
   } | void>;
+  onSave?: (opts: {
+    path: string;
+    content: string;
+  }) => Promise<{
+    path?: string;
+    content?: string;
+  } | void>;
+  onValueChange?: (
+    next: string,
+  ) => void;
+  onEditingChange?: (
+    next: boolean,
+  ) => void;
   onRun?: (path: string) => void;
 }
 
 export default function FileViewer({
   file,
+  value,
+  editing,
   onFileSaved,
   onBack,
   onRename,
+  onSave,
+  onValueChange,
+  onEditingChange,
   onRun,
 }: FileViewerProps) {
   const [isEditing, setIsEditing] =
@@ -81,18 +101,74 @@ export default function FileViewer({
 
   useEffect(() => {
     if (file) {
-      setContent(file.content);
-      setIsEditing(false);
+      if (value === undefined) {
+        setContent(file.content);
+      }
+      if (editing === undefined) {
+        setIsEditing(false);
+      }
       setIsRenaming(false);
       setRenameValue("");
     }
-  }, [file]);
+  }, [
+    file,
+    editing,
+    value,
+  ]);
+
+  useEffect(() => {
+    if (editing !== undefined) {
+      setIsEditing(editing);
+    }
+  }, [editing]);
+
+  const effectiveContent =
+    value !== undefined
+      ? value
+      : content;
+
+  const updateContent = useCallback(
+    (next: string) => {
+      if (value !== undefined) {
+        onValueChange?.(next);
+        return;
+      }
+      setContent(next);
+    },
+    [onValueChange, value],
+  );
+
+  const updateEditing = useCallback(
+    (next: boolean) => {
+      if (editing !== undefined) {
+        onEditingChange?.(next);
+        return;
+      }
+      setIsEditing(next);
+    },
+    [editing, onEditingChange],
+  );
 
   const handleSave = async () => {
     if (!file) return;
 
     setIsSaving(true);
     try {
+      if (onSave) {
+        const result = await onSave({
+          path: file.path,
+          content: effectiveContent,
+        });
+        if (
+          result?.content !== undefined
+        ) {
+          updateContent(result.content);
+        }
+        updateEditing(false);
+        if (onFileSaved) onFileSaved();
+        return;
+      }
+
       const response = await fetch(
         "/api/file",
         {
@@ -103,13 +179,13 @@ export default function FileViewer({
           },
           body: JSON.stringify({
             path: file.path,
-            content,
+            content: effectiveContent,
           }),
         },
       );
 
       if (response.ok) {
-        setIsEditing(false);
+        updateEditing(false);
         if (onFileSaved) onFileSaved();
       }
     } catch (error) {
@@ -124,9 +200,15 @@ export default function FileViewer({
 
   const handleCancel =
     useCallback(() => {
-      setContent(file?.content || "");
-      setIsEditing(false);
-    }, [file?.content]);
+      updateContent(
+        file?.content || "",
+      );
+      updateEditing(false);
+    }, [
+      file?.content,
+      updateContent,
+      updateEditing,
+    ]);
 
   const displayedFileName =
     file?.path.split("/").pop() || "";
@@ -332,7 +414,7 @@ export default function FileViewer({
           ) : (
             <button
               onClick={() =>
-                setIsEditing(true)
+                updateEditing(true)
               }
               className="flex gap-1 items-center px-3 py-1 text-sm text-gray-300 rounded transition-colors hover:text-white hover:bg-gray-700"
             >
@@ -353,11 +435,11 @@ export default function FileViewer({
         {isMarkdown ? (
           isEditing ? (
             <MDEditor
-              value={content}
+              value={effectiveContent}
               onChange={(
                 val: string | undefined,
               ) =>
-                setContent(val || "")
+                updateContent(val || "")
               }
               height="100%"
               preview="edit"
@@ -366,7 +448,9 @@ export default function FileViewer({
           ) : (
             <div className="p-4">
               <MarkdownPreview
-                source={content}
+                source={
+                  effectiveContent
+                }
                 style={{
                   background:
                     "transparent",
@@ -378,10 +462,12 @@ export default function FileViewer({
           )
         ) : (
           <MonacoEditor
-            value={content}
+            value={effectiveContent}
             onChange={(
               val: string | undefined,
-            ) => setContent(val || "")}
+            ) =>
+              updateContent(val || "")
+            }
             path={file.path}
             language={
               isTypeScript
@@ -403,21 +489,39 @@ export default function FileViewer({
               tabSize: 2,
               wordWrap: "on",
             }}
-            beforeMount={(monaco: any) => {
-              monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-                allowNonTsExtensions: true,
-                noEmit: true,
-                target:
-                  monaco.languages.typescript.ScriptTarget.ES2020,
-                module:
-                  monaco.languages.typescript.ModuleKind.ESNext,
-                moduleResolution:
-                  monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-                jsx: isTSX
-                  ? monaco.languages.typescript.JsxEmit.Preserve
-                  : monaco.languages.typescript.JsxEmit.None,
-                strict: true,
-              });
+            beforeMount={(
+              monaco: any,
+            ) => {
+              monaco.languages.typescript.typescriptDefaults.setCompilerOptions(
+                {
+                  allowNonTsExtensions: true,
+                  noEmit: true,
+                  target:
+                    monaco.languages
+                      .typescript
+                      .ScriptTarget
+                      .ES2020,
+                  module:
+                    monaco.languages
+                      .typescript
+                      .ModuleKind
+                      .ESNext,
+                  moduleResolution:
+                    monaco.languages
+                      .typescript
+                      .ModuleResolutionKind
+                      .NodeJs,
+                  jsx: isTSX
+                    ? monaco.languages
+                        .typescript
+                        .JsxEmit
+                        .Preserve
+                    : monaco.languages
+                        .typescript
+                        .JsxEmit.None,
+                  strict: true,
+                },
+              );
             }}
           />
         )}

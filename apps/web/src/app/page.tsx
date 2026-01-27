@@ -26,6 +26,7 @@ import {
   TestTube,
   Settings,
   LogIn,
+  ChevronDown,
 } from "lucide-react";
 
 interface FileNode {
@@ -156,9 +157,84 @@ export default function Home() {
     isSetupLogsVisible,
     setIsSetupLogsVisible,
   ] = React.useState(true);
+  const [
+    workEditorEditing,
+    setWorkEditorEditing,
+  ] = React.useState(false);
+  const [promptText, setPromptText] =
+    React.useState("");
+  const [agentTools, setAgentTools] =
+    React.useState<
+      Array<{
+        name: string;
+        displayName: string;
+        available: boolean;
+      }>
+    >([]);
+  const [
+    rightSidebarView,
+    setRightSidebarView,
+  ] = React.useState<
+    "prompt" | "terminal"
+  >("prompt");
+  const [
+    workDocIsDraft,
+    setWorkDocIsDraft,
+  ] = React.useState(false);
+  const [promptMode, setPromptMode] =
+    React.useState<
+      "agent" | "plan" | "chat"
+    >("agent");
+  const [docAiMode, setDocAiMode] =
+    React.useState<"modify" | "start">(
+      "modify",
+    );
+  const [
+    toolModelsByTool,
+    setToolModelsByTool,
+  ] = React.useState<
+    Record<string, string[]>
+  >({});
+  const [
+    toolModelByTool,
+    setToolModelByTool,
+  ] = React.useState<
+    Record<string, string>
+  >({});
+  const [
+    isToolModelsLoading,
+    setIsToolModelsLoading,
+  ] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [
+    terminalToolName,
+    setTerminalToolName,
+  ] = React.useState<string>("");
+  const [
+    terminalOutput,
+    setTerminalOutput,
+  ] = React.useState("");
+  const [
+    isTerminalRunning,
+    setIsTerminalRunning,
+  ] = React.useState(false);
+  const [
+    promptStatus,
+    setPromptStatus,
+  ] = React.useState("");
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
+
+  const joinFsPath = React.useCallback(
+    (...parts: string[]) =>
+      parts
+        .filter(Boolean)
+        .join("/")
+        .replace(/\/+/g, "/"),
+    [],
+  );
 
   React.useEffect(() => {
     fetch("/api/repositories")
@@ -184,6 +260,29 @@ export default function Home() {
           setSelectedRepo(nextSelected);
         }
       });
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch("/api/agents?action=tools")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const tools = (data.tools ||
+          []) as Array<{
+          name: string;
+          displayName: string;
+          available: boolean;
+        }>;
+        setAgentTools(tools);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAgentTools([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   React.useEffect(() => {
@@ -268,6 +367,306 @@ export default function Home() {
     };
   }, [selectedRepo, viewMode]);
 
+  const openWorkDraft =
+    React.useCallback(
+      (opts: {
+        kind: "epic" | "task" | "idea";
+        state: string;
+      }) => {
+        if (!selectedRepo) return;
+        if (!basePath) return;
+        const createdAt =
+          new Date().toISOString();
+        const id = `${opts.kind}-${Date.now()}`;
+
+        const baseDir =
+          opts.kind === "epic"
+            ? joinFsPath(
+                basePath,
+                selectedRepo,
+                ".agelum",
+                "work",
+                "epics",
+                opts.state,
+              )
+            : opts.kind === "task"
+              ? joinFsPath(
+                  basePath,
+                  selectedRepo,
+                  ".agelum",
+                  "work",
+                  "tasks",
+                  opts.state,
+                )
+              : joinFsPath(
+                  basePath,
+                  selectedRepo,
+                  ".agelum",
+                  "doc",
+                  "ideas",
+                  opts.state,
+                );
+
+        const draftPath = joinFsPath(
+          baseDir,
+          `${id}.md`,
+        );
+
+        const content = `---\ncreated: ${createdAt}\nstate: ${opts.state}\n---\n\n# ${id}\n\n`;
+        setSelectedFile({
+          path: draftPath,
+          content,
+        });
+        setWorkEditorEditing(true);
+        setWorkDocIsDraft(true);
+        setRightSidebarView("prompt");
+      },
+      [
+        basePath,
+        joinFsPath,
+        selectedRepo,
+      ],
+    );
+
+  const terminalAbortControllerRef =
+    React.useRef<AbortController | null>(
+      null,
+    );
+
+  const ensureModelsForTool =
+    React.useCallback(
+      async (toolName: string) => {
+        if (toolModelsByTool[toolName])
+          return;
+        if (
+          isToolModelsLoading[toolName]
+        )
+          return;
+
+        setIsToolModelsLoading(
+          (prev) => ({
+            ...prev,
+            [toolName]: true,
+          }),
+        );
+
+        try {
+          const res = await fetch(
+            `/api/agents?action=models&tool=${encodeURIComponent(toolName)}`,
+          );
+          const data =
+            (await res.json()) as {
+              models?: string[];
+            };
+          const models = Array.isArray(
+            data.models,
+          )
+            ? data.models
+            : [];
+
+          setToolModelsByTool(
+            (prev) => ({
+              ...prev,
+              [toolName]: models,
+            }),
+          );
+
+          if (
+            models.length > 0 &&
+            toolModelByTool[
+              toolName
+            ] === undefined
+          ) {
+            setToolModelByTool(
+              (prev) => ({
+                ...prev,
+                [toolName]: models[0],
+              }),
+            );
+          }
+        } catch {
+          setToolModelsByTool(
+            (prev) => ({
+              ...prev,
+              [toolName]: [],
+            }),
+          );
+        } finally {
+          setIsToolModelsLoading(
+            (prev) => ({
+              ...prev,
+              [toolName]: false,
+            }),
+          );
+        }
+      },
+      [
+        isToolModelsLoading,
+        toolModelByTool,
+        toolModelsByTool,
+      ],
+    );
+
+  const buildToolPrompt =
+    React.useCallback(
+      (opts: {
+        promptText: string;
+        mode: "agent" | "plan" | "chat";
+        docMode: "modify" | "start";
+        file: {
+          path: string;
+          content: string;
+        };
+        includeFile: boolean;
+      }) => {
+        const trimmed =
+          opts.promptText.trim();
+        if (!trimmed) return "";
+
+        const headerLines = [
+          `Mode: ${opts.mode}`,
+          `DocumentAction: ${opts.docMode}`,
+          `DocumentPath: ${opts.file.path}`,
+        ];
+
+        if (!opts.includeFile) {
+          return `${headerLines.join("\n")}\n\n${trimmed}`;
+        }
+
+        const maxChars = 16000;
+        const clippedContent =
+          opts.file.content.length >
+          maxChars
+            ? `${opts.file.content.slice(0, maxChars)}\n\n[...truncated...]`
+            : opts.file.content;
+
+        return `${headerLines.join("\n")}\n\nDocument:\n${clippedContent}\n\nRequest:\n${trimmed}`;
+      },
+      [],
+    );
+
+  const cancelTerminal =
+    React.useCallback(() => {
+      terminalAbortControllerRef.current?.abort();
+      terminalAbortControllerRef.current =
+        null;
+      setIsTerminalRunning(false);
+      setTerminalOutput((prev) =>
+        prev
+          ? `${prev}\n\nCancelled`
+          : "Cancelled",
+      );
+    }, []);
+
+  const runTool = React.useCallback(
+    async (toolName: string) => {
+      if (!selectedFile) return;
+      const trimmedPrompt =
+        promptText.trim();
+      if (!trimmedPrompt) return;
+
+      terminalAbortControllerRef.current?.abort();
+      const controller =
+        new AbortController();
+      terminalAbortControllerRef.current =
+        controller;
+
+      setTerminalToolName(toolName);
+      setTerminalOutput("");
+      setIsTerminalRunning(true);
+      setRightSidebarView("terminal");
+
+      const prompt = buildToolPrompt({
+        promptText: trimmedPrompt,
+        mode: promptMode,
+        docMode: docAiMode,
+        file: selectedFile,
+        includeFile:
+          !workDocIsDraft &&
+          docAiMode === "modify",
+      });
+
+      try {
+        const res = await fetch(
+          "/api/agents",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              tool: toolName,
+              prompt,
+              model:
+                toolModelByTool[
+                  toolName
+                ] || undefined,
+            }),
+            signal: controller.signal,
+          },
+        );
+        const data =
+          (await res.json()) as {
+            success?: boolean;
+            output?: string;
+            error?: string;
+          };
+
+        if (!res.ok) {
+          setTerminalOutput(
+            data.error ||
+              data.output ||
+              "Tool execution failed",
+          );
+          return;
+        }
+
+        setTerminalOutput(
+          data.success
+            ? data.output || ""
+            : data.error ||
+                data.output ||
+                "Tool execution failed",
+        );
+      } catch (error) {
+        if (
+          error instanceof
+            DOMException &&
+          error.name === "AbortError"
+        ) {
+          setTerminalOutput((prev) =>
+            prev
+              ? `${prev}\n\nCancelled`
+              : "Cancelled",
+          );
+          return;
+        }
+        setTerminalOutput(
+          "Tool execution failed",
+        );
+      } finally {
+        if (
+          terminalAbortControllerRef.current ===
+          controller
+        ) {
+          terminalAbortControllerRef.current =
+            null;
+        }
+        setIsTerminalRunning(false);
+      }
+    },
+    [
+      buildToolPrompt,
+      docAiMode,
+      promptMode,
+      promptText,
+      selectedFile,
+      toolModelByTool,
+      workDocIsDraft,
+    ],
+  );
+
   const handleFileSelect = async (
     node: FileNode,
   ) => {
@@ -279,6 +678,9 @@ export default function Home() {
         path: node.path,
         content: content.content || "",
       });
+      setWorkEditorEditing(false);
+      setWorkDocIsDraft(false);
+      setRightSidebarView("prompt");
     }
   };
 
@@ -290,13 +692,16 @@ export default function Home() {
 
     const fallbackPath =
       basePath && selectedRepo
-        ? `${basePath}/${selectedRepo}/agelum/tasks/${task.state}/${task.epic ? `${task.epic}/` : ""}${task.id}.md`
+        ? `${basePath}/${selectedRepo}/.agelum/work/tasks/${task.state}/${task.epic ? `${task.epic}/` : ""}${task.id}.md`
         : "";
 
     const filePath =
       task.path || fallbackPath;
     if (!filePath) return;
 
+    setWorkEditorEditing(false);
+    setWorkDocIsDraft(false);
+    setRightSidebarView("prompt");
     fetch(
       `/api/file?path=${encodeURIComponent(filePath)}`,
     )
@@ -317,13 +722,16 @@ export default function Home() {
 
     const fallbackPath =
       basePath && selectedRepo
-        ? `${basePath}/${selectedRepo}/agelum/epics/${epic.state}/${epic.id}.md`
+        ? `${basePath}/${selectedRepo}/.agelum/work/epics/${epic.state}/${epic.id}.md`
         : "";
 
     const filePath =
       epic.path || fallbackPath;
     if (!filePath) return;
 
+    setWorkEditorEditing(false);
+    setWorkDocIsDraft(false);
+    setRightSidebarView("prompt");
     fetch(
       `/api/file?path=${encodeURIComponent(filePath)}`,
     )
@@ -344,13 +752,16 @@ export default function Home() {
 
     const fallbackPath =
       basePath && selectedRepo
-        ? `${basePath}/${selectedRepo}/agelum/ideas/${idea.state}/${idea.id}.md`
+        ? `${basePath}/${selectedRepo}/.agelum/doc/ideas/${idea.state}/${idea.id}.md`
         : "";
 
     const filePath =
       idea.path || fallbackPath;
     if (!filePath) return;
 
+    setWorkEditorEditing(false);
+    setWorkDocIsDraft(false);
+    setRightSidebarView("prompt");
     fetch(
       `/api/file?path=${encodeURIComponent(filePath)}`,
     )
@@ -409,6 +820,268 @@ export default function Home() {
     } finally {
       setIsTestRunning(false);
     }
+  };
+
+  const renderWorkEditor = (opts: {
+    onBack: () => void;
+    onRename?: (
+      newTitle: string,
+    ) => Promise<{
+      path: string;
+      content: string;
+    } | void>;
+  }) => {
+    if (!selectedFile) return null;
+
+    const filteredTools = agentTools;
+
+    return (
+      <div className="flex h-full">
+        <div className="flex overflow-hidden flex-1 border-r border-gray-800">
+          <FileViewer
+            file={selectedFile}
+            onFileSaved={loadFileTree}
+            editing={workEditorEditing}
+            onEditingChange={
+              setWorkEditorEditing
+            }
+            onBack={opts.onBack}
+            onRename={opts.onRename}
+          />
+        </div>
+        <div className="flex overflow-hidden flex-col w-[360px] bg-gray-900 border-l border-gray-800">
+          {rightSidebarView ===
+          "terminal" ? (
+            <div className="flex overflow-hidden flex-col flex-1 p-3">
+              <pre className="overflow-auto flex-1 p-3 text-xs text-gray-200 whitespace-pre-wrap bg-black rounded border border-gray-800">
+                {terminalOutput ||
+                  (isTerminalRunning
+                    ? "Running…"
+                    : "No terminal output yet.")}
+              </pre>
+              <div className="pt-3">
+                <button
+                  onClick={() => {
+                    if (
+                      isTerminalRunning
+                    ) {
+                      cancelTerminal();
+                    } else {
+                      setRightSidebarView(
+                        "prompt",
+                      );
+                    }
+                  }}
+                  className={`px-3 py-2 w-full text-sm text-white rounded transition-colors ${
+                    isTerminalRunning
+                      ? "border border-red-800 bg-red-900/50 hover:bg-red-900"
+                      : "bg-gray-800 border border-gray-700 hover:bg-gray-700"
+                  }`}
+                >
+                  {isTerminalRunning
+                    ? "Cancel"
+                    : "Back to Prompt"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex overflow-hidden flex-col flex-1">
+              <div className="flex gap-2 p-3 border-b border-gray-800">
+                {!workDocIsDraft && (
+                  <div className="flex flex-1 p-1 rounded-lg border border-gray-800 bg-gray-950">
+                    <button
+                      onClick={() =>
+                        setDocAiMode(
+                          "modify",
+                        )
+                      }
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        docAiMode ===
+                        "modify"
+                          ? "bg-gray-800 text-white shadow-sm border border-gray-700"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      Modify
+                    </button>
+                    <button
+                      onClick={() =>
+                        setDocAiMode(
+                          "start",
+                        )
+                      }
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        docAiMode ===
+                        "start"
+                          ? "bg-gray-800 text-white shadow-sm border border-gray-700"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      Start
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex relative flex-1 justify-end items-center">
+                  <select
+                    value={promptMode}
+                    onChange={(e) =>
+                      setPromptMode(
+                        e.target
+                          .value as any,
+                      )
+                    }
+                    className="pr-6 w-full h-full text-xs text-right text-gray-300 bg-transparent appearance-none cursor-pointer outline-none hover:text-white"
+                  >
+                    <option
+                      value="agent"
+                      className="text-right bg-gray-800"
+                    >
+                      Agent
+                    </option>
+                    <option
+                      value="plan"
+                      className="text-right bg-gray-800"
+                    >
+                      Plan
+                    </option>
+                    <option
+                      value="chat"
+                      className="text-right bg-gray-800"
+                    >
+                      Chat
+                    </option>
+                  </select>
+                  <ChevronDown className="absolute right-0 top-1/2 w-4 h-4 text-gray-400 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="p-3 border-b border-gray-800">
+                <textarea
+                  value={promptText}
+                  onChange={(e) =>
+                    setPromptText(
+                      e.target.value,
+                    )
+                  }
+                  className="px-3 py-2 w-full h-32 text-sm text-gray-100 bg-gray-800 rounded border border-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="Write a prompt…"
+                />
+              </div>
+
+              <div className="flex overflow-auto flex-col flex-1">
+                <div className="p-3 border-b border-gray-800">
+                  <div className="grid grid-cols-2 gap-2">
+                    {filteredTools.map(
+                      (tool) => {
+                        const models =
+                          toolModelsByTool[
+                            tool.name
+                          ] || [];
+                        const selectedModel =
+                          toolModelByTool[
+                            tool.name
+                          ] || "";
+
+                        return (
+                          <div
+                            key={
+                              tool.name
+                            }
+                            onMouseEnter={() =>
+                              void ensureModelsForTool(
+                                tool.name,
+                              )
+                            }
+                            className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${
+                              tool.available
+                                ? "border-gray-700 bg-gray-800 hover:border-gray-600 shadow-sm"
+                                : "border-gray-800 bg-gray-900/50 opacity-50"
+                            }`}
+                          >
+                            <button
+                              onClick={() =>
+                                runTool(
+                                  tool.name,
+                                )
+                              }
+                              disabled={
+                                !tool.available ||
+                                !promptText.trim()
+                              }
+                              className="flex-1 px-3 py-3 text-left group disabled:opacity-50"
+                            >
+                              <div className="text-sm font-medium text-gray-100 group-hover:text-white mb-0.5">
+                                {
+                                  tool.displayName
+                                }
+                              </div>
+                              <div className="text-[10px] text-gray-400">
+                                Click to
+                                run
+                              </div>
+                            </button>
+
+                            <div className="p-1 border-t bg-gray-900/50 border-gray-700/50">
+                              <select
+                                value={
+                                  selectedModel
+                                }
+                                onChange={(
+                                  e,
+                                ) =>
+                                  setToolModelByTool(
+                                    (
+                                      prev,
+                                    ) => ({
+                                      ...prev,
+                                      [tool.name]:
+                                        e
+                                          .target
+                                          .value,
+                                    }),
+                                  )
+                                }
+                                className="w-full bg-transparent text-[10px] text-gray-400 focus:text-gray-200 outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-gray-800/50"
+                                disabled={
+                                  !tool.available
+                                }
+                              >
+                                <option value="">
+                                  Default
+                                </option>
+                                {models.map(
+                                  (
+                                    model,
+                                  ) => (
+                                    <option
+                                      key={
+                                        model
+                                      }
+                                      value={
+                                        model
+                                      }
+                                    >
+                                      {
+                                        model
+                                      }
+                                    </option>
+                                  ),
+                                )}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -525,29 +1198,35 @@ export default function Home() {
         </div>
 
         <div className="flex gap-2 items-center">
-          <select
-            value={selectedRepo || ""}
-            onChange={(e) =>
-              setSelectedRepo(
-                e.target.value,
-              )
-            }
-            className="bg-gray-700 text-gray-100 text-sm rounded-lg border-none focus:ring-2 focus:ring-blue-500 p-1.5 min-w-[160px]"
-          >
-            <option value="" disabled>
-              Select repository
-            </option>
-            {repositories.map(
-              (repo) => (
-                <option
-                  key={repo}
-                  value={repo}
-                >
-                  {repo}
-                </option>
-              ),
-            )}
-          </select>
+          <div className="relative">
+            <select
+              value={selectedRepo || ""}
+              onChange={(e) =>
+                setSelectedRepo(
+                  e.target.value,
+                )
+              }
+              className="bg-gray-700 text-gray-100 text-sm rounded-lg border-none focus:ring-2 focus:ring-blue-500 p-1.5 pr-8 min-w-[160px] appearance-none cursor-pointer"
+            >
+              <option value="" disabled>
+                {repositories.length ===
+                0
+                  ? "No repositories found"
+                  : "Select repository"}
+              </option>
+              {repositories.map(
+                (repo) => (
+                  <option
+                    key={repo}
+                    value={repo}
+                  >
+                    {repo}
+                  </option>
+                ),
+              )}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 text-gray-400 -translate-y-1/2 pointer-events-none" />
+          </div>
 
           <div className="mx-2 w-px h-6 bg-gray-700" />
 
@@ -656,22 +1335,25 @@ export default function Home() {
           ) : viewMode === "ideas" ? (
             <div className="flex-1 bg-background">
               {selectedFile ? (
-                <FileViewer
-                  file={selectedFile}
-                  onFileSaved={
-                    loadFileTree
-                  }
-                  onBack={() =>
+                renderWorkEditor({
+                  onBack: () =>
                     setSelectedFile(
                       null,
-                    )
-                  }
-                />
+                    ),
+                })
               ) : selectedRepo ? (
                 <IdeasKanban
                   repo={selectedRepo}
                   onIdeaSelect={
                     handleIdeaSelect
+                  }
+                  onCreateIdea={({
+                    state,
+                  }) =>
+                    openWorkDraft({
+                      kind: "idea",
+                      state,
+                    })
                   }
                 />
               ) : null}
@@ -679,22 +1361,25 @@ export default function Home() {
           ) : viewMode === "epics" ? (
             <div className="flex-1 bg-background">
               {selectedFile ? (
-                <FileViewer
-                  file={selectedFile}
-                  onFileSaved={
-                    loadFileTree
-                  }
-                  onBack={() =>
+                renderWorkEditor({
+                  onBack: () =>
                     setSelectedFile(
                       null,
-                    )
-                  }
-                />
+                    ),
+                })
               ) : selectedRepo ? (
                 <EpicsKanban
                   repo={selectedRepo}
                   onEpicSelect={
                     handleEpicSelect
+                  }
+                  onCreateEpic={({
+                    state,
+                  }) =>
+                    openWorkDraft({
+                      kind: "epic",
+                      state,
+                    })
                   }
                 />
               ) : null}
@@ -702,17 +1387,12 @@ export default function Home() {
           ) : (
             <div className="flex-1 bg-background">
               {selectedFile ? (
-                <FileViewer
-                  file={selectedFile}
-                  onFileSaved={
-                    loadFileTree
-                  }
-                  onBack={() =>
+                renderWorkEditor({
+                  onBack: () =>
                     setSelectedFile(
                       null,
-                    )
-                  }
-                  onRename={
+                    ),
+                  onRename:
                     viewMode ===
                       "kanban" &&
                     selectedRepo
@@ -760,14 +1440,21 @@ export default function Home() {
                           );
                           return next;
                         }
-                      : undefined
-                  }
-                />
+                      : undefined,
+                })
               ) : selectedRepo ? (
                 <TaskKanban
                   repo={selectedRepo}
                   onTaskSelect={
                     handleTaskSelect
+                  }
+                  onCreateTask={({
+                    state,
+                  }) =>
+                    openWorkDraft({
+                      kind: "task",
+                      state,
+                    })
                   }
                 />
               ) : null}

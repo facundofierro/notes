@@ -17,6 +17,85 @@ interface Epic {
   path: string;
 }
 
+function resolveGitDir(): string {
+  const currentPath = process.cwd();
+  return path.dirname(
+    path.dirname(
+      path.dirname(currentPath),
+    ),
+  );
+}
+
+function resolveRepoDirs(
+  repo: string,
+): {
+  gitDir: string;
+  repoDir: string;
+  primaryAgelumDir: string;
+  legacyAgelumDir: string;
+} {
+  const gitDir = resolveGitDir();
+  const repoDir = path.join(
+    gitDir,
+    repo,
+  );
+  return {
+    gitDir,
+    repoDir,
+    primaryAgelumDir: path.join(
+      repoDir,
+      ".agelum",
+    ),
+    legacyAgelumDir: path.join(
+      repoDir,
+      "agelum",
+    ),
+  };
+}
+
+function resolveEpicsRoots(
+  repo: string,
+): {
+  primaryEpicsRoot: string;
+  legacyEpicsRoot: string;
+} {
+  const {
+    primaryAgelumDir,
+    legacyAgelumDir,
+  } = resolveRepoDirs(repo);
+  return {
+    primaryEpicsRoot: path.join(
+      primaryAgelumDir,
+      "work",
+      "epics",
+    ),
+    legacyEpicsRoot: path.join(
+      legacyAgelumDir,
+      "epics",
+    ),
+  };
+}
+
+function sanitizeFileBase(
+  input: string,
+): string {
+  return (
+    input
+      .trim()
+      .replace(/[\\/]/g, "-")
+      .replace(
+        /[<>:"|?*\u0000-\u001F]/g,
+        "",
+      )
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^\.+/, "")
+      .replace(/\.+$/, "")
+      .slice(0, 120)
+      .trim() || "untitled"
+  );
+}
+
 function ensureEpicStructure(
   agelumDir: string,
 ) {
@@ -112,26 +191,22 @@ function parseEpicFile(
 function readEpics(
   repo: string,
 ): Epic[] {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureEpicStructure(agelumDir);
-  const epicsDir = path.join(
-    agelumDir,
-    "epics",
-  );
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureEpicStructure(primaryAgelumDir);
+  const {
+    primaryEpicsRoot,
+    legacyEpicsRoot,
+  } = resolveEpicsRoots(repo);
 
-  const epics: Epic[] = [];
+  const epicsByPath = new Map<
+    string,
+    Epic
+  >();
+  const roots = [
+    primaryEpicsRoot,
+    legacyEpicsRoot,
+  ].filter((p) => fs.existsSync(p));
   const states = [
     "backlog",
     "priority",
@@ -140,28 +215,35 @@ function readEpics(
     "done",
   ] as const;
 
-  for (const state of states) {
-    const stateDir = path.join(
-      epicsDir,
-      state,
-    );
-    if (!fs.existsSync(stateDir))
-      continue;
-
-    const files =
-      fs.readdirSync(stateDir);
-    for (const file of files) {
-      if (!file.endsWith(".md"))
-        continue;
-      const epic = parseEpicFile(
-        path.join(stateDir, file),
+  for (const epicsRoot of roots) {
+    for (const state of states) {
+      const stateDir = path.join(
+        epicsRoot,
         state,
       );
-      if (epic) epics.push(epic);
+      if (!fs.existsSync(stateDir))
+        continue;
+      const files =
+        fs.readdirSync(stateDir);
+      for (const file of files) {
+        if (!file.endsWith(".md"))
+          continue;
+        const epic = parseEpicFile(
+          path.join(stateDir, file),
+          state,
+        );
+        if (epic)
+          epicsByPath.set(
+            epic.path,
+            epic,
+          );
+      }
     }
   }
 
-  return epics;
+  return Array.from(
+    epicsByPath.values(),
+  );
 }
 
 function createEpic(
@@ -172,25 +254,11 @@ function createEpic(
     state?: string;
   },
 ): Epic {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    ".agelum",
-  );
-  ensureEpicStructure(agelumDir);
-  const epicsDir = path.join(
-    agelumDir,
-    "work",
-    "epics",
-  );
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureEpicStructure(primaryAgelumDir);
+  const { primaryEpicsRoot } =
+    resolveEpicsRoots(repo);
   const state =
     (data.state as
       | "backlog"
@@ -201,7 +269,7 @@ function createEpic(
 
   const id = `epic-${Date.now()}`;
   const stateDir = path.join(
-    epicsDir,
+    primaryEpicsRoot,
     state,
   );
   fs.mkdirSync(stateDir, {
@@ -270,42 +338,47 @@ function moveEpic(
   fromState: string,
   toState: string,
 ): void {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureEpicStructure(agelumDir);
-  const epicsDir = path.join(
-    agelumDir,
-    "epics",
-  );
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureEpicStructure(primaryAgelumDir);
+  const {
+    primaryEpicsRoot,
+    legacyEpicsRoot,
+  } = resolveEpicsRoots(repo);
 
-  const fromStateDir = path.join(
-    epicsDir,
-    fromState,
-  );
-  const fromPath = findEpicFile(
-    fromStateDir,
-    epicId,
-  );
+  const roots = [
+    primaryEpicsRoot,
+    legacyEpicsRoot,
+  ].filter((p) => fs.existsSync(p));
+
+  let fromPath: string | null = null;
+  let epicsRootForMove: string | null =
+    null;
+  for (const root of roots) {
+    const candidate = findEpicFile(
+      path.join(root, fromState),
+      epicId,
+    );
+    if (candidate) {
+      fromPath = candidate;
+      epicsRootForMove = root;
+      break;
+    }
+  }
 
   if (!fromPath) {
     throw new Error(
       `Epic file not found: ${epicId}`,
     );
   }
+  if (!epicsRootForMove) {
+    throw new Error(
+      "Epic root not found",
+    );
+  }
 
   const toStateDir = path.join(
-    epicsDir,
+    epicsRootForMove,
     toState,
   );
   fs.mkdirSync(toStateDir, {
@@ -365,78 +438,141 @@ export async function POST(
 
     if (action === "create") {
       if (agentMode && agent) {
-        // Agent mode: execute agent command first, then verify file was created
         try {
-          const agentResult = await executeAgentCommand(
-            agent.tool,
-            agent.prompt,
-            agent.model
-          );
+          const agentResult =
+            await executeAgentCommand(
+              agent.tool,
+              agent.prompt,
+              agent.model,
+            );
 
           if (!agentResult.success) {
             return NextResponse.json(
               {
-                error: agentResult.error || 'Agent execution failed',
-                agentOutput: agentResult,
+                error:
+                  agentResult.error ||
+                  "Agent execution failed",
+                agentOutput:
+                  agentResult,
               },
               { status: 500 },
             );
           }
 
-          // Wait a moment for file system to sync
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000),
+          );
 
-          // Try to read the epic that should have been created
-          // The file path is in the prompt, but we need to extract it or recalculate
-          const homeDir = process.env.HOME || process.env.USERPROFILE || process.cwd();
-          const gitDir = path.join(homeDir, "git");
-          const agelumDir = path.join(gitDir, repo, ".agelum");
-          const epicsDir = path.join(agelumDir, "work", "epics");
-          const state = (data?.state as "backlog" | "priority" | "pending" | "doing" | "done") || "backlog";
-          const stateDir = path.join(epicsDir, state);
+          const state =
+            (data?.state as
+              | "backlog"
+              | "priority"
+              | "pending"
+              | "doing"
+              | "done") || "backlog";
+          const { primaryAgelumDir } =
+            resolveRepoDirs(repo);
+          ensureEpicStructure(
+            primaryAgelumDir,
+          );
+          const {
+            primaryEpicsRoot,
+            legacyEpicsRoot,
+          } = resolveEpicsRoots(repo);
+          const roots = [
+            primaryEpicsRoot,
+            legacyEpicsRoot,
+          ].filter((p) =>
+            fs.existsSync(p),
+          );
 
-          // Find the most recently created epic file in this state
-          if (fs.existsSync(stateDir)) {
-            const files = fs.readdirSync(stateDir)
-              .filter((f) => f.endsWith('.md'))
-              .map((f) => ({
-                name: f,
-                path: path.join(stateDir, f),
-                mtime: fs.statSync(path.join(stateDir, f)).mtime,
-              }))
-              .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
-
-            if (files.length > 0) {
-              const latestFile = files[0];
-              const epic = parseEpicFile(latestFile.path, state);
-              if (epic) {
-                return NextResponse.json({
-                  epic,
-                  agentOutput: agentResult,
-                });
+          let latest: {
+            path: string;
+            mtime: Date;
+          } | null = null;
+          for (const root of roots) {
+            const stateDir = path.join(
+              root,
+              state,
+            );
+            if (
+              !fs.existsSync(stateDir)
+            )
+              continue;
+            const files = fs
+              .readdirSync(stateDir)
+              .filter((f) =>
+                f.endsWith(".md"),
+              )
+              .map((f) => {
+                const p = path.join(
+                  stateDir,
+                  f,
+                );
+                return {
+                  path: p,
+                  mtime:
+                    fs.statSync(p)
+                      .mtime,
+                };
+              });
+            for (const f of files) {
+              if (
+                !latest ||
+                f.mtime.getTime() >
+                  latest.mtime.getTime()
+              ) {
+                latest = f;
               }
             }
           }
 
-          // Fallback: create the epic directly if agent didn't create it
-          const epic = createEpic(repo, data || {});
+          if (latest) {
+            const epic = parseEpicFile(
+              latest.path,
+              state,
+            );
+            if (epic) {
+              return NextResponse.json({
+                epic,
+                agentOutput:
+                  agentResult,
+              });
+            }
+          }
+
+          const epic = createEpic(
+            repo,
+            data || {},
+          );
           return NextResponse.json({
             epic,
             agentOutput: agentResult,
-            warning: 'Epic was created directly after agent execution',
+            warning:
+              "Epic was created directly after agent execution",
           });
         } catch (error) {
-          console.error('Agent execution error:', error);
-          // Fallback to direct creation
-          const epic = createEpic(repo, data || {});
+          console.error(
+            "Agent execution error:",
+            error,
+          );
+          const epic = createEpic(
+            repo,
+            data || {},
+          );
           return NextResponse.json({
             epic,
-            error: error instanceof Error ? error.message : 'Agent execution failed, created directly',
+            error:
+              error instanceof Error
+                ? error.message
+                : "Agent execution failed, created directly",
           });
         }
       } else {
-        // Direct mode: create file directly
-        const epic = createEpic(repo, data || {});
+        const epic = createEpic(
+          repo,
+          data || {},
+        );
         return NextResponse.json({
           epic,
         });

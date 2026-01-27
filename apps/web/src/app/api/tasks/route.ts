@@ -19,6 +19,65 @@ interface Task {
   path: string;
 }
 
+function resolveGitDir(): string {
+  const currentPath = process.cwd();
+  return path.dirname(
+    path.dirname(
+      path.dirname(currentPath),
+    ),
+  );
+}
+
+function resolveRepoDirs(
+  repo: string,
+): {
+  gitDir: string;
+  repoDir: string;
+  primaryAgelumDir: string;
+  legacyAgelumDir: string;
+} {
+  const gitDir = resolveGitDir();
+  const repoDir = path.join(
+    gitDir,
+    repo,
+  );
+  return {
+    gitDir,
+    repoDir,
+    primaryAgelumDir: path.join(
+      repoDir,
+      ".agelum",
+    ),
+    legacyAgelumDir: path.join(
+      repoDir,
+      "agelum",
+    ),
+  };
+}
+
+function resolveTasksRoots(
+  repo: string,
+): {
+  primaryTasksRoot: string;
+  legacyTasksRoot: string;
+} {
+  const {
+    primaryAgelumDir,
+    legacyAgelumDir,
+  } = resolveRepoDirs(repo);
+  return {
+    primaryTasksRoot: path.join(
+      primaryAgelumDir,
+      "work",
+      "tasks",
+    ),
+    legacyTasksRoot: path.join(
+      legacyAgelumDir,
+      "tasks",
+    ),
+  };
+}
+
 function ensureAgelumStructure(
   agelumDir: string,
 ) {
@@ -322,26 +381,25 @@ function readTasksRecursively(
 function readTasks(
   repo: string,
 ): Task[] {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureAgelumStructure(
+    primaryAgelumDir,
   );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureAgelumStructure(agelumDir);
-  const tasksDir = path.join(
-    agelumDir,
-    "tasks",
-  );
+  const {
+    primaryTasksRoot,
+    legacyTasksRoot,
+  } = resolveTasksRoots(repo);
 
-  const tasks: Task[] = [];
+  const tasksByPath = new Map<
+    string,
+    Task
+  >();
+  const roots = [
+    primaryTasksRoot,
+    legacyTasksRoot,
+  ].filter((p) => fs.existsSync(p));
+
   const states = [
     "backlog",
     "priority",
@@ -350,20 +408,29 @@ function readTasks(
     "done",
   ] as const;
 
-  for (const state of states) {
-    const stateDir = path.join(
-      tasksDir,
-      state,
-    );
-    const stateTasks =
-      readTasksRecursively(
-        stateDir,
+  for (const tasksRoot of roots) {
+    for (const state of states) {
+      const stateDir = path.join(
+        tasksRoot,
         state,
       );
-    tasks.push(...stateTasks);
+      const stateTasks =
+        readTasksRecursively(
+          stateDir,
+          state,
+        );
+      for (const task of stateTasks) {
+        tasksByPath.set(
+          task.path,
+          task,
+        );
+      }
+    }
   }
 
-  return tasks;
+  return Array.from(
+    tasksByPath.values(),
+  );
 }
 
 function createTask(
@@ -375,24 +442,13 @@ function createTask(
     assignee?: string;
   },
 ): Task {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureAgelumStructure(
+    primaryAgelumDir,
   );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureAgelumStructure(agelumDir);
-  const tasksDir = path.join(
-    agelumDir,
-    "tasks",
-  );
+  const { primaryTasksRoot } =
+    resolveTasksRoots(repo);
   const state =
     (data.state as
       | "backlog"
@@ -402,7 +458,7 @@ function createTask(
       | "done") || "pending";
 
   const stateDir = path.join(
-    tasksDir,
+    primaryTasksRoot,
     state,
   );
   fs.mkdirSync(stateDir, {
@@ -451,6 +507,103 @@ function createTask(
   };
 }
 
+function buildNewTaskMarkdown(opts: {
+  createdAt: string;
+  state:
+    | "backlog"
+    | "priority"
+    | "pending"
+    | "doing"
+    | "done";
+  title: string;
+  content: string;
+}): string {
+  const hasFrontmatter =
+    /^---\n[\s\S]*?\n---\n?/.test(
+      opts.content,
+    );
+  const trimmed = opts.content.trim();
+  const bodyWithHeading =
+    /^\s*#\s+.+$/m.test(trimmed)
+      ? trimmed
+      : `# ${opts.title}\n\n${trimmed}`;
+
+  if (hasFrontmatter) {
+    return `${bodyWithHeading}\n`;
+  }
+
+  const frontmatterLines = [
+    "---",
+    `created: ${opts.createdAt}`,
+    `state: ${opts.state}`,
+    "---",
+  ];
+  return `${frontmatterLines.join("\n")}\n\n${bodyWithHeading}\n`;
+}
+
+function createTaskFromContent(
+  repo: string,
+  data: {
+    state?: string;
+    fileBase?: string;
+    content: string;
+  },
+): { path: string; content: string } {
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureAgelumStructure(
+    primaryAgelumDir,
+  );
+  const { primaryTasksRoot } =
+    resolveTasksRoots(repo);
+  const state =
+    (data.state as
+      | "backlog"
+      | "priority"
+      | "pending"
+      | "doing"
+      | "done") || "pending";
+
+  const stateDir = path.join(
+    primaryTasksRoot,
+    state,
+  );
+  fs.mkdirSync(stateDir, {
+    recursive: true,
+  });
+
+  const createdAt =
+    new Date().toISOString();
+  const safeTitle =
+    sanitizeTaskTitleToFileBase(
+      data.fileBase || "untitled",
+    );
+  const filePath =
+    resolveUniqueFilePath(
+      stateDir,
+      safeTitle,
+    );
+  const finalBase = fileNameToId(
+    path.basename(filePath),
+  );
+  const nextContent =
+    buildNewTaskMarkdown({
+      createdAt,
+      state,
+      title: finalBase,
+      content: data.content,
+    });
+
+  fs.writeFileSync(
+    filePath,
+    nextContent,
+  );
+  return {
+    path: filePath,
+    content: nextContent,
+  };
+}
+
 function findTaskFile(
   baseDir: string,
   taskId: string,
@@ -493,41 +646,52 @@ function moveTask(
   fromState: string,
   toState: string,
 ): void {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
+  const { primaryAgelumDir } =
+    resolveRepoDirs(repo);
+  ensureAgelumStructure(
+    primaryAgelumDir,
   );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureAgelumStructure(agelumDir);
-  const tasksDir = path.join(
-    agelumDir,
-    "tasks",
-  );
+  const {
+    primaryTasksRoot,
+    legacyTasksRoot,
+  } = resolveTasksRoots(repo);
 
-  const fromStateDir = path.join(
-    tasksDir,
-    fromState,
-  );
-  const fromPath = findTaskFile(
-    fromStateDir,
-    taskId,
-  );
+  const roots = [
+    primaryTasksRoot,
+    legacyTasksRoot,
+  ].filter((p) => fs.existsSync(p));
+
+  let fromPath: string | null = null;
+  let tasksRootForMove: string | null =
+    null;
+  for (const root of roots) {
+    const candidate = findTaskFile(
+      path.join(root, fromState),
+      taskId,
+    );
+    if (candidate) {
+      fromPath = candidate;
+      tasksRootForMove = root;
+      break;
+    }
+  }
 
   if (!fromPath) {
     throw new Error(
       `Task file not found: ${taskId}`,
     );
   }
+  if (!tasksRootForMove) {
+    throw new Error(
+      "Task root not found",
+    );
+  }
 
   // Determine if task is in an epic folder
+  const fromStateDir = path.join(
+    tasksRootForMove,
+    fromState,
+  );
   const relativePath = path.relative(
     fromStateDir,
     fromPath,
@@ -541,7 +705,7 @@ function moveTask(
     // Task is in an epic folder, maintain the epic folder structure
     const epicFolder = pathParts[0];
     const toStateDir = path.join(
-      tasksDir,
+      tasksRootForMove,
       toState,
     );
     const toEpicDir = path.join(
@@ -558,7 +722,7 @@ function moveTask(
   } else {
     // Task is at root level
     const toStateDir = path.join(
-      tasksDir,
+      tasksRootForMove,
       toState,
     );
     fs.mkdirSync(toStateDir, {
@@ -583,31 +747,22 @@ function renameTask(
   id: string;
   title: string;
 } {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  const tasksDir = path.join(
-    agelumDir,
-    "tasks",
-  );
-
-  const resolvedTasksDir =
-    path.resolve(tasksDir);
+  const {
+    primaryTasksRoot,
+    legacyTasksRoot,
+  } = resolveTasksRoots(repo);
+  const resolvedPrimaryRoot =
+    path.resolve(primaryTasksRoot);
+  const resolvedLegacyRoot =
+    path.resolve(legacyTasksRoot);
   const resolvedFilePath =
     path.resolve(filePath);
   if (
     !resolvedFilePath.startsWith(
-      resolvedTasksDir + path.sep,
+      resolvedPrimaryRoot + path.sep,
+    ) &&
+    !resolvedFilePath.startsWith(
+      resolvedLegacyRoot + path.sep,
     )
   ) {
     throw new Error(
@@ -726,91 +881,194 @@ export async function POST(
       );
     }
 
+    if (
+      action === "createFromContent"
+    ) {
+      if (
+        !data ||
+        typeof data.content !== "string"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Content is required",
+          },
+          { status: 400 },
+        );
+      }
+      const result =
+        createTaskFromContent(
+          repo,
+          data,
+        );
+      return NextResponse.json({
+        ...result,
+      });
+    }
+
     if (action === "create") {
       if (agentMode && agent) {
         // Agent mode: execute agent command first, then verify file was created
         try {
-          const agentResult = await executeAgentCommand(
-            agent.tool,
-            agent.prompt,
-            agent.model
-          );
+          const agentResult =
+            await executeAgentCommand(
+              agent.tool,
+              agent.prompt,
+              agent.model,
+            );
 
           if (!agentResult.success) {
             return NextResponse.json(
               {
-                error: agentResult.error || 'Agent execution failed',
-                agentOutput: agentResult,
+                error:
+                  agentResult.error ||
+                  "Agent execution failed",
+                agentOutput:
+                  agentResult,
               },
               { status: 500 },
             );
           }
 
           // Wait a moment for file system to sync
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000),
+          );
 
           // Try to read the task that should have been created
-          const homeDir = process.env.HOME || process.env.USERPROFILE || process.cwd();
-          const gitDir = path.join(homeDir, "git");
-          const agelumDir = path.join(gitDir, repo, "agelum");
-          const tasksDir = path.join(agelumDir, "tasks");
-          const state = (data?.state as "backlog" | "priority" | "pending" | "doing" | "done") || "pending";
-          const stateDir = path.join(tasksDir, state);
+          const { primaryTasksRoot } =
+            resolveTasksRoots(repo);
+          const state =
+            (data?.state as
+              | "backlog"
+              | "priority"
+              | "pending"
+              | "doing"
+              | "done") || "pending";
+          const stateDir = path.join(
+            primaryTasksRoot,
+            state,
+          );
 
           // Find the most recently created task file in this state (check recursively for epic folders)
           if (fs.existsSync(stateDir)) {
-            const findLatestTask = (dir: string): { path: string; mtime: Date } | null => {
-              let latest: { path: string; mtime: Date } | null = null;
-              
-              const items = fs.readdirSync(dir, { withFileTypes: true });
+            const findLatestTask = (
+              dir: string,
+            ): {
+              path: string;
+              mtime: Date;
+            } | null => {
+              let latest: {
+                path: string;
+                mtime: Date;
+              } | null = null;
+
+              const items =
+                fs.readdirSync(dir, {
+                  withFileTypes: true,
+                });
               for (const item of items) {
-                const fullPath = path.join(dir, item.name);
-                if (item.isDirectory()) {
-                  const subLatest = findLatestTask(fullPath);
-                  if (subLatest && (!latest || subLatest.mtime > latest.mtime)) {
+                const fullPath =
+                  path.join(
+                    dir,
+                    item.name,
+                  );
+                if (
+                  item.isDirectory()
+                ) {
+                  const subLatest =
+                    findLatestTask(
+                      fullPath,
+                    );
+                  if (
+                    subLatest &&
+                    (!latest ||
+                      subLatest.mtime >
+                        latest.mtime)
+                  ) {
                     latest = subLatest;
                   }
-                } else if (item.isFile() && item.name.endsWith('.md')) {
-                  const stats = fs.statSync(fullPath);
-                  if (!latest || stats.mtime > latest.mtime) {
-                    latest = { path: fullPath, mtime: stats.mtime };
+                } else if (
+                  item.isFile() &&
+                  item.name.endsWith(
+                    ".md",
+                  )
+                ) {
+                  const stats =
+                    fs.statSync(
+                      fullPath,
+                    );
+                  if (
+                    !latest ||
+                    stats.mtime >
+                      latest.mtime
+                  ) {
+                    latest = {
+                      path: fullPath,
+                      mtime:
+                        stats.mtime,
+                    };
                   }
                 }
               }
               return latest;
             };
 
-            const latestTask = findLatestTask(stateDir);
+            const latestTask =
+              findLatestTask(stateDir);
             if (latestTask) {
-              const task = parseTaskFile(latestTask.path, state);
+              const task =
+                parseTaskFile(
+                  latestTask.path,
+                  state,
+                );
               if (task) {
-                return NextResponse.json({
-                  task,
-                  agentOutput: agentResult,
-                });
+                return NextResponse.json(
+                  {
+                    task,
+                    agentOutput:
+                      agentResult,
+                  },
+                );
               }
             }
           }
 
           // Fallback: create the task directly if agent didn't create it
-          const task = createTask(repo, data || {});
+          const task = createTask(
+            repo,
+            data || {},
+          );
           return NextResponse.json({
             task,
             agentOutput: agentResult,
-            warning: 'Task was created directly after agent execution',
+            warning:
+              "Task was created directly after agent execution",
           });
         } catch (error) {
-          console.error('Agent execution error:', error);
+          console.error(
+            "Agent execution error:",
+            error,
+          );
           // Fallback to direct creation
-          const task = createTask(repo, data || {});
+          const task = createTask(
+            repo,
+            data || {},
+          );
           return NextResponse.json({
             task,
-            error: error instanceof Error ? error.message : 'Agent execution failed, created directly',
+            error:
+              error instanceof Error
+                ? error.message
+                : "Agent execution failed, created directly",
           });
         }
       } else {
         // Direct mode: create file directly
-        const task = createTask(repo, data || {});
+        const task = createTask(
+          repo,
+          data || {},
+        );
         return NextResponse.json({
           task,
         });

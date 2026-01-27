@@ -6,18 +6,6 @@ import {
   type KanbanCardType, 
   type KanbanColumnType
 } from '@agelum/kanban'
-import { 
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  Textarea
-} from '@agelum/shadcn'
 
 interface Idea {
   id: string
@@ -39,15 +27,12 @@ const columns: KanbanColumnType[] = [
 interface IdeasKanbanProps {
   repo: string
   onIdeaSelect: (idea: Idea) => void
+  onCreateIdea?: (opts: { state: Idea['state'] }) => void
 }
 
-export default function IdeasKanban({ repo, onIdeaSelect }: IdeasKanbanProps) {
+export default function IdeasKanban({ repo, onIdeaSelect, onCreateIdea }: IdeasKanbanProps) {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newIdeaColumn, setNewIdeaColumn] = useState('')
-  const [newIdeaTitle, setNewIdeaTitle] = useState('')
-  const [newIdeaDescription, setNewIdeaDescription] = useState('')
 
   const fetchIdeas = useCallback(async () => {
     const res = await fetch(`/api/ideas?repo=${encodeURIComponent(repo)}`)
@@ -68,42 +53,10 @@ export default function IdeasKanban({ repo, onIdeaSelect }: IdeasKanbanProps) {
   }))
 
   const handleAddCard = useCallback(
-    async (columnId: string) => {
-      setNewIdeaColumn(columnId)
-      setNewIdeaTitle('')
-      setNewIdeaDescription('')
-      setIsAddDialogOpen(true)
+    (columnId: string) => {
+      onCreateIdea?.({ state: columnId as Idea['state'] })
     },
-    []
-  )
-
-  const handleCreateIdea = useCallback(
-    async () => {
-      if (!newIdeaTitle.trim()) return
-
-      const res = await fetch('/api/ideas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repo,
-          action: 'create',
-          data: { 
-            title: newIdeaTitle.trim(), 
-            description: newIdeaDescription.trim(), 
-            state: newIdeaColumn 
-          },
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to create idea')
-
-      setRefreshKey((k) => k + 1)
-      setIsAddDialogOpen(false)
-      setNewIdeaTitle('')
-      setNewIdeaDescription('')
-    },
-    [repo, newIdeaTitle, newIdeaDescription, newIdeaColumn]
+    [onCreateIdea]
   )
 
   const handleCardMove = useCallback(
@@ -136,77 +89,22 @@ export default function IdeasKanban({ repo, onIdeaSelect }: IdeasKanbanProps) {
   )
 
   return (
-    <>
-      <div className="h-full">
-        <KanbanBoard
-          columns={columns}
-          cards={cards}
-          onAddCard={handleAddCard}
-          onCardMove={handleCardMove}
-          onCardClick={(card: KanbanCardType) => {
-            const idea = ideas.find((i) => i.id === card.id)
-            if (idea) onIdeaSelect(idea)
-          }}
-          onCardEdit={(card: KanbanCardType) => {
-            const idea = ideas.find((i) => i.id === card.id)
-            if (idea) onIdeaSelect(idea)
-          }}
-          key={refreshKey}
-        />
-      </div>
-
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Create New Idea</DialogTitle>
-            <DialogDescription>
-              Add a new idea to {columns.find(c => c.id === newIdeaColumn)?.title || 'the board'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="idea-title">Title</Label>
-              <Input
-                id="idea-title"
-                placeholder="Idea title"
-                value={newIdeaTitle}
-                onChange={(e) => setNewIdeaTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleCreateIdea()
-                  }
-                }}
-                autoFocus
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="idea-description">Description</Label>
-              <Textarea
-                id="idea-description"
-                placeholder="Idea description (optional)"
-                value={newIdeaDescription}
-                onChange={(e) => setNewIdeaDescription(e.target.value)}
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setIsAddDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateIdea}
-              disabled={!newIdeaTitle.trim()}
-            >
-              Create Idea
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    <div className="h-full">
+      <KanbanBoard
+        columns={columns}
+        cards={cards}
+        onAddCard={handleAddCard}
+        onCardMove={handleCardMove}
+        onCardClick={(card: KanbanCardType) => {
+          const idea = ideas.find((i) => i.id === card.id)
+          if (idea) onIdeaSelect(idea)
+        }}
+        onCardEdit={(card: KanbanCardType) => {
+          const idea = ideas.find((i) => i.id === card.id)
+          if (idea) onIdeaSelect(idea)
+        }}
+        key={refreshKey}
+      />
+    </div>
   )
 }

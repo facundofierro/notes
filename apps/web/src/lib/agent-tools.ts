@@ -5,32 +5,60 @@ const execAsync = promisify(exec);
 
 export const AGENT_TOOLS = {
   opencode: {
-    name: "opencode",
+    name: "OpenCode",
     command: "opencode",
     modelFlag: "--model",
     listModelsCommand: "opencode models list",
     promptFlag: "run",
   },
   cursor: {
-    name: "cursor",
+    name: "Cursor",
     command: "cursor-agent",
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "-p",
   },
   trae: {
-    name: "trae",
+    name: "Trae",
     command: "trae-cli",
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "run",
   },
   claude: {
-    name: "claude code",
+    name: "Claude Code",
     command: "claude",
     modelFlag: null,
     listModelsCommand: null,
     promptFlag: "-p",
+  },
+  antigravity: {
+    name: "Antigravity",
+    command: "antigravity",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "run",
+  },
+  vscode: {
+    name: "VS Code",
+    command: "code",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: "-",
+  },
+  windsurf: {
+    name: "Windsurf",
+    command: "windsurf",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: "-",
+  },
+  warp: {
+    name: "Warp",
+    command: "warp-cli",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: "run",
   },
 } as const;
 

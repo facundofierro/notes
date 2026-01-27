@@ -16,6 +16,38 @@ interface Idea {
   path: string;
 }
 
+function resolveGitDir(): string {
+  const currentPath = process.cwd();
+  return path.dirname(path.dirname(path.dirname(currentPath)));
+}
+
+function resolveRepoDirs(repo: string): {
+  gitDir: string;
+  repoDir: string;
+  primaryAgelumDir: string;
+  legacyAgelumDir: string;
+} {
+  const gitDir = resolveGitDir();
+  const repoDir = path.join(gitDir, repo);
+  return {
+    gitDir,
+    repoDir,
+    primaryAgelumDir: path.join(repoDir, ".agelum"),
+    legacyAgelumDir: path.join(repoDir, "agelum"),
+  };
+}
+
+function resolveIdeasRoots(repo: string): {
+  primaryIdeasRoot: string;
+  legacyIdeasRoot: string;
+} {
+  const { primaryAgelumDir, legacyAgelumDir } = resolveRepoDirs(repo);
+  return {
+    primaryIdeasRoot: path.join(primaryAgelumDir, "doc", "ideas"),
+    legacyIdeasRoot: path.join(legacyAgelumDir, "ideas"),
+  };
+}
+
 function ensureIdeasStructure(
   agelumDir: string,
 ) {
@@ -43,6 +75,7 @@ function ensureIdeasStructure(
     path.join("doc", "ideas", "done"),
   ];
 
+  fs.mkdirSync(agelumDir, { recursive: true });
   for (const dir of directories) {
     fs.mkdirSync(
       path.join(agelumDir, dir),
@@ -115,26 +148,14 @@ function parseIdeaFile(
 function readIdeas(
   repo: string,
 ): Idea[] {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureIdeasStructure(agelumDir);
-  const ideasDir = path.join(
-    agelumDir,
-    "ideas",
-  );
+  const { primaryAgelumDir } = resolveRepoDirs(repo);
+  ensureIdeasStructure(primaryAgelumDir);
+  const { primaryIdeasRoot, legacyIdeasRoot } = resolveIdeasRoots(repo);
 
-  const ideas: Idea[] = [];
+  const ideasByPath = new Map<string, Idea>();
+  const roots = [primaryIdeasRoot, legacyIdeasRoot].filter((p) =>
+    fs.existsSync(p),
+  );
   const states = [
     "thinking",
     "important",
@@ -143,28 +164,21 @@ function readIdeas(
     "done",
   ] as const;
 
-  for (const state of states) {
-    const stateDir = path.join(
-      ideasDir,
-      state,
-    );
-    if (!fs.existsSync(stateDir))
-      continue;
+  for (const root of roots) {
+    for (const state of states) {
+      const stateDir = path.join(root, state);
+      if (!fs.existsSync(stateDir)) continue;
 
-    const files =
-      fs.readdirSync(stateDir);
-    for (const file of files) {
-      if (!file.endsWith(".md"))
-        continue;
-      const idea = parseIdeaFile(
-        path.join(stateDir, file),
-        state,
-      );
-      if (idea) ideas.push(idea);
+      const files = fs.readdirSync(stateDir);
+      for (const file of files) {
+        if (!file.endsWith(".md")) continue;
+        const idea = parseIdeaFile(path.join(stateDir, file), state);
+        if (idea) ideasByPath.set(idea.path, idea);
+      }
     }
   }
 
-  return ideas;
+  return Array.from(ideasByPath.values());
 }
 
 function createIdea(
@@ -175,25 +189,9 @@ function createIdea(
     state?: string;
   },
 ): Idea {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    ".agelum",
-  );
-  ensureIdeasStructure(agelumDir);
-  const ideasDir = path.join(
-    agelumDir,
-    "doc",
-    "ideas",
-  );
+  const { primaryAgelumDir } = resolveRepoDirs(repo);
+  ensureIdeasStructure(primaryAgelumDir);
+  const { primaryIdeasRoot } = resolveIdeasRoots(repo);
   const state =
     (data.state as
       | "thinking"
@@ -204,7 +202,7 @@ function createIdea(
 
   const id = `idea-${Date.now()}`;
   const stateDir = path.join(
-    ideasDir,
+    primaryIdeasRoot,
     state,
   );
   fs.mkdirSync(stateDir, {
@@ -273,33 +271,24 @@ function moveIdea(
   fromState: string,
   toState: string,
 ): void {
-  const homeDir =
-    process.env.HOME ||
-    process.env.USERPROFILE ||
-    process.cwd();
-  const gitDir = path.join(
-    homeDir,
-    "git",
-  );
-  const agelumDir = path.join(
-    gitDir,
-    repo,
-    "agelum",
-  );
-  ensureIdeasStructure(agelumDir);
-  const ideasDir = path.join(
-    agelumDir,
-    "ideas",
+  const { primaryAgelumDir } = resolveRepoDirs(repo);
+  ensureIdeasStructure(primaryAgelumDir);
+  const { primaryIdeasRoot, legacyIdeasRoot } = resolveIdeasRoots(repo);
+
+  const roots = [primaryIdeasRoot, legacyIdeasRoot].filter((p) =>
+    fs.existsSync(p),
   );
 
-  const fromStateDir = path.join(
-    ideasDir,
-    fromState,
-  );
-  const fromPath = findIdeaFile(
-    fromStateDir,
-    ideaId,
-  );
+  let fromPath: string | null = null;
+  let ideasRootForMove: string | null = null;
+  for (const root of roots) {
+    const candidate = findIdeaFile(path.join(root, fromState), ideaId);
+    if (candidate) {
+      fromPath = candidate;
+      ideasRootForMove = root;
+      break;
+    }
+  }
 
   if (!fromPath) {
     throw new Error(
@@ -308,7 +297,7 @@ function moveIdea(
   }
 
   const toStateDir = path.join(
-    ideasDir,
+    ideasRootForMove || primaryIdeasRoot,
     toState,
   );
   fs.mkdirSync(toStateDir, {
