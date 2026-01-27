@@ -1368,7 +1368,7 @@ Context and Instructions:
         </div>
       </div>
 
-      <div className="flex flex-col flex-1">
+      <div className="flex overflow-hidden flex-col flex-1">
         <div className="flex overflow-hidden flex-1">
           {[
             "docs",
@@ -1395,12 +1395,18 @@ Context and Instructions:
                 }
               />
               {viewMode === "tests" ? (
-                <div className="flex overflow-hidden flex-col flex-1">
+                <div className="flex overflow-hidden flex-col flex-1 min-h-0">
                   {testsSetupStatus &&
                   testsSetupStatus.state !==
                     "ready" ? (
-                    <div className="bg-gray-800 border-b border-gray-700">
-                      <div className="flex justify-between items-center px-3 py-2">
+                    <div
+                      className={`bg-gray-800 border-b border-gray-700 min-h-0 ${
+                        isSetupLogsVisible
+                          ? "flex-1 flex flex-col overflow-hidden"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex justify-between items-center px-3 py-2 flex-shrink-0">
                         <div className="text-sm text-gray-300">
                           Setup:{" "}
                           <span
@@ -1433,8 +1439,8 @@ Context and Instructions:
                         </button>
                       </div>
                       {isSetupLogsVisible ? (
-                        <div className="px-3 pb-3">
-                          <div className="bg-black p-3 rounded overflow-auto font-mono text-xs text-gray-200 whitespace-pre-wrap max-h-[240px]">
+                        <div className="flex overflow-hidden flex-col flex-1 px-3 pb-3 min-h-0">
+                          <div className="flex-1 p-3 font-mono text-xs text-gray-200 whitespace-pre-wrap bg-black rounded overflow-auto min-h-0">
                             {testsSetupStatus.log ||
                               `State: ${testsSetupStatus.state}`}
                           </div>
@@ -1442,41 +1448,47 @@ Context and Instructions:
                       ) : null}
                     </div>
                   ) : null}
-                  <FileViewer
-                    file={selectedFile}
-                    onFileSaved={
-                      loadFileTree
-                    }
-                    onRun={
-                      handleRunTest
-                    }
-                    onRename={async (newTitle) => {
-                      if (!selectedFile) return;
-                      const oldPath = selectedFile.path;
-                      const dir = oldPath.split('/').slice(0, -1).join('/');
-                      const fileName = oldPath.split('/').pop() || '';
-                      const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
-                      const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ''}`;
-                      
-                      const res = await fetch('/api/file', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          path: oldPath,
-                          newPath: newPath,
-                          action: 'rename'
-                        })
-                      });
-                      
-                      const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || 'Failed to rename file');
-                      
-                      const next = { path: data.path, content: selectedFile.content };
-                      setSelectedFile(next);
-                      loadFileTree();
-                      return next;
-                    }}
-                  />
+
+                  {(!testsSetupStatus ||
+                    testsSetupStatus.state ===
+                      "ready" ||
+                    !isSetupLogsVisible) && (
+                    <FileViewer
+                      file={selectedFile}
+                      onFileSaved={
+                        loadFileTree
+                      }
+                      onRun={
+                        handleRunTest
+                      }
+                      onRename={async (newTitle) => {
+                        if (!selectedFile) return;
+                        const oldPath = selectedFile.path;
+                        const dir = oldPath.split('/').slice(0, -1).join('/');
+                        const fileName = oldPath.split('/').pop() || '';
+                        const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
+                        const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ''}`;
+                        
+                        const res = await fetch('/api/file', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            path: oldPath,
+                            newPath: newPath,
+                            action: 'rename'
+                          })
+                        });
+                        
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to rename file');
+                        
+                        const next = { path: data.path, content: selectedFile.content };
+                        setSelectedFile(next);
+                        loadFileTree();
+                        return next;
+                      }}
+                    />
+                  )}
                 </div>
               ) : (
                 <FileViewer
