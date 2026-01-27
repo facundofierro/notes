@@ -28,6 +28,15 @@ import {
   LogIn,
   ChevronDown,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const TerminalViewer = dynamic(
+  () =>
+    import("@/components/TerminalViewer").then(
+      (mod) => mod.TerminalViewer,
+    ),
+  { ssr: false },
+);
 
 interface FileNode {
   name: string;
@@ -525,40 +534,17 @@ export default function Home() {
           opts.promptText.trim();
         if (!trimmed) return "";
 
-        const headerLines = [
-          `Mode: ${opts.mode}`,
-          `DocumentAction: ${opts.docMode}`,
-          `DocumentPath: ${opts.file.path}`,
-        ];
-
-        if (opts.selectedRepo) {
-          let creationPath = "";
-          if (
-            opts.viewMode === "epics"
-          ) {
-            creationPath =
-              ".agelum/epics";
-          } else if (
-            opts.viewMode === "ideas"
-          ) {
-            creationPath =
-              ".agelum/ideas";
-          } else if (
-            opts.viewMode === "tasks"
-          ) {
-            creationPath =
-              ".agelum/work/tasks/pending";
-          }
-
-          if (creationPath) {
-            headerLines.push(
-              `Context: If creating a new file, prefer path "${creationPath}" inside the project.`,
-            );
-          }
-        }
+        const contextInstructions = `
+Context and Instructions:
+1. You are working on a file at path: "${opts.file.path}".
+2. The user request is: "${trimmed}".
+3. If the user asks to create or modify a task/document, you should UPDATE the content of the file at "${opts.file.path}" or CREATE a new file if requested.
+4. When creating a new file, ensure it has a valid filename and is placed in the correct directory.
+5. If the user's request implies modifying the current document, apply the changes directly to the file content.
+`;
 
         if (!opts.includeFile) {
-          return `${headerLines.join("\n")}\n\n${trimmed}`;
+          return `${contextInstructions}\n\nRequest:\n${trimmed}`;
         }
 
         const maxChars = 16000;
@@ -568,7 +554,7 @@ export default function Home() {
             ? `${opts.file.content.slice(0, maxChars)}\n\n[...truncated...]`
             : opts.file.content;
 
-        return `${headerLines.join("\n")}\n\nDocument:\n${clippedContent}\n\nRequest:\n${trimmed}`;
+        return `${contextInstructions}\n\nCurrent File Content:\n${clippedContent}\n\nRequest:\n${trimmed}`;
       },
       [],
     );
@@ -901,17 +887,37 @@ export default function Home() {
             onRename={opts.onRename}
           />
         </div>
-        <div className="flex overflow-hidden flex-col w-[360px] bg-gray-900 border-l border-gray-800">
+        <div
+          className={`flex overflow-hidden flex-col bg-gray-900 border-l border-gray-800 transition-all duration-300 ${
+            rightSidebarView ===
+              "terminal" &&
+            isTerminalRunning
+              ? "w-[50%]"
+              : "w-[360px]"
+          }`}
+        >
           {rightSidebarView ===
           "terminal" ? (
-            <div className="flex overflow-hidden flex-col flex-1 p-3">
-              <pre className="overflow-auto flex-1 p-3 text-xs text-gray-200 whitespace-pre-wrap bg-black rounded border border-gray-800">
+            <div className="flex flex-col flex-1 h-full overflow-hidden">
+              <div className="flex-1 bg-black min-h-0">
                 {terminalOutput ||
-                  (isTerminalRunning
-                    ? "Running…"
-                    : "No terminal output yet.")}
-              </pre>
-              <div className="pt-3">
+                isTerminalRunning ? (
+                  <TerminalViewer
+                    output={
+                      terminalOutput ||
+                      (isTerminalRunning
+                        ? "Initializing..."
+                        : "")
+                    }
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 text-xs">
+                    No terminal output
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end p-2 border-t border-gray-800">
                 <button
                   onClick={() => {
                     if (

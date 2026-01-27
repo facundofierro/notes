@@ -149,7 +149,15 @@ export async function POST(
             env: {
               ...process.env,
               PATH: process.env.PATH,
+              COLUMNS: "300", // Force wider output for terminal viewer
+              LINES: "200",
+              FORCE_COLOR: "1", // Ensure colors are preserved
             },
+            stdio: [
+              "ignore",
+              "pipe",
+              "pipe",
+            ], // Ignore stdin to prevent hanging if it waits for input
           },
         );
 

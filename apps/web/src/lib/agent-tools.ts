@@ -13,7 +13,7 @@ export const AGENT_TOOLS = {
     modelFlag: "--model",
     listModelsCommand:
       "opencode models list",
-    promptFlag: "run",
+    promptFlag: "--prompt",
   },
   cursor: {
     name: "Cursor",
