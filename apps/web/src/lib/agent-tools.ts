@@ -1,4 +1,7 @@
-import { exec, spawn } from "child_process";
+import {
+  exec,
+  spawn,
+} from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
@@ -8,7 +11,8 @@ export const AGENT_TOOLS = {
     name: "OpenCode",
     command: "opencode",
     modelFlag: "--model",
-    listModelsCommand: "opencode models list",
+    listModelsCommand:
+      "opencode models list",
     promptFlag: "run",
   },
   cursor: {
@@ -62,7 +66,8 @@ export const AGENT_TOOLS = {
   },
 } as const;
 
-export type AgentToolName = keyof typeof AGENT_TOOLS;
+export type AgentToolName =
+  keyof typeof AGENT_TOOLS;
 
 export async function isCommandAvailable(
   command: string,
@@ -72,6 +77,19 @@ export async function isCommandAvailable(
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function resolveCommandPath(
+  command: string,
+): Promise<string> {
+  try {
+    const { stdout } = await execAsync(
+      `which ${command}`,
+    );
+    return stdout.trim();
+  } catch {
+    return command;
   }
 }
 
@@ -109,7 +127,7 @@ export async function getModelsForTool(
   }
 }
 
-function buildAgentCommand(
+export function buildAgentCommand(
   toolName: AgentToolName,
   prompt: string,
   model?: string,
@@ -143,9 +161,10 @@ export async function executeAgentCommand(
 }> {
   const tool = AGENT_TOOLS[toolName];
 
-  const isAvailable = await isCommandAvailable(
-    tool.command,
-  );
+  const isAvailable =
+    await isCommandAvailable(
+      tool.command,
+    );
   if (!isAvailable) {
     return {
       success: false,
@@ -155,22 +174,34 @@ export async function executeAgentCommand(
   }
 
   const { command, args } =
-    buildAgentCommand(toolName, prompt, model);
+    buildAgentCommand(
+      toolName,
+      prompt,
+      model,
+    );
+
+  const resolvedCommand =
+    await resolveCommandPath(command);
 
   return new Promise((resolve) => {
     const outputChunks: string[] = [];
     const errorChunks: string[] = [];
 
-    const child = spawn(command, args, {
-      env: {
-        ...process.env,
-        PATH: process.env.PATH,
+    const child = spawn(
+      resolvedCommand,
+      args,
+      {
+        env: {
+          ...process.env,
+          PATH: process.env.PATH,
+        },
       },
-      shell: true,
-    });
+    );
 
     child.stdout.on("data", (data) => {
-      outputChunks.push(data.toString());
+      outputChunks.push(
+        data.toString(),
+      );
     });
 
     child.stderr.on("data", (data) => {
@@ -178,8 +209,10 @@ export async function executeAgentCommand(
     });
 
     child.on("close", (code) => {
-      const output = outputChunks.join("");
-      const error = errorChunks.join("");
+      const output =
+        outputChunks.join("");
+      const error =
+        errorChunks.join("");
 
       resolve({
         success: code === 0,
@@ -200,13 +233,17 @@ export async function executeAgentCommand(
       });
     });
 
-    setTimeout(() => {
-      child.kill();
-      resolve({
-        success: false,
-        output: outputChunks.join(""),
-        error: "Command execution timed out after 5 minutes",
-      });
-    }, 5 * 60 * 1000);
+    setTimeout(
+      () => {
+        child.kill();
+        resolve({
+          success: false,
+          output: outputChunks.join(""),
+          error:
+            "Command execution timed out after 5 minutes",
+        });
+      },
+      5 * 60 * 1000,
+    );
   });
 }

@@ -518,6 +518,8 @@ export default function Home() {
           content: string;
         };
         includeFile: boolean;
+        viewMode: ViewMode;
+        selectedRepo: string | null;
       }) => {
         const trimmed =
           opts.promptText.trim();
@@ -528,6 +530,32 @@ export default function Home() {
           `DocumentAction: ${opts.docMode}`,
           `DocumentPath: ${opts.file.path}`,
         ];
+
+        if (opts.selectedRepo) {
+          let creationPath = "";
+          if (
+            opts.viewMode === "epics"
+          ) {
+            creationPath =
+              ".agelum/epics";
+          } else if (
+            opts.viewMode === "ideas"
+          ) {
+            creationPath =
+              ".agelum/ideas";
+          } else if (
+            opts.viewMode === "tasks"
+          ) {
+            creationPath =
+              ".agelum/work/tasks/pending";
+          }
+
+          if (creationPath) {
+            headerLines.push(
+              `Context: If creating a new file, prefer path "${creationPath}" inside the project.`,
+            );
+          }
+        }
 
         if (!opts.includeFile) {
           return `${headerLines.join("\n")}\n\n${trimmed}`;
@@ -584,7 +612,17 @@ export default function Home() {
         includeFile:
           !workDocIsDraft &&
           docAiMode === "modify",
+        viewMode,
+        selectedRepo,
       });
+
+      const cwd =
+        basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}`.replace(
+              /\/+/g,
+              "/",
+            )
+          : undefined;
 
       try {
         const res = await fetch(
@@ -602,33 +640,44 @@ export default function Home() {
                 toolModelByTool[
                   toolName
                 ] || undefined,
+              cwd,
             }),
             signal: controller.signal,
           },
         );
-        const data =
-          (await res.json()) as {
-            success?: boolean;
-            output?: string;
-            error?: string;
-          };
-
-        if (!res.ok) {
+        const reader =
+          res.body?.getReader();
+        if (!reader) {
+          const fallbackText = res.ok
+            ? ""
+            : await res
+                .text()
+                .catch(() => "");
           setTerminalOutput(
-            data.error ||
-              data.output ||
+            fallbackText ||
               "Tool execution failed",
           );
           return;
         }
 
-        setTerminalOutput(
-          data.success
-            ? data.output || ""
-            : data.error ||
-                data.output ||
-                "Tool execution failed",
-        );
+        const decoder =
+          new TextDecoder();
+        while (true) {
+          const { done, value } =
+            await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(
+            value,
+            {
+              stream: true,
+            },
+          );
+          if (chunk) {
+            setTerminalOutput(
+              (prev) => prev + chunk,
+            );
+          }
+        }
       } catch (error) {
         if (
           error instanceof
@@ -664,6 +713,9 @@ export default function Home() {
       selectedFile,
       toolModelByTool,
       workDocIsDraft,
+      basePath,
+      selectedRepo,
+      viewMode,
     ],
   );
 
