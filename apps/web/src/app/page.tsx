@@ -1334,9 +1334,9 @@ Context and Instructions:
                   e.target.value,
                 )
               }
-              className="bg-gray-700 text-gray-100 text-sm rounded-lg border-none focus:ring-2 focus:ring-blue-500 p-1.5 pr-8 min-w-[160px] appearance-none cursor-pointer"
+              className="bg-transparent text-gray-100 text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
             >
-              <option value="" disabled>
+              <option value="" disabled className="bg-gray-800">
                 {repositories.length ===
                 0
                   ? "No repositories found"
@@ -1347,6 +1347,7 @@ Context and Instructions:
                   <option
                     key={repo}
                     value={repo}
+                    className="bg-gray-800"
                   >
                     {repo}
                   </option>
@@ -1410,16 +1411,24 @@ Context and Instructions:
                         <div className="text-sm text-gray-300">
                           Setup:{" "}
                           <span
-                            className={
+                            className={`${
                               testsSetupStatus.state ===
                               "error"
                                 ? "text-red-400"
                                 : "text-yellow-300"
-                            }
+                            } ${
+                              testsSetupStatus.state ===
+                              "installing"
+                                ? "animate-pulse"
+                                : ""
+                            }`}
                           >
                             {
                               testsSetupStatus.state
                             }
+                            {testsSetupStatus.state ===
+                              "installing" &&
+                              "..."}
                           </span>
                           {testsSetupStatus.error
                             ? ` — ${testsSetupStatus.error}`
@@ -1440,7 +1449,15 @@ Context and Instructions:
                       </div>
                       {isSetupLogsVisible ? (
                         <div className="flex overflow-hidden flex-col flex-1 px-3 pb-3 min-h-0">
-                          <div className="flex-1 p-3 font-mono text-xs text-gray-200 whitespace-pre-wrap bg-black rounded overflow-auto min-h-0">
+                          <div
+                            ref={(el) => {
+                              if (el) {
+                                el.scrollTop =
+                                  el.scrollHeight;
+                              }
+                            }}
+                            className="flex-1 p-3 font-mono text-xs text-gray-200 whitespace-pre-wrap bg-black rounded overflow-auto min-h-0"
+                          >
                             {testsSetupStatus.log ||
                               `State: ${testsSetupStatus.state}`}
                           </div>
