@@ -5,6 +5,23 @@ export { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 export { Input } from './ui/input'
 export { Label } from './ui/label'
 export { Textarea } from './ui/textarea'
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+} from './ui/select'
+export { RadioGroup, RadioGroupItem } from './ui/radio-group'
+export { Switch } from './ui/switch'
+export { Badge, badgeVariants } from './ui/badge'
+export type { BadgeProps } from './ui/badge'
+export { Progress } from './ui/progress'
 
 // Logo components
 export { PrimaryLogo } from './logo/PrimaryLogo'

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { executeAgentCommand } from "@/lib/agent-tools";
 
 interface Epic {
   id: string;
@@ -348,6 +349,8 @@ export async function POST(
       fromState,
       toState,
       data,
+      agentMode,
+      agent,
     } = body;
 
     if (!repo) {
@@ -361,13 +364,83 @@ export async function POST(
     }
 
     if (action === "create") {
-      const epic = createEpic(
-        repo,
-        data || {},
-      );
-      return NextResponse.json({
-        epic,
-      });
+      if (agentMode && agent) {
+        // Agent mode: execute agent command first, then verify file was created
+        try {
+          const agentResult = await executeAgentCommand(
+            agent.tool,
+            agent.prompt,
+            agent.model
+          );
+
+          if (!agentResult.success) {
+            return NextResponse.json(
+              {
+                error: agentResult.error || 'Agent execution failed',
+                agentOutput: agentResult,
+              },
+              { status: 500 },
+            );
+          }
+
+          // Wait a moment for file system to sync
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Try to read the epic that should have been created
+          // The file path is in the prompt, but we need to extract it or recalculate
+          const homeDir = process.env.HOME || process.env.USERPROFILE || process.cwd();
+          const gitDir = path.join(homeDir, "git");
+          const agelumDir = path.join(gitDir, repo, ".agelum");
+          const epicsDir = path.join(agelumDir, "work", "epics");
+          const state = (data?.state as "backlog" | "priority" | "pending" | "doing" | "done") || "backlog";
+          const stateDir = path.join(epicsDir, state);
+
+          // Find the most recently created epic file in this state
+          if (fs.existsSync(stateDir)) {
+            const files = fs.readdirSync(stateDir)
+              .filter((f) => f.endsWith('.md'))
+              .map((f) => ({
+                name: f,
+                path: path.join(stateDir, f),
+                mtime: fs.statSync(path.join(stateDir, f)).mtime,
+              }))
+              .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+
+            if (files.length > 0) {
+              const latestFile = files[0];
+              const epic = parseEpicFile(latestFile.path, state);
+              if (epic) {
+                return NextResponse.json({
+                  epic,
+                  agentOutput: agentResult,
+                });
+              }
+            }
+          }
+
+          // Fallback: create the epic directly if agent didn't create it
+          const epic = createEpic(repo, data || {});
+          return NextResponse.json({
+            epic,
+            agentOutput: agentResult,
+            warning: 'Epic was created directly after agent execution',
+          });
+        } catch (error) {
+          console.error('Agent execution error:', error);
+          // Fallback to direct creation
+          const epic = createEpic(repo, data || {});
+          return NextResponse.json({
+            epic,
+            error: error instanceof Error ? error.message : 'Agent execution failed, created directly',
+          });
+        }
+      } else {
+        // Direct mode: create file directly
+        const epic = createEpic(repo, data || {});
+        return NextResponse.json({
+          epic,
+        });
+      }
     }
 
     if (

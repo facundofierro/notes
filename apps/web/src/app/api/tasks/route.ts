@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { executeAgentCommand } from "@/lib/agent-tools";
 
 interface Task {
   id: string;
@@ -711,6 +712,8 @@ export async function POST(
       data,
       path: taskPath,
       newTitle,
+      agentMode,
+      agent,
     } = body;
 
     if (!repo) {
@@ -724,13 +727,94 @@ export async function POST(
     }
 
     if (action === "create") {
-      const task = createTask(
-        repo,
-        data || {},
-      );
-      return NextResponse.json({
-        task,
-      });
+      if (agentMode && agent) {
+        // Agent mode: execute agent command first, then verify file was created
+        try {
+          const agentResult = await executeAgentCommand(
+            agent.tool,
+            agent.prompt,
+            agent.model
+          );
+
+          if (!agentResult.success) {
+            return NextResponse.json(
+              {
+                error: agentResult.error || 'Agent execution failed',
+                agentOutput: agentResult,
+              },
+              { status: 500 },
+            );
+          }
+
+          // Wait a moment for file system to sync
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Try to read the task that should have been created
+          const homeDir = process.env.HOME || process.env.USERPROFILE || process.cwd();
+          const gitDir = path.join(homeDir, "git");
+          const agelumDir = path.join(gitDir, repo, "agelum");
+          const tasksDir = path.join(agelumDir, "tasks");
+          const state = (data?.state as "backlog" | "priority" | "pending" | "doing" | "done") || "pending";
+          const stateDir = path.join(tasksDir, state);
+
+          // Find the most recently created task file in this state (check recursively for epic folders)
+          if (fs.existsSync(stateDir)) {
+            const findLatestTask = (dir: string): { path: string; mtime: Date } | null => {
+              let latest: { path: string; mtime: Date } | null = null;
+              
+              const items = fs.readdirSync(dir, { withFileTypes: true });
+              for (const item of items) {
+                const fullPath = path.join(dir, item.name);
+                if (item.isDirectory()) {
+                  const subLatest = findLatestTask(fullPath);
+                  if (subLatest && (!latest || subLatest.mtime > latest.mtime)) {
+                    latest = subLatest;
+                  }
+                } else if (item.isFile() && item.name.endsWith('.md')) {
+                  const stats = fs.statSync(fullPath);
+                  if (!latest || stats.mtime > latest.mtime) {
+                    latest = { path: fullPath, mtime: stats.mtime };
+                  }
+                }
+              }
+              return latest;
+            };
+
+            const latestTask = findLatestTask(stateDir);
+            if (latestTask) {
+              const task = parseTaskFile(latestTask.path, state);
+              if (task) {
+                return NextResponse.json({
+                  task,
+                  agentOutput: agentResult,
+                });
+              }
+            }
+          }
+
+          // Fallback: create the task directly if agent didn't create it
+          const task = createTask(repo, data || {});
+          return NextResponse.json({
+            task,
+            agentOutput: agentResult,
+            warning: 'Task was created directly after agent execution',
+          });
+        } catch (error) {
+          console.error('Agent execution error:', error);
+          // Fallback to direct creation
+          const task = createTask(repo, data || {});
+          return NextResponse.json({
+            task,
+            error: error instanceof Error ? error.message : 'Agent execution failed, created directly',
+          });
+        }
+      } else {
+        // Direct mode: create file directly
+        const task = createTask(repo, data || {});
+        return NextResponse.json({
+          task,
+        });
+      }
     }
 
     if (

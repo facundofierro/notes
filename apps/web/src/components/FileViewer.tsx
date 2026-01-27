@@ -14,8 +14,16 @@ import {
   Play,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import "@uiw/react-md-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
+import type { EditorProps } from "@monaco-editor/react";
+
+const MonacoEditor =
+  dynamic<EditorProps>(
+    () =>
+      import("@monaco-editor/react").then(
+        (mod) => mod.default,
+      ),
+    { ssr: false },
+  );
 
 const MDEditor = dynamic(
   () =>
@@ -130,6 +138,14 @@ export default function FileViewer({
         )
       : displayedFileName;
 
+  const isMarkdown =
+    displayedFileName.endsWith(".md");
+  const isTypeScript =
+    displayedFileName.endsWith(".ts") ||
+    displayedFileName.endsWith(".tsx");
+  const isTSX =
+    displayedFileName.endsWith(".tsx");
+
   const commitRename =
     useCallback(async () => {
       if (!file || !onRename) return;
@@ -203,9 +219,9 @@ export default function FileViewer({
 
   if (!file) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-900">
+      <div className="flex flex-1 justify-center items-center bg-gray-900">
         <div className="text-center text-gray-500">
-          <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <FileText className="mx-auto mb-4 w-16 h-16 opacity-50" />
           <p>Select a file to view</p>
         </div>
       </div>
@@ -213,13 +229,13 @@ export default function FileViewer({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-900">
-      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col flex-1 bg-gray-900">
+      <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700">
+        <div className="flex gap-2 items-center">
           {onBack && (
             <button
               onClick={onBack}
-              className="p-1 mr-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+              className="p-1 mr-1 text-gray-400 rounded transition-colors hover:text-white hover:bg-gray-700"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -277,8 +293,8 @@ export default function FileViewer({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 truncate max-w-md mr-4">
+        <div className="flex gap-2 items-center">
+          <span className="mr-4 max-w-md text-xs text-gray-500 truncate">
             {file.path}
           </span>
           {onRun && (
@@ -286,7 +302,7 @@ export default function FileViewer({
               onClick={() =>
                 onRun(file.path)
               }
-              className="flex items-center gap-1 px-3 py-1 text-sm text-green-400 hover:text-white hover:bg-green-900 rounded transition-colors mr-2"
+              className="flex gap-1 items-center px-3 py-1 mr-2 text-sm text-green-400 rounded transition-colors hover:text-white hover:bg-green-900"
             >
               <Play className="w-4 h-4" />
               Run
@@ -296,7 +312,7 @@ export default function FileViewer({
             <>
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-1 px-3 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                className="flex gap-1 items-center px-3 py-1 text-sm text-gray-300 rounded transition-colors hover:text-white hover:bg-gray-700"
                 disabled={isSaving}
               >
                 <X className="w-4 h-4" />
@@ -304,7 +320,7 @@ export default function FileViewer({
               </button>
               <button
                 onClick={handleSave}
-                className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
+                className="flex gap-1 items-center px-3 py-1 text-sm text-white bg-blue-600 rounded transition-colors hover:bg-blue-700 disabled:opacity-50"
                 disabled={isSaving}
               >
                 <Save className="w-4 h-4" />
@@ -318,7 +334,7 @@ export default function FileViewer({
               onClick={() =>
                 setIsEditing(true)
               }
-              className="flex items-center gap-1 px-3 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+              className="flex gap-1 items-center px-3 py-1 text-sm text-gray-300 rounded transition-colors hover:text-white hover:bg-gray-700"
             >
               <Edit className="w-4 h-4" />
               Edit
@@ -327,31 +343,83 @@ export default function FileViewer({
         </div>
       </div>
       <div
-        className="flex-1 overflow-auto"
+        className={
+          isMarkdown
+            ? "overflow-auto flex-1"
+            : "overflow-hidden flex-1"
+        }
         data-color-mode="dark"
       >
-        {isEditing ? (
-          <MDEditor
+        {isMarkdown ? (
+          isEditing ? (
+            <MDEditor
+              value={content}
+              onChange={(
+                val: string | undefined,
+              ) =>
+                setContent(val || "")
+              }
+              height="100%"
+              preview="edit"
+              hideToolbar={false}
+            />
+          ) : (
+            <div className="p-4">
+              <MarkdownPreview
+                source={content}
+                style={{
+                  background:
+                    "transparent",
+                  color: "#d1d5db",
+                  fontSize: "14px",
+                }}
+              />
+            </div>
+          )
+        ) : (
+          <MonacoEditor
             value={content}
             onChange={(
               val: string | undefined,
             ) => setContent(val || "")}
+            path={file.path}
+            language={
+              isTypeScript
+                ? isTSX
+                  ? "typescriptreact"
+                  : "typescript"
+                : "plaintext"
+            }
+            theme="vs-dark"
             height="100%"
-            preview="edit"
-            hideToolbar={false}
+            options={{
+              automaticLayout: true,
+              fontSize: 14,
+              minimap: {
+                enabled: false,
+              },
+              readOnly: !isEditing,
+              scrollBeyondLastLine: false,
+              tabSize: 2,
+              wordWrap: "on",
+            }}
+            beforeMount={(monaco: any) => {
+              monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+                allowNonTsExtensions: true,
+                noEmit: true,
+                target:
+                  monaco.languages.typescript.ScriptTarget.ES2020,
+                module:
+                  monaco.languages.typescript.ModuleKind.ESNext,
+                moduleResolution:
+                  monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+                jsx: isTSX
+                  ? monaco.languages.typescript.JsxEmit.Preserve
+                  : monaco.languages.typescript.JsxEmit.None,
+                strict: true,
+              });
+            }}
           />
-        ) : (
-          <div className="p-4">
-            <MarkdownPreview
-              source={content}
-              style={{
-                background:
-                  "transparent",
-                color: "#d1d5db",
-                fontSize: "14px",
-              }}
-            />
-          </div>
         )}
       </div>
     </div>
