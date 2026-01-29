@@ -12,6 +12,7 @@ import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
 import IdeasKanban from "@/components/IdeasKanban";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { MonochromeLogo } from "@agelum/shadcn";
 import {
   Kanban,
@@ -34,9 +35,9 @@ import dynamic from "next/dynamic";
 const TerminalViewer = dynamic(
   () =>
     import("@/components/TerminalViewer").then(
-      (mod) => mod.TerminalViewer,
+      (mod) => mod.TerminalViewer
     ),
-  { ssr: false },
+  { ssr: false }
 );
 
 interface FileNode {
@@ -128,13 +129,13 @@ export default function Home() {
     selectedRepo,
     setSelectedRepo,
   ] = React.useState<string | null>(
-    null,
+    null
   );
   const [currentPath, setCurrentPath] =
     React.useState<string>("");
   const [fileTree, setFileTree] =
     React.useState<FileNode | null>(
-      null,
+      null
     );
   const [
     selectedFile,
@@ -162,7 +163,7 @@ export default function Home() {
     setTestsSetupStatus,
   ] =
     React.useState<TestsSetupStatus | null>(
-      null,
+      null
     );
   const [
     isSetupLogsVisible,
@@ -198,7 +199,7 @@ export default function Home() {
     >("agent");
   const [docAiMode, setDocAiMode] =
     React.useState<"modify" | "start">(
-      "modify",
+      "modify"
     );
   const [
     toolModelsByTool,
@@ -234,6 +235,10 @@ export default function Home() {
     promptStatus,
     setPromptStatus,
   ] = React.useState("");
+  const [
+    isSettingsOpen,
+    setIsSettingsOpen,
+  ] = React.useState(false);
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
@@ -244,7 +249,7 @@ export default function Home() {
         .filter(Boolean)
         .join("/")
         .replace(/\/+/g, "/"),
-    [],
+    []
   );
 
   React.useEffect(() => {
@@ -261,7 +266,7 @@ export default function Home() {
         if (nextRepos.length > 0) {
           const saved =
             window.localStorage.getItem(
-              selectedRepoStorageKey,
+              selectedRepoStorageKey
             );
           const nextSelected =
             saved &&
@@ -300,7 +305,7 @@ export default function Home() {
     if (!selectedRepo) return;
     window.localStorage.setItem(
       selectedRepoStorageKey,
-      selectedRepo,
+      selectedRepo
     );
   }, [selectedRepo]);
 
@@ -326,7 +331,7 @@ export default function Home() {
           .then((data) => {
             setFileTree(data.tree);
             setCurrentPath(
-              data.rootPath,
+              data.rootPath
             );
           });
       }
@@ -345,7 +350,7 @@ export default function Home() {
     const poll = async () => {
       try {
         const res = await fetch(
-          `/api/tests/status?repo=${selectedRepo}`,
+          `/api/tests/status?repo=${selectedRepo}`
         );
         const data =
           (await res.json()) as {
@@ -353,7 +358,7 @@ export default function Home() {
           };
         if (cancelled) return;
         setTestsSetupStatus(
-          data.status,
+          data.status
         );
         if (!data.status) return;
         if (
@@ -372,7 +377,7 @@ export default function Home() {
     poll();
     const id = window.setInterval(
       poll,
-      1500,
+      1500
     );
     return () => {
       cancelled = true;
@@ -400,7 +405,7 @@ export default function Home() {
                 ".agelum",
                 "work",
                 "epics",
-                opts.state,
+                opts.state
               )
             : opts.kind === "task"
               ? joinFsPath(
@@ -409,7 +414,7 @@ export default function Home() {
                   ".agelum",
                   "work",
                   "tasks",
-                  opts.state,
+                  opts.state
                 )
               : joinFsPath(
                   basePath,
@@ -417,12 +422,12 @@ export default function Home() {
                   ".agelum",
                   "doc",
                   "ideas",
-                  opts.state,
+                  opts.state
                 );
 
         const draftPath = joinFsPath(
           baseDir,
-          `${id}.md`,
+          `${id}.md`
         );
 
         const content = `---\ncreated: ${createdAt}\nstate: ${opts.state}\n---\n\n# ${id}\n\n`;
@@ -438,12 +443,12 @@ export default function Home() {
         basePath,
         joinFsPath,
         selectedRepo,
-      ],
+      ]
     );
 
   const terminalAbortControllerRef =
     React.useRef<AbortController | null>(
-      null,
+      null
     );
 
   const ensureModelsForTool =
@@ -460,19 +465,19 @@ export default function Home() {
           (prev) => ({
             ...prev,
             [toolName]: true,
-          }),
+          })
         );
 
         try {
           const res = await fetch(
-            `/api/agents?action=models&tool=${encodeURIComponent(toolName)}`,
+            `/api/agents?action=models&tool=${encodeURIComponent(toolName)}`
           );
           const data =
             (await res.json()) as {
               models?: string[];
             };
           const models = Array.isArray(
-            data.models,
+            data.models
           )
             ? data.models
             : [];
@@ -481,7 +486,7 @@ export default function Home() {
             (prev) => ({
               ...prev,
               [toolName]: models,
-            }),
+            })
           );
 
           if (
@@ -494,7 +499,7 @@ export default function Home() {
               (prev) => ({
                 ...prev,
                 [toolName]: models[0],
-              }),
+              })
             );
           }
         } catch {
@@ -502,14 +507,14 @@ export default function Home() {
             (prev) => ({
               ...prev,
               [toolName]: [],
-            }),
+            })
           );
         } finally {
           setIsToolModelsLoading(
             (prev) => ({
               ...prev,
               [toolName]: false,
-            }),
+            })
           );
         }
       },
@@ -517,7 +522,7 @@ export default function Home() {
         isToolModelsLoading,
         toolModelByTool,
         toolModelsByTool,
-      ],
+      ]
     );
 
   const buildToolPrompt =
@@ -560,14 +565,14 @@ Context and Instructions:
 
         return `${contextInstructions}\n\nCurrent File Content:\n${clippedContent}\n\nRequest:\n${trimmed}`;
       },
-      [],
+      []
     );
 
   const [
     terminalProcessId,
     setTerminalProcessId,
   ] = React.useState<string | null>(
-    null,
+    null
   );
 
   const cancelTerminal =
@@ -580,7 +585,7 @@ Context and Instructions:
       setTerminalOutput((prev) =>
         prev
           ? `${prev}\n\nCancelled`
-          : "Cancelled",
+          : "Cancelled"
       );
     }, []);
 
@@ -602,16 +607,16 @@ Context and Instructions:
                 id: terminalProcessId,
                 data,
               }),
-            },
+            }
           );
         } catch (error) {
           console.error(
             "Failed to send input:",
-            error,
+            error
           );
         }
       },
-      [terminalProcessId],
+      [terminalProcessId]
     );
 
   const runTool = React.useCallback(
@@ -649,7 +654,7 @@ Context and Instructions:
         basePath && selectedRepo
           ? `${basePath}/${selectedRepo}`.replace(
               /\/+/g,
-              "/",
+              "/"
             )
           : undefined;
 
@@ -672,16 +677,16 @@ Context and Instructions:
               cwd,
             }),
             signal: controller.signal,
-          },
+          }
         );
 
         const processId =
           res.headers.get(
-            "X-Agent-Process-ID",
+            "X-Agent-Process-ID"
           );
         if (processId) {
           setTerminalProcessId(
-            processId,
+            processId
           );
         }
 
@@ -695,7 +700,7 @@ Context and Instructions:
                 .catch(() => "");
           setTerminalOutput(
             fallbackText ||
-              "Tool execution failed",
+              "Tool execution failed"
           );
           return;
         }
@@ -710,11 +715,11 @@ Context and Instructions:
             value,
             {
               stream: true,
-            },
+            }
           );
           if (chunk) {
             setTerminalOutput(
-              (prev) => prev + chunk,
+              (prev) => prev + chunk
             );
           }
         }
@@ -727,12 +732,12 @@ Context and Instructions:
           setTerminalOutput((prev) =>
             prev
               ? `${prev}\n\nCancelled`
-              : "Cancelled",
+              : "Cancelled"
           );
           return;
         }
         setTerminalOutput(
-          "Tool execution failed",
+          "Tool execution failed"
         );
       } finally {
         if (
@@ -756,15 +761,15 @@ Context and Instructions:
       basePath,
       selectedRepo,
       viewMode,
-    ],
+    ]
   );
 
   const handleFileSelect = async (
-    node: FileNode,
+    node: FileNode
   ) => {
     if (node.type === "file") {
       const content = await fetch(
-        `/api/file?path=${encodeURIComponent(node.path)}`,
+        `/api/file?path=${encodeURIComponent(node.path)}`
       ).then((res) => res.json());
       setSelectedFile({
         path: node.path,
@@ -777,7 +782,7 @@ Context and Instructions:
   };
 
   const handleTaskSelect = (
-    task: Task,
+    task: Task
   ) => {
     if (!selectedRepo || !task.id)
       return;
@@ -795,7 +800,7 @@ Context and Instructions:
     setWorkDocIsDraft(false);
     setRightSidebarView("prompt");
     fetch(
-      `/api/file?path=${encodeURIComponent(filePath)}`,
+      `/api/file?path=${encodeURIComponent(filePath)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -807,7 +812,7 @@ Context and Instructions:
   };
 
   const handleEpicSelect = (
-    epic: Epic,
+    epic: Epic
   ) => {
     if (!selectedRepo || !epic.id)
       return;
@@ -825,7 +830,7 @@ Context and Instructions:
     setWorkDocIsDraft(false);
     setRightSidebarView("prompt");
     fetch(
-      `/api/file?path=${encodeURIComponent(filePath)}`,
+      `/api/file?path=${encodeURIComponent(filePath)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -837,7 +842,7 @@ Context and Instructions:
   };
 
   const handleIdeaSelect = (
-    idea: Idea,
+    idea: Idea
   ) => {
     if (!selectedRepo || !idea.id)
       return;
@@ -855,7 +860,7 @@ Context and Instructions:
     setWorkDocIsDraft(false);
     setRightSidebarView("prompt");
     fetch(
-      `/api/file?path=${encodeURIComponent(filePath)}`,
+      `/api/file?path=${encodeURIComponent(filePath)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -867,7 +872,7 @@ Context and Instructions:
   };
 
   const handleRunTest = async (
-    path: string,
+    path: string
   ) => {
     setTestOutput("");
     setIsTestRunning(true);
@@ -885,7 +890,7 @@ Context and Instructions:
           body: JSON.stringify({
             path,
           }),
-        },
+        }
       );
 
       const reader =
@@ -898,16 +903,16 @@ Context and Instructions:
         if (done) break;
         const text =
           new TextDecoder().decode(
-            value,
+            value
           );
         setTestOutput(
-          (prev) => prev + text,
+          (prev) => prev + text
         );
       }
     } catch (error) {
       setTestOutput(
         (prev) =>
-          prev + "\nError running test",
+          prev + "\nError running test"
       );
     } finally {
       setIsTestRunning(false);
@@ -917,7 +922,7 @@ Context and Instructions:
   const renderWorkEditor = (opts: {
     onBack: () => void;
     onRename?: (
-      newTitle: string,
+      newTitle: string
     ) => Promise<{
       path: string;
       content: string;
@@ -983,7 +988,7 @@ Context and Instructions:
                       cancelTerminal();
                     } else {
                       setRightSidebarView(
-                        "prompt",
+                        "prompt"
                       );
                     }
                   }}
@@ -1007,7 +1012,7 @@ Context and Instructions:
                     <button
                       onClick={() =>
                         setDocAiMode(
-                          "modify",
+                          "modify"
                         )
                       }
                       className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
@@ -1022,7 +1027,7 @@ Context and Instructions:
                     <button
                       onClick={() =>
                         setDocAiMode(
-                          "start",
+                          "start"
                         )
                       }
                       className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
@@ -1043,7 +1048,7 @@ Context and Instructions:
                     onChange={(e) =>
                       setPromptMode(
                         e.target
-                          .value as any,
+                          .value as any
                       )
                     }
                     className="pr-6 w-full h-full text-xs text-right text-gray-300 bg-transparent appearance-none cursor-pointer outline-none hover:text-white"
@@ -1076,7 +1081,7 @@ Context and Instructions:
                   value={promptText}
                   onChange={(e) =>
                     setPromptText(
-                      e.target.value,
+                      e.target.value
                     )
                   }
                   className="px-3 py-2 w-full h-32 text-sm text-gray-100 bg-gray-800 rounded border border-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -1105,7 +1110,7 @@ Context and Instructions:
                             }
                             onMouseEnter={() =>
                               void ensureModelsForTool(
-                                tool.name,
+                                tool.name
                               )
                             }
                             className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${
@@ -1117,7 +1122,7 @@ Context and Instructions:
                             <button
                               onClick={() =>
                                 runTool(
-                                  tool.name,
+                                  tool.name
                                 )
                               }
                               disabled={
@@ -1143,18 +1148,18 @@ Context and Instructions:
                                   selectedModel
                                 }
                                 onChange={(
-                                  e,
+                                  e
                                 ) =>
                                   setToolModelByTool(
                                     (
-                                      prev,
+                                      prev
                                     ) => ({
                                       ...prev,
                                       [tool.name]:
                                         e
                                           .target
                                           .value,
-                                    }),
+                                    })
                                   )
                                 }
                                 className="w-full bg-transparent text-[10px] text-gray-400 focus:text-gray-200 outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-gray-800/50"
@@ -1167,7 +1172,7 @@ Context and Instructions:
                                 </option>
                                 {models.map(
                                   (
-                                    model,
+                                    model
                                   ) => (
                                     <option
                                       key={
@@ -1181,13 +1186,13 @@ Context and Instructions:
                                         model
                                       }
                                     </option>
-                                  ),
+                                  )
                                 )}
                               </select>
                             </div>
                           </div>
                         );
-                      },
+                      }
                     )}
                   </div>
                 </div>
@@ -1331,12 +1336,16 @@ Context and Instructions:
               value={selectedRepo || ""}
               onChange={(e) =>
                 setSelectedRepo(
-                  e.target.value,
+                  e.target.value
                 )
               }
               className="bg-transparent text-gray-100 text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
             >
-              <option value="" disabled className="bg-gray-800">
+              <option
+                value=""
+                disabled
+                className="bg-gray-800"
+              >
                 {repositories.length ===
                 0
                   ? "No repositories found"
@@ -1351,7 +1360,7 @@ Context and Instructions:
                   >
                     {repo}
                   </option>
-                ),
+                )
               )}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 text-gray-400 -translate-y-1/2 pointer-events-none" />
@@ -1359,7 +1368,12 @@ Context and Instructions:
 
           <div className="mx-2 w-px h-6 bg-gray-700" />
 
-          <button className="p-2 text-gray-400 rounded-lg transition-colors hover:text-white hover:bg-gray-700">
+          <button
+            onClick={() =>
+              setIsSettingsOpen(true)
+            }
+            className="p-2 text-gray-400 rounded-lg transition-colors hover:text-white hover:bg-gray-700"
+          >
             <Settings className="w-5 h-5" />
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg text-sm transition-colors">
@@ -1437,7 +1451,7 @@ Context and Instructions:
                         <button
                           onClick={() =>
                             setIsSetupLogsVisible(
-                              (v) => !v,
+                              (v) => !v
                             )
                           }
                           className="px-2 py-1 text-xs text-gray-200 rounded transition-colors hover:text-white hover:bg-gray-700"
@@ -1450,7 +1464,9 @@ Context and Instructions:
                       {isSetupLogsVisible ? (
                         <div className="flex overflow-hidden flex-col flex-1 px-3 pb-3 min-h-0">
                           <div
-                            ref={(el) => {
+                            ref={(
+                              el
+                            ) => {
                               if (el) {
                                 el.scrollTop =
                                   el.scrollHeight;
@@ -1471,36 +1487,87 @@ Context and Instructions:
                       "ready" ||
                     !isSetupLogsVisible) && (
                     <FileViewer
-                      file={selectedFile}
+                      file={
+                        selectedFile
+                      }
                       onFileSaved={
                         loadFileTree
                       }
                       onRun={
                         handleRunTest
                       }
-                      onRename={async (newTitle) => {
-                        if (!selectedFile) return;
-                        const oldPath = selectedFile.path;
-                        const dir = oldPath.split('/').slice(0, -1).join('/');
-                        const fileName = oldPath.split('/').pop() || '';
-                        const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
-                        const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ''}`;
-                        
-                        const res = await fetch('/api/file', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            path: oldPath,
-                            newPath: newPath,
-                            action: 'rename'
-                          })
-                        });
-                        
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Failed to rename file');
-                        
-                        const next = { path: data.path, content: selectedFile.content };
-                        setSelectedFile(next);
+                      onRename={async (
+                        newTitle
+                      ) => {
+                        if (
+                          !selectedFile
+                        )
+                          return;
+                        const oldPath =
+                          selectedFile.path;
+                        const dir =
+                          oldPath
+                            .split("/")
+                            .slice(
+                              0,
+                              -1
+                            )
+                            .join("/");
+                        const fileName =
+                          oldPath
+                            .split("/")
+                            .pop() ||
+                          "";
+                        const ext =
+                          fileName.includes(
+                            "."
+                          )
+                            ? fileName
+                                .split(
+                                  "."
+                                )
+                                .pop()
+                            : "";
+                        const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+
+                        const res =
+                          await fetch(
+                            "/api/file",
+                            {
+                              method:
+                                "POST",
+                              headers: {
+                                "Content-Type":
+                                  "application/json",
+                              },
+                              body: JSON.stringify(
+                                {
+                                  path: oldPath,
+                                  newPath:
+                                    newPath,
+                                  action:
+                                    "rename",
+                                }
+                              ),
+                            }
+                          );
+
+                        const data =
+                          await res.json();
+                        if (!res.ok)
+                          throw new Error(
+                            data.error ||
+                              "Failed to rename file"
+                          );
+
+                        const next = {
+                          path: data.path,
+                          content:
+                            selectedFile.content,
+                        };
+                        setSelectedFile(
+                          next
+                        );
                         loadFileTree();
                         return next;
                       }}
@@ -1513,29 +1580,69 @@ Context and Instructions:
                   onFileSaved={
                     loadFileTree
                   }
-                  onRename={async (newTitle) => {
-                    if (!selectedFile) return;
-                    const oldPath = selectedFile.path;
-                    const dir = oldPath.split('/').slice(0, -1).join('/');
-                    const fileName = oldPath.split('/').pop() || '';
-                    const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
-                    const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ''}`;
-                    
-                    const res = await fetch('/api/file', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        path: oldPath,
-                        newPath: newPath,
-                        action: 'rename'
-                      })
-                    });
-                    
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Failed to rename file');
-                    
-                    const next = { path: data.path, content: selectedFile.content };
-                    setSelectedFile(next);
+                  onRename={async (
+                    newTitle
+                  ) => {
+                    if (!selectedFile)
+                      return;
+                    const oldPath =
+                      selectedFile.path;
+                    const dir = oldPath
+                      .split("/")
+                      .slice(0, -1)
+                      .join("/");
+                    const fileName =
+                      oldPath
+                        .split("/")
+                        .pop() || "";
+                    const ext =
+                      fileName.includes(
+                        "."
+                      )
+                        ? fileName
+                            .split(".")
+                            .pop()
+                        : "";
+                    const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+
+                    const res =
+                      await fetch(
+                        "/api/file",
+                        {
+                          method:
+                            "POST",
+                          headers: {
+                            "Content-Type":
+                              "application/json",
+                          },
+                          body: JSON.stringify(
+                            {
+                              path: oldPath,
+                              newPath:
+                                newPath,
+                              action:
+                                "rename",
+                            }
+                          ),
+                        }
+                      );
+
+                    const data =
+                      await res.json();
+                    if (!res.ok)
+                      throw new Error(
+                        data.error ||
+                          "Failed to rename file"
+                      );
+
+                    const next = {
+                      path: data.path,
+                      content:
+                        selectedFile.content,
+                    };
+                    setSelectedFile(
+                      next
+                    );
                     loadFileTree();
                     return next;
                   }}
@@ -1548,55 +1655,53 @@ Context and Instructions:
                 renderWorkEditor({
                   onBack: () =>
                     setSelectedFile(
-                      null,
+                      null
                     ),
-                  onRename:
-                    selectedRepo
-                      ? async (
-                          newTitle: string,
-                        ) => {
-                          const res =
-                            await fetch(
-                              "/api/ideas",
-                              {
-                                method:
-                                  "POST",
-                                headers:
-                                  {
-                                    "Content-Type":
-                                      "application/json",
-                                  },
-                                body: JSON.stringify(
-                                  {
-                                    repo: selectedRepo,
-                                    action:
-                                      "rename",
-                                    path: selectedFile.path,
-                                    newTitle,
-                                  },
-                                ),
+                  onRename: selectedRepo
+                    ? async (
+                        newTitle: string
+                      ) => {
+                        const res =
+                          await fetch(
+                            "/api/ideas",
+                            {
+                              method:
+                                "POST",
+                              headers: {
+                                "Content-Type":
+                                  "application/json",
                               },
-                            );
-
-                          const data =
-                            await res.json();
-                          if (!res.ok)
-                            throw new Error(
-                              data.error ||
-                                "Failed to rename idea",
-                            );
-
-                          const next = {
-                            path: data.path as string,
-                            content:
-                              data.content as string,
-                          };
-                          setSelectedFile(
-                            next,
+                              body: JSON.stringify(
+                                {
+                                  repo: selectedRepo,
+                                  action:
+                                    "rename",
+                                  path: selectedFile.path,
+                                  newTitle,
+                                }
+                              ),
+                            }
                           );
-                          return next;
-                        }
-                      : undefined,
+
+                        const data =
+                          await res.json();
+                        if (!res.ok)
+                          throw new Error(
+                            data.error ||
+                              "Failed to rename idea"
+                          );
+
+                        const next = {
+                          path: data.path as string,
+                          content:
+                            data.content as string,
+                        };
+                        setSelectedFile(
+                          next
+                        );
+                        return next;
+                      }
+                    : undefined,
                 })
               ) : selectedRepo ? (
                 <IdeasKanban
@@ -1621,55 +1726,53 @@ Context and Instructions:
                 renderWorkEditor({
                   onBack: () =>
                     setSelectedFile(
-                      null,
+                      null
                     ),
-                  onRename:
-                    selectedRepo
-                      ? async (
-                          newTitle: string,
-                        ) => {
-                          const res =
-                            await fetch(
-                              "/api/epics",
-                              {
-                                method:
-                                  "POST",
-                                headers:
-                                  {
-                                    "Content-Type":
-                                      "application/json",
-                                  },
-                                body: JSON.stringify(
-                                  {
-                                    repo: selectedRepo,
-                                    action:
-                                      "rename",
-                                    path: selectedFile.path,
-                                    newTitle,
-                                  },
-                                ),
+                  onRename: selectedRepo
+                    ? async (
+                        newTitle: string
+                      ) => {
+                        const res =
+                          await fetch(
+                            "/api/epics",
+                            {
+                              method:
+                                "POST",
+                              headers: {
+                                "Content-Type":
+                                  "application/json",
                               },
-                            );
-
-                          const data =
-                            await res.json();
-                          if (!res.ok)
-                            throw new Error(
-                              data.error ||
-                                "Failed to rename epic",
-                            );
-
-                          const next = {
-                            path: data.path as string,
-                            content:
-                              data.content as string,
-                          };
-                          setSelectedFile(
-                            next,
+                              body: JSON.stringify(
+                                {
+                                  repo: selectedRepo,
+                                  action:
+                                    "rename",
+                                  path: selectedFile.path,
+                                  newTitle,
+                                }
+                              ),
+                            }
                           );
-                          return next;
-                        }
-                      : undefined,
+
+                        const data =
+                          await res.json();
+                        if (!res.ok)
+                          throw new Error(
+                            data.error ||
+                              "Failed to rename epic"
+                          );
+
+                        const next = {
+                          path: data.path as string,
+                          content:
+                            data.content as string,
+                        };
+                        setSelectedFile(
+                          next
+                        );
+                        return next;
+                      }
+                    : undefined,
                 })
               ) : selectedRepo ? (
                 <EpicsKanban
@@ -1694,14 +1797,14 @@ Context and Instructions:
                 renderWorkEditor({
                   onBack: () =>
                     setSelectedFile(
-                      null,
+                      null
                     ),
                   onRename:
                     viewMode ===
                       "kanban" &&
                     selectedRepo
                       ? async (
-                          newTitle: string,
+                          newTitle: string
                         ) => {
                           const res =
                             await fetch(
@@ -1721,9 +1824,9 @@ Context and Instructions:
                                       "rename",
                                     path: selectedFile.path,
                                     newTitle,
-                                  },
+                                  }
                                 ),
-                              },
+                              }
                             );
 
                           const data =
@@ -1731,7 +1834,7 @@ Context and Instructions:
                           if (!res.ok)
                             throw new Error(
                               data.error ||
-                                "Failed to rename task",
+                                "Failed to rename task"
                             );
 
                           const next = {
@@ -1740,7 +1843,7 @@ Context and Instructions:
                               data.content as string,
                           };
                           setSelectedFile(
-                            next,
+                            next
                           );
                           return next;
                         }
@@ -1788,6 +1891,11 @@ Context and Instructions:
           </div>
         </DialogContent>
       </Dialog>
+
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
     </div>
   );
 }
