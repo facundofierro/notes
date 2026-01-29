@@ -1,21 +1,15 @@
 import { ChildProcess } from "child_process";
 
 // Use globalThis to persist the store across hot reloads in development
-const globalStore =
-  globalThis as unknown as {
-    activeProcesses?: Map<
-      string,
-      ChildProcess
-    >;
-  };
+const globalStore = globalThis as unknown as {
+  activeProcesses?: Map<string, ChildProcess>;
+};
 
 if (!globalStore.activeProcesses) {
-  globalStore.activeProcesses =
-    new Map();
+  globalStore.activeProcesses = new Map();
 }
 
-export const activeProcesses =
-  globalStore.activeProcesses;
+export const activeProcesses = globalStore.activeProcesses;
 
 export function registerProcess(
   id: string,
