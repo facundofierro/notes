@@ -1485,94 +1485,105 @@ Context and Instructions:
                   {(!testsSetupStatus ||
                     testsSetupStatus.state ===
                       "ready" ||
-                    !isSetupLogsVisible) && (
-                    <FileViewer
-                      file={
-                        selectedFile
-                      }
-                      onFileSaved={
-                        loadFileTree
-                      }
-                      onRun={
-                        handleRunTest
-                      }
-                      onRename={async (
-                        newTitle
-                      ) => {
-                        if (
-                          !selectedFile
-                        )
-                          return;
-                        const oldPath =
-                          selectedFile.path;
-                        const dir =
-                          oldPath
-                            .split("/")
-                            .slice(
-                              0,
-                              -1
+                    !isSetupLogsVisible) &&
+                    (selectedFile ? (
+                      renderWorkEditor({
+                        onBack: () =>
+                          setSelectedFile(
+                            null
+                          ),
+                        onRename:
+                          async (
+                            newTitle
+                          ) => {
+                            if (
+                              !selectedFile
                             )
-                            .join("/");
-                        const fileName =
-                          oldPath
-                            .split("/")
-                            .pop() ||
-                          "";
-                        const ext =
-                          fileName.includes(
-                            "."
-                          )
-                            ? fileName
+                              return;
+                            const oldPath =
+                              selectedFile.path;
+                            const dir =
+                              oldPath
                                 .split(
-                                  "."
+                                  "/"
                                 )
-                                .pop()
-                            : "";
-                        const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                                .slice(
+                                  0,
+                                  -1
+                                )
+                                .join(
+                                  "/"
+                                );
+                            const fileName =
+                              oldPath
+                                .split(
+                                  "/"
+                                )
+                                .pop() ||
+                              "";
+                            const ext =
+                              fileName.includes(
+                                "."
+                              )
+                                ? fileName
+                                    .split(
+                                      "."
+                                    )
+                                    .pop()
+                                : "";
+                            const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
 
-                        const res =
-                          await fetch(
-                            "/api/file",
-                            {
-                              method:
-                                "POST",
-                              headers: {
-                                "Content-Type":
-                                  "application/json",
-                              },
-                              body: JSON.stringify(
+                            const res =
+                              await fetch(
+                                "/api/file",
                                 {
-                                  path: oldPath,
-                                  newPath:
-                                    newPath,
-                                  action:
-                                    "rename",
+                                  method:
+                                    "POST",
+                                  headers:
+                                    {
+                                      "Content-Type":
+                                        "application/json",
+                                    },
+                                  body: JSON.stringify(
+                                    {
+                                      path: oldPath,
+                                      newPath:
+                                        newPath,
+                                      action:
+                                        "rename",
+                                    }
+                                  ),
                                 }
-                              ),
-                            }
-                          );
+                              );
 
-                        const data =
-                          await res.json();
-                        if (!res.ok)
-                          throw new Error(
-                            data.error ||
-                              "Failed to rename file"
-                          );
+                            const data =
+                              await res.json();
+                            if (!res.ok)
+                              throw new Error(
+                                data.error ||
+                                  "Failed to rename file"
+                              );
 
-                        const next = {
-                          path: data.path,
-                          content:
-                            selectedFile.content,
-                        };
-                        setSelectedFile(
-                          next
-                        );
-                        loadFileTree();
-                        return next;
-                      }}
-                    />
-                  )}
+                            const next =
+                              {
+                                path: data.path,
+                                content:
+                                  selectedFile.content,
+                              };
+                            setSelectedFile(
+                              next
+                            );
+                            loadFileTree();
+                            return next;
+                          },
+                      })
+                    ) : (
+                      <div className="flex flex-1 items-center justify-center text-gray-500">
+                        Select a test
+                        file to view and
+                        edit
+                      </div>
+                    ))}
                 </div>
               ) : (
                 <FileViewer

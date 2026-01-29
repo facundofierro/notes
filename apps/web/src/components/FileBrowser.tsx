@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import {
@@ -46,6 +48,10 @@ interface FileBrowserProps {
   onRefresh?: () => void;
   onRunFolder?: (path: string) => void;
 }
+
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH = 600;
+const SIDEBAR_DEFAULT_WIDTH = 320;
 
 function FileTreeNode({
   node,
@@ -267,6 +273,16 @@ export default function FileBrowser({
     newFolderName,
     setNewFolderName,
   ] = useState("");
+  const [
+    sidebarWidth,
+    setSidebarWidth,
+  ] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] =
+    useState(false);
+  const resizeStartX = useRef(0);
+  const resizeStartWidth = useRef(
+    SIDEBAR_DEFAULT_WIDTH,
+  );
 
   useEffect(() => {
     if (!fileTree) return;
@@ -299,6 +315,69 @@ export default function FileBrowser({
     }
     setExpandedPaths(newExpanded);
   };
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
+      resizeStartX.current = e.clientX;
+      resizeStartWidth.current =
+        sidebarWidth;
+    },
+    [sidebarWidth],
+  );
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    document.body.style.cursor =
+      "col-resize";
+    document.body.style.userSelect =
+      "none";
+
+    const handleMouseMove = (
+      e: MouseEvent,
+    ) => {
+      const delta =
+        e.clientX -
+        resizeStartX.current;
+      const newWidth = Math.min(
+        SIDEBAR_MAX_WIDTH,
+        Math.max(
+          SIDEBAR_MIN_WIDTH,
+          resizeStartWidth.current +
+            delta,
+        ),
+      );
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    window.addEventListener(
+      "mousemove",
+      handleMouseMove,
+    );
+    window.addEventListener(
+      "mouseup",
+      handleMouseUp,
+    );
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect =
+        "";
+      window.removeEventListener(
+        "mousemove",
+        handleMouseMove,
+      );
+      window.removeEventListener(
+        "mouseup",
+        handleMouseUp,
+      );
+    };
+  }, [isResizing]);
 
   const handleDelete = async (
     path: string,
@@ -408,7 +487,20 @@ export default function FileBrowser({
 
   return (
     <>
-      <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+      <div
+        className="relative flex shrink-0 flex-col border-r border-gray-700 bg-gray-800"
+        style={{ width: sidebarWidth }}
+      >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuenow={sidebarWidth}
+          tabIndex={0}
+          className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize select-none border-r border-transparent transition-colors hover:border-gray-500 hover:bg-gray-600/50 active:bg-gray-600"
+          onMouseDown={
+            handleResizeStart
+          }
+        />
         <div className="flex-1 overflow-y-auto p-2">
           {fileTree ? (
             <FileTreeNode
