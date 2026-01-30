@@ -44,6 +44,8 @@ export interface UserSettings {
   projects: ProjectConfig[];
   enabledAgents: string[];
   stagehandApiKey: string;
+  openaiApiKey: string;
+  anthropicApiKey: string;
   workflows: WorkflowConfig[];
   defaultWorkflowId?: string;
   createBranchPerTask: boolean;
@@ -65,6 +67,8 @@ const defaultSettings: UserSettings = {
   projects: [],
   enabledAgents: [],
   stagehandApiKey: "",
+  openaiApiKey: "",
+  anthropicApiKey: "",
   workflows: [],
   createBranchPerTask: false,
 };

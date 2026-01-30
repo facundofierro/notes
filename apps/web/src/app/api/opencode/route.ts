@@ -16,6 +16,13 @@ export async function GET(
       "1" ||
     searchParams.get("deferPrompt") ===
       "true";
+  const createSession =
+    searchParams.get(
+      "createSession",
+    ) === "1" ||
+    searchParams.get(
+      "createSession",
+    ) === "true";
 
   const port = Number(
     process.env.OPENCODE_PORT || 9988,
@@ -65,7 +72,11 @@ export async function GET(
     let finalUrl = `${url}/${b64Dir}/session`;
     let sessionId: string | undefined;
 
-    if (prompt) {
+    if (
+      prompt ||
+      deferPrompt ||
+      createSession
+    ) {
       try {
         const session = await fetch(
           `${url}/session?directory=${encodeURIComponent(dir)}`,
@@ -82,7 +93,7 @@ export async function GET(
         sessionId = session?.id;
         if (sessionId) {
           finalUrl = `${url}/${b64Dir}/session/${sessionId}`;
-          if (!deferPrompt) {
+          if (prompt && !deferPrompt) {
             await fetch(
               `${url}/session/${sessionId}/message?directory=${encodeURIComponent(dir)}`,
               {

@@ -735,14 +735,94 @@ export default function Home() {
           opts.promptText.trim();
         if (!trimmed) return "";
 
-        const contextInstructions = `
-Context and Instructions:
-1. You are working on a file at path: "${opts.file.path}".
-2. The user request is: "${trimmed}".
-3. If the user asks to create or modify a task/document, you should UPDATE the content of the file at "${opts.file.path}" or CREATE a new file if requested.
-4. When creating a new file, ensure it has a valid filename and is placed in the correct directory.
-5. If the user's request implies modifying the current document, apply the changes directly to the file content.
-`;
+        const filePath = opts.file.path;
+        const normalizedPath =
+          filePath.replace(/\\/g, "/");
+        const fileName =
+          normalizedPath
+            .split("/")
+            .pop() || "";
+        const fileStem =
+          fileName.replace(/\.md$/, "");
+        const isEpicDoc =
+          normalizedPath.includes(
+            "/.agelum/work/epics/",
+          ) ||
+          opts.viewMode === "epics";
+        const isTaskDoc =
+          normalizedPath.includes(
+            "/.agelum/work/tasks/",
+          ) ||
+          opts.viewMode === "kanban" ||
+          opts.viewMode === "tasks";
+        const isTestDoc =
+          normalizedPath.includes(
+            "/.agelum/work/tests/",
+          ) ||
+          opts.viewMode === "tests";
+
+        const effectiveDocMode:
+          | "modify"
+          | "start" = isTestDoc
+          ? "modify"
+          : opts.docMode;
+
+        const operation =
+          effectiveDocMode === "modify"
+            ? isTestDoc
+              ? "modify_test"
+              : "modify_document"
+            : isEpicDoc
+              ? "create_tasks_from_epic"
+              : isTaskDoc
+                ? "work_on_task"
+                : "start";
+
+        const operationInstructions =
+          operation === "modify_test"
+            ? [
+                `- Modify the test file at "${filePath}".`,
+                "- Keep changes minimal and focused on the request.",
+              ]
+            : operation ===
+                "modify_document"
+              ? [
+                  `- Modify the document at "${filePath}".`,
+                  "- Apply changes directly to that file.",
+                ]
+              : operation ===
+                  "create_tasks_from_epic"
+                ? [
+                    `- Use the epic at "${filePath}" as the source of scope.`,
+                    `- Epic id (from filename): "${fileStem}".`,
+                    "- First, propose a list of tasks to create (titles + short descriptions + proposed file paths).",
+                    "- Ask for confirmation before creating any new files.",
+                    `- When creating task files, place them under ".agelum/work/tasks/pending/${fileStem}/" unless a different state is explicitly requested.`,
+                  ]
+                : operation ===
+                    "work_on_task"
+                  ? [
+                      `- Use the task document at "${filePath}" as the source of requirements and acceptance criteria.`,
+                      "- Make the necessary code changes in the repository to complete the task.",
+                    ]
+                  : [
+                      `- Start work using "${filePath}" as context.`,
+                    ];
+
+        const contextInstructions = [
+          "Context and Instructions:",
+          `1. Current file path: "${filePath}".`,
+          `2. Mode: "${effectiveDocMode}".`,
+          `3. Operation: "${operation}".`,
+          `4. User request: "${trimmed}".`,
+          "5. Operation-specific instructions:",
+          ...operationInstructions.map(
+            (line) => `   ${line}`,
+          ),
+          "6. General rules:",
+          `   - If the request implies changing the current document, update the file at "${filePath}".`,
+          "   - When creating any new file, ensure it has a valid filename and is placed in the correct directory.",
+        ].join("\n");
 
         if (!opts.includeFile) {
           return `${contextInstructions}\n\nRequest:\n${trimmed}`;
@@ -835,9 +915,7 @@ Context and Instructions:
         mode: promptMode,
         docMode: docAiMode,
         file: selectedFile,
-        includeFile:
-          !workDocIsDraft &&
-          docAiMode === "modify",
+        includeFile: !workDocIsDraft,
         viewMode,
         selectedRepo,
       });
@@ -1332,7 +1410,18 @@ Context and Instructions:
                             : "text-gray-400 hover:text-gray-200"
                         }`}
                       >
-                        Start
+                        {selectedFile?.path
+                          ?.replace(
+                            /\\/g,
+                            "/",
+                          )
+                          .includes(
+                            "/.agelum/work/epics/",
+                          ) ||
+                        viewMode ===
+                          "epics"
+                          ? "Create tasks"
+                          : "Start"}
                       </button>
                     </div>
                   )
@@ -1540,11 +1629,11 @@ Context and Instructions:
                               trimmedPrompt
                             ) {
                               params.set(
-                                "prompt",
-                                trimmedPrompt,
+                                "deferPrompt",
+                                "1",
                               );
                               params.set(
-                                "deferPrompt",
+                                "createSession",
                                 "1",
                               );
                             }
@@ -1574,12 +1663,27 @@ Context and Instructions:
                                 trimmedPrompt &&
                                 data?.sessionId
                               ) {
+                                const prompt =
+                                  buildToolPrompt(
+                                    {
+                                      promptText:
+                                        trimmedPrompt,
+                                      mode: promptMode,
+                                      docMode:
+                                        docAiMode,
+                                      file: selectedFile!,
+                                      includeFile:
+                                        !workDocIsDraft,
+                                      viewMode,
+                                      selectedRepo,
+                                    },
+                                  );
                                 setPendingOpenCodeWebMessage(
                                   {
                                     sessionId:
                                       data.sessionId,
                                     prompt:
-                                      trimmedPrompt,
+                                      prompt,
                                     path:
                                       fullPath ||
                                       undefined,
