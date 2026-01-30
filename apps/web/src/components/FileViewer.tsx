@@ -12,8 +12,13 @@ import {
   X,
   ArrowLeft,
   Play,
+  Code,
+  ListTree,
+  History,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { TestSteps } from "./TestSteps";
+import { TestResults } from "./TestResults";
 import type { EditorProps } from "@monaco-editor/react";
 
 const MonacoEditor =
@@ -70,6 +75,16 @@ interface FileViewerProps {
     next: boolean,
   ) => void;
   onRun?: (path: string) => void;
+  isTestFile?: boolean;
+  testViewMode?:
+    | "steps"
+    | "code"
+    | "results";
+  onTestViewModeChange?: (
+    mode: "steps" | "code" | "results",
+  ) => void;
+  testOutput?: string;
+  isTestRunning?: boolean;
 }
 
 export default function FileViewer({
@@ -83,6 +98,11 @@ export default function FileViewer({
   onValueChange,
   onEditingChange,
   onRun,
+  isTestFile,
+  testViewMode = "code",
+  onTestViewModeChange,
+  testOutput,
+  isTestRunning,
 }: FileViewerProps) {
   const [isEditing, setIsEditing] =
     useState(false);
@@ -110,11 +130,7 @@ export default function FileViewer({
       setIsRenaming(false);
       setRenameValue("");
     }
-  }, [
-    file,
-    editing,
-    value,
-  ]);
+  }, [file, editing, value]);
 
   useEffect(() => {
     if (editing !== undefined) {
@@ -375,10 +391,59 @@ export default function FileViewer({
             </span>
           )}
         </div>
+
+        {isTestFile && (
+          <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
+            <button
+              onClick={() =>
+                onTestViewModeChange?.(
+                  "steps",
+                )
+              }
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                testViewMode === "steps"
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+              }`}
+            >
+              <ListTree className="w-3.5 h-3.5" />
+              Steps
+            </button>
+            <button
+              onClick={() =>
+                onTestViewModeChange?.(
+                  "code",
+                )
+              }
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                testViewMode === "code"
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+              }`}
+            >
+              <Code className="w-3.5 h-3.5" />
+              Code
+            </button>
+            <button
+              onClick={() =>
+                onTestViewModeChange?.(
+                  "results",
+                )
+              }
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                testViewMode ===
+                "results"
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              Results
+            </button>
+          </div>
+        )}
+
         <div className="flex gap-2 items-center">
-          <span className="mr-4 max-w-md text-xs text-gray-500 truncate">
-            {file.path}
-          </span>
           {onRun && (
             <button
               onClick={() =>
@@ -432,7 +497,24 @@ export default function FileViewer({
         }
         data-color-mode="dark"
       >
-        {isMarkdown ? (
+        {testViewMode === "steps" ? (
+          <div className="flex-1 overflow-auto">
+            <TestSteps
+              code={effectiveContent}
+            />
+          </div>
+        ) : testViewMode ===
+          "results" ? (
+          <div className="flex-1 overflow-hidden">
+            <TestResults
+              testPath={file.path}
+              currentOutput={testOutput}
+              isTestRunning={
+                isTestRunning
+              }
+            />
+          </div>
+        ) : isMarkdown ? (
           isEditing ? (
             <MDEditor
               value={effectiveContent}
@@ -525,6 +607,11 @@ export default function FileViewer({
             }}
           />
         )}
+      </div>
+      <div className="px-3 py-1 bg-gray-800 border-t border-gray-700">
+        <span className="text-[10px] text-gray-500 font-mono">
+          {file.path}
+        </span>
       </div>
     </div>
   );

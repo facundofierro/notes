@@ -191,6 +191,12 @@ export default function Home() {
     React.useState<string>("");
   const [viewMode, setViewMode] =
     React.useState<ViewMode>("epics");
+  const [
+    testViewMode,
+    setTestViewMode,
+  ] = React.useState<
+    "steps" | "code" | "results"
+  >("code");
   const [testOutput, setTestOutput] =
     React.useState<string>("");
   const [
@@ -1214,6 +1220,17 @@ export default function Home() {
             }
             onBack={opts.onBack}
             onRename={opts.onRename}
+            isTestFile={
+              viewMode === "tests"
+            }
+            testViewMode={testViewMode}
+            onTestViewModeChange={
+              setTestViewMode
+            }
+            testOutput={testOutput}
+            isTestRunning={
+              isTestRunning
+            }
           />
         </div>
         <div
