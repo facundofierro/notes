@@ -12,7 +12,7 @@ export async function main() {
 
   const title = await page.extract({
     instruction: "get the title of the page",
-    schema: z.object({ title: z.string() })
+    schema: z.object({ title: z.string() }),
   });
 
   console.log("Page title:", title);

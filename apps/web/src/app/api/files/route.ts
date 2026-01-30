@@ -93,21 +93,17 @@ function ensureEnvFile(
 }
 
 function ensureAgelumTestEnvFiles(
-  testsDir: string,
+  projectDir: string,
   entries: Record<string, string | undefined>,
 ) {
-  ensureEnvFile(testsDir, entries);
-  const parentDir = path.dirname(testsDir);
-  if (path.basename(parentDir) === "agelum-test") {
-    ensureEnvFile(parentDir, entries);
-  }
+  ensureEnvFile(projectDir, entries);
 }
 
 function readTestsSetupStatus(
-  testsDir: string,
+  projectDir: string,
 ): TestsSetupStatus | null {
   const p = path.join(
-    testsDir,
+    projectDir,
     TESTS_SETUP_STATUS_FILE,
   );
   if (!fs.existsSync(p)) return null;
@@ -125,11 +121,11 @@ function readTestsSetupStatus(
 }
 
 function writeTestsSetupStatus(
-  testsDir: string,
+  projectDir: string,
   status: TestsSetupStatus,
 ) {
   const p = path.join(
-    testsDir,
+    projectDir,
     TESTS_SETUP_STATUS_FILE,
   );
   fs.writeFileSync(
@@ -151,11 +147,11 @@ function truncateLog(
 }
 
 function appendTestsSetupLog(
-  testsDir: string,
+  projectDir: string,
   chunk: string,
 ) {
   const prev = readTestsSetupStatus(
-    testsDir,
+    projectDir,
   ) ?? {
     state: "missing" as const,
     updatedAt: new Date().toISOString(),
@@ -166,7 +162,7 @@ function appendTestsSetupLog(
     updatedAt: new Date().toISOString(),
     log: truncateLog(prev.log + chunk),
   };
-  writeTestsSetupStatus(testsDir, next);
+  writeTestsSetupStatus(projectDir, next);
 }
 
 function isPidRunning(
@@ -182,11 +178,11 @@ function isPidRunning(
 }
 
 function shouldStartInstall(
-  testsDir: string,
+  projectDir: string,
   status: TestsSetupStatus | null,
 ): boolean {
   const nodeModulesPath = path.join(
-    testsDir,
+    projectDir,
     "node_modules",
   );
   if (fs.existsSync(nodeModulesPath))
@@ -194,7 +190,7 @@ function shouldStartInstall(
 
   // Check for pnpm-lock.yaml - if it exists, install was already done
   const pnpmLockPath = path.join(
-    testsDir,
+    projectDir,
     "pnpm-lock.yaml",
   );
   if (fs.existsSync(pnpmLockPath))
@@ -207,7 +203,7 @@ function shouldStartInstall(
     return false;
 
   const runningPid =
-    runningSetups.get(testsDir);
+    runningSetups.get(projectDir);
   if (
     runningPid &&
     isPidRunning(runningPid)
@@ -215,7 +211,7 @@ function shouldStartInstall(
     return false;
 
   const lockPath = path.join(
-    testsDir,
+    projectDir,
     TESTS_SETUP_LOCK_FILE,
   );
   if (fs.existsSync(lockPath)) {
@@ -240,16 +236,20 @@ function shouldStartInstall(
 }
 
 function ensureStagehandSetup(
+  projectDir: string,
   testsDir: string,
 ): TestsSetupStatus {
-  if (!fs.existsSync(testsDir)) {
-    fs.mkdirSync(testsDir, {
+  if (!fs.existsSync(projectDir)) {
+    fs.mkdirSync(projectDir, {
       recursive: true,
     });
   }
+  if (!fs.existsSync(testsDir)) {
+    fs.mkdirSync(testsDir, { recursive: true });
+  }
 
   const settings = readSettings();
-  ensureAgelumTestEnvFiles(testsDir, {
+  ensureAgelumTestEnvFiles(projectDir, {
     BROWSERBASE_API_KEY:
       settings.stagehandApiKey ||
       process.env.BROWSERBASE_API_KEY,
@@ -264,11 +264,7 @@ function ensureStagehandSetup(
       process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   });
 
-  // Add pnpm-workspace.yaml to isolate from monorepo
-  const workspacePath = path.join(
-    testsDir,
-    "pnpm-workspace.yaml",
-  );
+  const workspacePath = path.join(projectDir, "pnpm-workspace.yaml");
   if (!fs.existsSync(workspacePath)) {
     fs.writeFileSync(
       workspacePath,
@@ -277,11 +273,10 @@ function ensureStagehandSetup(
   }
 
   const packageJsonPath = path.join(
-    testsDir,
+    projectDir,
     "package.json",
   );
-
-  const srcDir = testsDir; // Tests are directly in the provided directory
+  const srcDir = testsDir;
 
   if (!fs.existsSync(packageJsonPath)) {
     const packageJson = {
@@ -310,7 +305,7 @@ function ensureStagehandSetup(
   }
 
   const tsConfigPath = path.join(
-    testsDir,
+    projectDir,
     "tsconfig.json",
   );
   if (!fs.existsSync(tsConfigPath)) {
@@ -368,17 +363,17 @@ if (require.main === module) {
   }
 
   const nodeModulesPath = path.join(
-    testsDir,
+    projectDir,
     "node_modules",
   );
   const pnpmLockPath = path.join(
-    testsDir,
+    projectDir,
     "pnpm-lock.yaml",
   );
   const nowIso =
     new Date().toISOString();
   const prev = readTestsSetupStatus(
-    testsDir,
+    projectDir,
   );
 
   const hasNodeModules = fs.existsSync(
@@ -421,25 +416,25 @@ if (require.main === module) {
       error: undefined,
     };
     writeTestsSetupStatus(
-      testsDir,
+      projectDir,
       ready,
     );
     return ready;
   }
 
   writeTestsSetupStatus(
-    testsDir,
+    projectDir,
     baseStatus,
   );
 
   if (
     shouldStartInstall(
-      testsDir,
+      projectDir,
       baseStatus,
     )
   ) {
     const lockPath = path.join(
-      testsDir,
+      projectDir,
       TESTS_SETUP_LOCK_FILE,
     );
     try {
@@ -450,7 +445,7 @@ if (require.main === module) {
     } catch {}
 
     appendTestsSetupLog(
-      testsDir,
+      projectDir,
       `\n[${nowIso}] Running: pnpm install\n`,
     );
 
@@ -458,21 +453,18 @@ if (require.main === module) {
       "pnpm",
       ["install"],
       {
-        cwd: testsDir,
+        cwd: projectDir,
         env: process.env,
         shell: true,
       },
     );
 
     if (child.pid) {
-      runningSetups.set(
-        testsDir,
-        child.pid,
-      );
+      runningSetups.set(projectDir, child.pid);
       const installing: TestsSetupStatus =
         {
           ...(readTestsSetupStatus(
-            testsDir,
+            projectDir,
           ) ?? baseStatus),
           state: "installing",
           pid: child.pid,
@@ -481,25 +473,25 @@ if (require.main === module) {
           error: undefined,
         };
       writeTestsSetupStatus(
-        testsDir,
+        projectDir,
         installing,
       );
     }
 
     child.stdout.on("data", (d) => {
       appendTestsSetupLog(
-        testsDir,
+        projectDir,
         d.toString(),
       );
     });
     child.stderr.on("data", (d) => {
       appendTestsSetupLog(
-        testsDir,
+        projectDir,
         d.toString(),
       );
     });
     child.on("error", (err) => {
-      runningSetups.delete(testsDir);
+      runningSetups.delete(projectDir);
       try {
         fs.unlinkSync(lockPath);
       } catch {}
@@ -512,27 +504,25 @@ if (require.main === module) {
           : String(err);
       const failed: TestsSetupStatus = {
         ...(readTestsSetupStatus(
-          testsDir,
+          projectDir,
         ) ?? baseStatus),
         state: "error",
         updatedAt,
         error: message,
       };
       writeTestsSetupStatus(
-        testsDir,
+        projectDir,
         failed,
       );
       appendTestsSetupLog(
-        testsDir,
+        projectDir,
         `\n[${updatedAt}] Failed: ${failed.error}\n`,
       );
     });
     child.on(
       "close",
       (code, signal) => {
-        runningSetups.delete(
-          testsDir,
-        );
+        runningSetups.delete(projectDir);
         try {
           fs.unlinkSync(lockPath);
         } catch {}
@@ -543,18 +533,18 @@ if (require.main === module) {
           const done: TestsSetupStatus =
             {
               ...(readTestsSetupStatus(
-                testsDir,
+                projectDir,
               ) ?? baseStatus),
               state: "ready",
               updatedAt,
               error: undefined,
             };
           writeTestsSetupStatus(
-            testsDir,
+            projectDir,
             done,
           );
           appendTestsSetupLog(
-            testsDir,
+            projectDir,
             `\n[${updatedAt}] Done.\n`,
           );
           return;
@@ -570,7 +560,7 @@ if (require.main === module) {
         const failed: TestsSetupStatus =
           {
             ...(readTestsSetupStatus(
-              testsDir,
+              projectDir,
             ) ?? baseStatus),
             state: "error",
             updatedAt,
@@ -578,11 +568,11 @@ if (require.main === module) {
               reasonParts.join(" "),
           };
         writeTestsSetupStatus(
-          testsDir,
+          projectDir,
           failed,
         );
         appendTestsSetupLog(
-          testsDir,
+          projectDir,
           `\n[${updatedAt}] Failed: ${failed.error}\n`,
         );
       },
@@ -590,7 +580,7 @@ if (require.main === module) {
   }
 
   return (
-    readTestsSetupStatus(testsDir) ??
+    readTestsSetupStatus(projectDir) ??
     baseStatus
   );
 }
@@ -811,18 +801,21 @@ function migrateAgelumStructure(
 function migrateAgelumTestsStructure(
   repoPath: string,
 ): string {
+  const projectDir = path.join(repoPath, "agelum-test");
   const newTestsDir = path.join(
-    repoPath,
-    "agelum-test",
+    projectDir,
     "tests",
   );
+  const oldTestsDir = path.join(repoPath, ".agelum", "work", "tests");
   const oldTestsSrcDir = path.join(
-    repoPath,
-    ".agelum",
-    "work",
-    "tests",
+    oldTestsDir,
     "src",
   );
+  if (!fs.existsSync(projectDir)) {
+    try {
+      fs.mkdirSync(projectDir, { recursive: true });
+    } catch {}
+  }
   if (
     !fs.existsSync(newTestsDir) &&
     fs.existsSync(oldTestsSrcDir)
@@ -834,7 +827,87 @@ function migrateAgelumTestsStructure(
       fs.renameSync(oldTestsSrcDir, newTestsDir);
     } catch {}
   }
+
+  const legacyRootFiles = ["package.json", "tsconfig.json"];
+  for (const name of legacyRootFiles) {
+    const from = path.join(oldTestsDir, name);
+    const to = path.join(projectDir, name);
+    if (fs.existsSync(from) && !fs.existsSync(to)) {
+      try {
+        fs.renameSync(from, to);
+      } catch {}
+    }
+  }
+
+  normalizeAgelumTestProjectStructure(projectDir, newTestsDir);
+
   return newTestsDir;
+}
+
+function normalizeAgelumTestProjectStructure(
+  projectDir: string,
+  testsDir: string,
+) {
+  if (!fs.existsSync(testsDir)) return;
+
+  const rootFiles = [
+    ".env",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.json",
+    TESTS_SETUP_STATUS_FILE,
+    TESTS_SETUP_LOCK_FILE,
+  ];
+
+  for (const name of rootFiles) {
+    const from = path.join(testsDir, name);
+    if (!fs.existsSync(from)) continue;
+    const to = path.join(projectDir, name);
+    if (!fs.existsSync(to)) {
+      try {
+        fs.renameSync(from, to);
+        continue;
+      } catch {}
+    }
+    try {
+      fs.rmSync(from, { force: true });
+    } catch {}
+  }
+
+  const fromNodeModules = path.join(testsDir, "node_modules");
+  const toNodeModules = path.join(projectDir, "node_modules");
+  if (fs.existsSync(fromNodeModules)) {
+    if (!fs.existsSync(toNodeModules)) {
+      try {
+        fs.renameSync(fromNodeModules, toNodeModules);
+        return;
+      } catch {}
+    }
+    try {
+      fs.rmSync(fromNodeModules, { recursive: true, force: true });
+    } catch {}
+  }
+
+  try {
+    const entries = fs.readdirSync(testsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (entry.name.endsWith(".ts")) continue;
+      if (entry.name.endsWith(".tsx")) continue;
+      const from = path.join(testsDir, entry.name);
+      const to = path.join(projectDir, entry.name);
+      if (!fs.existsSync(to)) {
+        try {
+          fs.renameSync(from, to);
+          continue;
+        } catch {}
+      }
+      try {
+        fs.rmSync(from, { force: true });
+      } catch {}
+    }
+  } catch {}
 }
 
 import { resolveProjectPath } from "@/lib/settings";
@@ -890,8 +963,9 @@ export async function GET(
     if (subPath === "work/tests") {
       const testsDir =
         migrateAgelumTestsStructure(repoPath);
+      const projectDir = path.dirname(testsDir);
       const status =
-        ensureStagehandSetup(testsDir);
+        ensureStagehandSetup(projectDir, testsDir);
       const tree = buildFileTree(
         testsDir,
         basePath,

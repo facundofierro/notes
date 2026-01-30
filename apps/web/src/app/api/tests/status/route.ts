@@ -46,21 +46,34 @@ export async function GET(
       });
     }
 
-    const testsDir = path.join(
-      repoPath,
-      ".agelum",
-      "work",
-      "tests",
-    );
+    const candidates = [
+      path.join(
+        repoPath,
+        "agelum-test",
+        TESTS_SETUP_STATUS_FILE,
+      ),
+      path.join(
+        repoPath,
+        "agelum-test",
+        "tests",
+        TESTS_SETUP_STATUS_FILE,
+      ),
+      path.join(
+        repoPath,
+        ".agelum",
+        "work",
+        "tests",
+        TESTS_SETUP_STATUS_FILE,
+      ),
+    ];
 
-    const statusPath = path.join(
-      testsDir,
-      TESTS_SETUP_STATUS_FILE,
-    );
-    if (!fs.existsSync(statusPath)) {
-      return NextResponse.json({
-        status: null,
-      });
+    const statusPath =
+      candidates.find((p) =>
+        fs.existsSync(p),
+      ) ?? null;
+
+    if (!statusPath) {
+      return NextResponse.json({ status: null });
     }
 
     const raw = fs.readFileSync(

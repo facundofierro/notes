@@ -6,7 +6,7 @@ import { readSettings } from "@/lib/settings";
 
 function findAgelumTestsDir(
   inputPath: string,
-): string | null {
+): { projectDir: string; testsDir: string } | null {
   let current = inputPath;
   if (fs.existsSync(inputPath)) {
     try {
@@ -36,7 +36,14 @@ function findAgelumTestsDir(
       base === "tests" &&
       parent === "agelum-test"
     ) {
-      return current;
+      const projectDir = path.dirname(current);
+      normalizeAgelumTestProjectStructure(projectDir, current);
+      return { projectDir, testsDir: current };
+    }
+    if (base === "agelum-test") {
+      const testsDir = path.join(current, "tests");
+      normalizeAgelumTestProjectStructure(current, testsDir);
+      return { projectDir: current, testsDir };
     }
 
     // If we are in the src folder of the tests, that's our root
@@ -63,31 +70,36 @@ function findAgelumTestsDir(
             ),
           ),
         );
-        const newTestsDir = path.join(
-          repoRoot,
-          "agelum-test",
-          "tests",
-        );
+        const projectDir = path.join(repoRoot, "agelum-test");
+        const newTestsDir = path.join(projectDir, "tests");
         if (
           !fs.existsSync(newTestsDir) &&
           fs.existsSync(current)
         ) {
           try {
-            fs.mkdirSync(
-              path.dirname(newTestsDir),
-              { recursive: true },
-            );
+            fs.mkdirSync(projectDir, { recursive: true });
             fs.renameSync(
               current,
               newTestsDir,
             );
           } catch {}
         }
-        return fs.existsSync(
-          newTestsDir,
-        )
-          ? newTestsDir
-          : current;
+        const oldTestsDir = path.join(repoRoot, ".agelum", "work", "tests");
+        for (const name of ["package.json", "tsconfig.json"]) {
+          const from = path.join(oldTestsDir, name);
+          const to = path.join(projectDir, name);
+          if (fs.existsSync(from) && !fs.existsSync(to)) {
+            try {
+              fs.renameSync(from, to);
+            } catch {}
+          }
+        }
+
+        normalizeAgelumTestProjectStructure(projectDir, newTestsDir);
+        return {
+          projectDir,
+          testsDir: fs.existsSync(newTestsDir) ? newTestsDir : current,
+        };
       }
     }
 
@@ -106,34 +118,105 @@ function findAgelumTestsDir(
           path.dirname(current),
         ),
       );
-      const newTestsDir = path.join(
-        repoRoot,
-        "agelum-test",
-        "tests",
-      );
+      const projectDir = path.join(repoRoot, "agelum-test");
+      const newTestsDir = path.join(projectDir, "tests");
       if (
         !fs.existsSync(newTestsDir) &&
         fs.existsSync(legacySrc)
       ) {
         try {
-          fs.mkdirSync(
-            path.dirname(newTestsDir),
-            { recursive: true },
-          );
+          fs.mkdirSync(projectDir, { recursive: true });
           fs.renameSync(
             legacySrc,
             newTestsDir,
           );
         } catch {}
       }
-      if (fs.existsSync(newTestsDir))
-        return newTestsDir;
-      return legacySrc;
+      for (const name of ["package.json", "tsconfig.json"]) {
+        const from = path.join(current, name);
+        const to = path.join(projectDir, name);
+        if (fs.existsSync(from) && !fs.existsSync(to)) {
+          try {
+            fs.renameSync(from, to);
+          } catch {}
+        }
+      }
+
+      normalizeAgelumTestProjectStructure(projectDir, newTestsDir);
+      if (fs.existsSync(newTestsDir)) {
+        return { projectDir, testsDir: newTestsDir };
+      }
+      return { projectDir, testsDir: legacySrc };
     }
     current = path.dirname(current);
   }
 
   return null;
+}
+
+function normalizeAgelumTestProjectStructure(
+  projectDir: string,
+  testsDir: string,
+) {
+  if (!fs.existsSync(testsDir)) return;
+
+  const rootFiles = [
+    ".env",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.json",
+    ".agelum-tests-setup.json",
+    ".agelum-tests-setup.lock",
+  ];
+
+  for (const name of rootFiles) {
+    const from = path.join(testsDir, name);
+    if (!fs.existsSync(from)) continue;
+    const to = path.join(projectDir, name);
+    if (!fs.existsSync(to)) {
+      try {
+        fs.renameSync(from, to);
+        continue;
+      } catch {}
+    }
+    try {
+      fs.rmSync(from, { force: true });
+    } catch {}
+  }
+
+  const fromNodeModules = path.join(testsDir, "node_modules");
+  const toNodeModules = path.join(projectDir, "node_modules");
+  if (fs.existsSync(fromNodeModules)) {
+    if (!fs.existsSync(toNodeModules)) {
+      try {
+        fs.renameSync(fromNodeModules, toNodeModules);
+        return;
+      } catch {}
+    }
+    try {
+      fs.rmSync(fromNodeModules, { recursive: true, force: true });
+    } catch {}
+  }
+
+  try {
+    const entries = fs.readdirSync(testsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (entry.name.endsWith(".ts")) continue;
+      const from = path.join(testsDir, entry.name);
+      const to = path.join(projectDir, entry.name);
+      if (!fs.existsSync(to)) {
+        try {
+          fs.renameSync(from, to);
+          continue;
+        } catch {}
+      }
+      try {
+        fs.rmSync(from, { force: true });
+      } catch {}
+    }
+  } catch {}
 }
 
 function dotenvEscape(
@@ -227,37 +310,25 @@ function ensureEnvFile(
 }
 
 function ensureAgelumTestEnvFiles(
-  testsDir: string,
+  projectDir: string,
   entries: Record<
     string,
     string | undefined
   >,
 ) {
-  ensureEnvFile(testsDir, entries);
-  const parentDir =
-    path.dirname(testsDir);
-  if (
-    path.basename(parentDir) ===
-    "agelum-test"
-  ) {
-    ensureEnvFile(parentDir, entries);
-  }
+  ensureEnvFile(projectDir, entries);
 }
 
 function ensureStagehandTestProject(
-  testsDir: string,
+  projectDir: string,
 ) {
-  if (!fs.existsSync(testsDir)) {
-    fs.mkdirSync(testsDir, {
+  if (!fs.existsSync(projectDir)) {
+    fs.mkdirSync(projectDir, {
       recursive: true,
     });
   }
 
-  // Add pnpm-workspace.yaml to isolate from monorepo
-  const workspacePath = path.join(
-    testsDir,
-    "pnpm-workspace.yaml",
-  );
+  const workspacePath = path.join(projectDir, "pnpm-workspace.yaml");
   if (!fs.existsSync(workspacePath)) {
     fs.writeFileSync(
       workspacePath,
@@ -266,7 +337,7 @@ function ensureStagehandTestProject(
   }
 
   const packageJsonPath = path.join(
-    testsDir,
+    projectDir,
     "package.json",
   );
   if (!fs.existsSync(packageJsonPath)) {
@@ -296,7 +367,7 @@ function ensureStagehandTestProject(
   }
 
   const tsConfigPath = path.join(
-    testsDir,
+    projectDir,
     "tsconfig.json",
   );
   if (!fs.existsSync(tsConfigPath)) {
@@ -318,10 +389,10 @@ function ensureStagehandTestProject(
 }
 
 function hasStagehandInstalled(
-  testsDir: string,
+  projectDir: string,
 ): boolean {
   const stagehandPath = path.join(
-    testsDir,
+    projectDir,
     "node_modules",
     "@browserbasehq",
     "stagehand",
@@ -500,12 +571,13 @@ export async function POST(
         const agelumTestsDir =
           findAgelumTestsDir(testPath);
 
-        const runCwd =
-          agelumTestsDir ?? projectRoot;
+        const agelumTestProjectDir =
+          agelumTestsDir?.projectDir ?? null;
+        const runCwd = agelumTestProjectDir ?? projectRoot;
 
-        if (agelumTestsDir) {
+        if (agelumTestProjectDir) {
           ensureStagehandTestProject(
-            agelumTestsDir,
+            agelumTestProjectDir,
           );
         }
 
@@ -531,9 +603,9 @@ export async function POST(
                 .GOOGLE_GENERATIVE_AI_API_KEY,
           };
 
-        if (agelumTestsDir) {
+        if (agelumTestProjectDir) {
           ensureAgelumTestEnvFiles(
-            agelumTestsDir,
+            agelumTestProjectDir,
             {
               BROWSERBASE_API_KEY:
                 baseEnv.BROWSERBASE_API_KEY,
@@ -548,9 +620,9 @@ export async function POST(
         }
 
         if (
-          agelumTestsDir &&
+          agelumTestProjectDir &&
           !hasStagehandInstalled(
-            agelumTestsDir,
+            agelumTestProjectDir,
           )
         ) {
           controller.enqueue(
@@ -565,7 +637,7 @@ export async function POST(
               {
                 command: "pnpm",
                 args: ["install"],
-                cwd: agelumTestsDir,
+                cwd: agelumTestProjectDir,
                 env: baseEnv,
               },
             );
