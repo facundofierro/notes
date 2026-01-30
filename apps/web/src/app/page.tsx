@@ -809,9 +809,7 @@ export default function Home() {
             trimmed,
             "",
             "Rules:",
-            "- Locate/open the file by path (do not expect its contents in this prompt).",
-            "- Keep changes minimal and focused on the instructions.",
-            "- If you create new files, use valid filenames and place them in the correct directories.",
+            "- Only modify the specified file with Stagehand test code. Request confirmation before making any other modifications.",
           ].join("\n");
         }
 
