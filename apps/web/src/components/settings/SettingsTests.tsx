@@ -145,6 +145,23 @@ export function SettingsTests({
             models.
           </p>
         </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Grok API Key</Label>
+            {renderStatus(settings.grokApiKey || "")}
+          </div>
+          <Input
+            type="password"
+            value={settings.grokApiKey || ""}
+            onChange={(e) => onChange("grokApiKey", e.target.value)}
+            placeholder="xai-..."
+            className="bg-background border-border text-foreground"
+          />
+          <p className="text-xs text-muted-foreground">
+            Used for Grok (xAI) models in Stagehand tests.
+          </p>
+        </div>
       </div>
     </div>
   );

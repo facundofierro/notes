@@ -209,6 +209,9 @@ function ensureStagehandSetup(
     GOOGLE_GENERATIVE_AI_API_KEY:
       settings.googleApiKey ||
       process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    XAI_API_KEY:
+      settings.grokApiKey ||
+      process.env.XAI_API_KEY,
   });
 
   const workspacePath = path.join(projectDir, "pnpm-workspace.yaml");

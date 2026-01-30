@@ -47,6 +47,7 @@ export interface UserSettings {
   openaiApiKey: string;
   anthropicApiKey: string;
   googleApiKey: string;
+  grokApiKey: string;
   workflows: WorkflowConfig[];
   defaultWorkflowId?: string;
   createBranchPerTask: boolean;
@@ -71,6 +72,7 @@ const defaultSettings: UserSettings = {
   openaiApiKey: "",
   anthropicApiKey: "",
   googleApiKey: "",
+  grokApiKey: "",
   workflows: [],
   createBranchPerTask: false,
 };

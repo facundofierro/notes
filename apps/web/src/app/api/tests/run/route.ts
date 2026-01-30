@@ -10,7 +10,10 @@ import {
 
 function findAgelumTestsDir(
   inputPath: string,
-): { projectDir: string; testsDir: string } | null {
+): {
+  projectDir: string;
+  testsDir: string;
+} | null {
   let current = inputPath;
   if (fs.existsSync(inputPath)) {
     try {
@@ -40,14 +43,30 @@ function findAgelumTestsDir(
       base === "tests" &&
       parent === "agelum-test"
     ) {
-      const projectDir = path.dirname(current);
-      normalizeAgelumTestProjectStructure(projectDir, current);
-      return { projectDir, testsDir: current };
+      const projectDir =
+        path.dirname(current);
+      normalizeAgelumTestProjectStructure(
+        projectDir,
+        current,
+      );
+      return {
+        projectDir,
+        testsDir: current,
+      };
     }
     if (base === "agelum-test") {
-      const testsDir = path.join(current, "tests");
-      normalizeAgelumTestProjectStructure(current, testsDir);
-      return { projectDir: current, testsDir };
+      const testsDir = path.join(
+        current,
+        "tests",
+      );
+      normalizeAgelumTestProjectStructure(
+        current,
+        testsDir,
+      );
+      return {
+        projectDir: current,
+        testsDir,
+      };
     }
 
     // If we are in the src folder of the tests, that's our root
@@ -74,35 +93,67 @@ function findAgelumTestsDir(
             ),
           ),
         );
-        const projectDir = path.join(repoRoot, "agelum-test");
-        const newTestsDir = path.join(projectDir, "tests");
+        const projectDir = path.join(
+          repoRoot,
+          "agelum-test",
+        );
+        const newTestsDir = path.join(
+          projectDir,
+          "tests",
+        );
         if (
           !fs.existsSync(newTestsDir) &&
           fs.existsSync(current)
         ) {
           try {
-            fs.mkdirSync(projectDir, { recursive: true });
+            fs.mkdirSync(projectDir, {
+              recursive: true,
+            });
             fs.renameSync(
               current,
               newTestsDir,
             );
           } catch {}
         }
-        const oldTestsDir = path.join(repoRoot, ".agelum", "work", "tests");
-        for (const name of ["package.json", "tsconfig.json"]) {
-          const from = path.join(oldTestsDir, name);
-          const to = path.join(projectDir, name);
-          if (fs.existsSync(from) && !fs.existsSync(to)) {
+        const oldTestsDir = path.join(
+          repoRoot,
+          ".agelum",
+          "work",
+          "tests",
+        );
+        for (const name of [
+          "package.json",
+          "tsconfig.json",
+        ]) {
+          const from = path.join(
+            oldTestsDir,
+            name,
+          );
+          const to = path.join(
+            projectDir,
+            name,
+          );
+          if (
+            fs.existsSync(from) &&
+            !fs.existsSync(to)
+          ) {
             try {
               fs.renameSync(from, to);
             } catch {}
           }
         }
 
-        normalizeAgelumTestProjectStructure(projectDir, newTestsDir);
+        normalizeAgelumTestProjectStructure(
+          projectDir,
+          newTestsDir,
+        );
         return {
           projectDir,
-          testsDir: fs.existsSync(newTestsDir) ? newTestsDir : current,
+          testsDir: fs.existsSync(
+            newTestsDir,
+          )
+            ? newTestsDir
+            : current,
         };
       }
     }
@@ -122,35 +173,64 @@ function findAgelumTestsDir(
           path.dirname(current),
         ),
       );
-      const projectDir = path.join(repoRoot, "agelum-test");
-      const newTestsDir = path.join(projectDir, "tests");
+      const projectDir = path.join(
+        repoRoot,
+        "agelum-test",
+      );
+      const newTestsDir = path.join(
+        projectDir,
+        "tests",
+      );
       if (
         !fs.existsSync(newTestsDir) &&
         fs.existsSync(legacySrc)
       ) {
         try {
-          fs.mkdirSync(projectDir, { recursive: true });
+          fs.mkdirSync(projectDir, {
+            recursive: true,
+          });
           fs.renameSync(
             legacySrc,
             newTestsDir,
           );
         } catch {}
       }
-      for (const name of ["package.json", "tsconfig.json"]) {
-        const from = path.join(current, name);
-        const to = path.join(projectDir, name);
-        if (fs.existsSync(from) && !fs.existsSync(to)) {
+      for (const name of [
+        "package.json",
+        "tsconfig.json",
+      ]) {
+        const from = path.join(
+          current,
+          name,
+        );
+        const to = path.join(
+          projectDir,
+          name,
+        );
+        if (
+          fs.existsSync(from) &&
+          !fs.existsSync(to)
+        ) {
           try {
             fs.renameSync(from, to);
           } catch {}
         }
       }
 
-      normalizeAgelumTestProjectStructure(projectDir, newTestsDir);
+      normalizeAgelumTestProjectStructure(
+        projectDir,
+        newTestsDir,
+      );
       if (fs.existsSync(newTestsDir)) {
-        return { projectDir, testsDir: newTestsDir };
+        return {
+          projectDir,
+          testsDir: newTestsDir,
+        };
       }
-      return { projectDir, testsDir: legacySrc };
+      return {
+        projectDir,
+        testsDir: legacySrc,
+      };
     }
     current = path.dirname(current);
   }
@@ -175,9 +255,15 @@ function normalizeAgelumTestProjectStructure(
   ];
 
   for (const name of rootFiles) {
-    const from = path.join(testsDir, name);
+    const from = path.join(
+      testsDir,
+      name,
+    );
     if (!fs.existsSync(from)) continue;
-    const to = path.join(projectDir, name);
+    const to = path.join(
+      projectDir,
+      name,
+    );
     if (!fs.existsSync(to)) {
       try {
         fs.renameSync(from, to);
@@ -189,27 +275,49 @@ function normalizeAgelumTestProjectStructure(
     } catch {}
   }
 
-  const fromNodeModules = path.join(testsDir, "node_modules");
-  const toNodeModules = path.join(projectDir, "node_modules");
+  const fromNodeModules = path.join(
+    testsDir,
+    "node_modules",
+  );
+  const toNodeModules = path.join(
+    projectDir,
+    "node_modules",
+  );
   if (fs.existsSync(fromNodeModules)) {
     if (!fs.existsSync(toNodeModules)) {
       try {
-        fs.renameSync(fromNodeModules, toNodeModules);
+        fs.renameSync(
+          fromNodeModules,
+          toNodeModules,
+        );
         return;
       } catch {}
     }
     try {
-      fs.rmSync(fromNodeModules, { recursive: true, force: true });
+      fs.rmSync(fromNodeModules, {
+        recursive: true,
+        force: true,
+      });
     } catch {}
   }
 
   try {
-    const entries = fs.readdirSync(testsDir, { withFileTypes: true });
+    const entries = fs.readdirSync(
+      testsDir,
+      { withFileTypes: true },
+    );
     for (const entry of entries) {
       if (!entry.isFile()) continue;
-      if (entry.name.endsWith(".ts")) continue;
-      const from = path.join(testsDir, entry.name);
-      const to = path.join(projectDir, entry.name);
+      if (entry.name.endsWith(".ts"))
+        continue;
+      const from = path.join(
+        testsDir,
+        entry.name,
+      );
+      const to = path.join(
+        projectDir,
+        entry.name,
+      );
       if (!fs.existsSync(to)) {
         try {
           fs.renameSync(from, to);
@@ -217,7 +325,9 @@ function normalizeAgelumTestProjectStructure(
         } catch {}
       }
       try {
-        fs.rmSync(from, { force: true });
+        fs.rmSync(from, {
+          force: true,
+        });
       } catch {}
     }
   } catch {}
@@ -225,9 +335,15 @@ function normalizeAgelumTestProjectStructure(
 
 function ensureAgelumTestEnvFiles(
   projectDir: string,
-  entries: Record<string, string | undefined>,
+  entries: Record<
+    string,
+    string | undefined
+  >,
 ) {
-  ensureEnvFileMissingOnly(projectDir, entries);
+  ensureEnvFileMissingOnly(
+    projectDir,
+    entries,
+  );
 }
 
 function ensureStagehandTestProject(
@@ -239,7 +355,10 @@ function ensureStagehandTestProject(
     });
   }
 
-  const workspacePath = path.join(projectDir, "pnpm-workspace.yaml");
+  const workspacePath = path.join(
+    projectDir,
+    "pnpm-workspace.yaml",
+  );
   if (!fs.existsSync(workspacePath)) {
     fs.writeFileSync(
       workspacePath,
@@ -483,8 +602,11 @@ export async function POST(
           findAgelumTestsDir(testPath);
 
         const agelumTestProjectDir =
-          agelumTestsDir?.projectDir ?? null;
-        const runCwd = agelumTestProjectDir ?? projectRoot;
+          agelumTestsDir?.projectDir ??
+          null;
+        const runCwd =
+          agelumTestProjectDir ??
+          projectRoot;
 
         if (agelumTestProjectDir) {
           ensureStagehandTestProject(
@@ -502,19 +624,28 @@ export async function POST(
               )
             : {};
 
-        const seedEntries: Record<string, string | undefined> = {
+        const seedEntries: Record<
+          string,
+          string | undefined
+        > = {
           BROWSERBASE_API_KEY:
             settings.stagehandApiKey ||
-            process.env.BROWSERBASE_API_KEY,
+            process.env
+              .BROWSERBASE_API_KEY,
           OPENAI_API_KEY:
             settings.openaiApiKey ||
             process.env.OPENAI_API_KEY,
           ANTHROPIC_API_KEY:
             settings.anthropicApiKey ||
-            process.env.ANTHROPIC_API_KEY,
+            process.env
+              .ANTHROPIC_API_KEY,
           GOOGLE_GENERATIVE_AI_API_KEY:
             settings.googleApiKey ||
-            process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+            process.env
+              .GOOGLE_GENERATIVE_AI_API_KEY,
+          XAI_API_KEY:
+            settings.grokApiKey ||
+            process.env.XAI_API_KEY,
         };
 
         if (agelumTestProjectDir) {
@@ -524,25 +655,32 @@ export async function POST(
           );
         }
 
-        const baseEnv: NodeJS.ProcessEnv = {
-          ...process.env,
-          PATH: process.env.PATH,
-          BROWSERBASE_API_KEY:
-            dotenvValues.BROWSERBASE_API_KEY ||
-            seedEntries.BROWSERBASE_API_KEY,
-          OPENAI_API_KEY:
-            dotenvValues.OPENAI_API_KEY ||
-            seedEntries.OPENAI_API_KEY,
-          ANTHROPIC_API_KEY:
-            dotenvValues.ANTHROPIC_API_KEY ||
-            seedEntries.ANTHROPIC_API_KEY,
-          GOOGLE_GENERATIVE_AI_API_KEY:
-            dotenvValues.GOOGLE_GENERATIVE_AI_API_KEY ||
-            seedEntries.GOOGLE_GENERATIVE_AI_API_KEY,
-        };
+        const baseEnv: NodeJS.ProcessEnv =
+          {
+            ...process.env,
+            PATH: process.env.PATH,
+            BROWSERBASE_API_KEY:
+              dotenvValues.BROWSERBASE_API_KEY ||
+              seedEntries.BROWSERBASE_API_KEY,
+            OPENAI_API_KEY:
+              dotenvValues.OPENAI_API_KEY ||
+              seedEntries.OPENAI_API_KEY,
+            ANTHROPIC_API_KEY:
+              dotenvValues.ANTHROPIC_API_KEY ||
+              seedEntries.ANTHROPIC_API_KEY,
+            GOOGLE_GENERATIVE_AI_API_KEY:
+              dotenvValues.GOOGLE_GENERATIVE_AI_API_KEY ||
+              seedEntries.GOOGLE_GENERATIVE_AI_API_KEY,
+            XAI_API_KEY:
+              dotenvValues.XAI_API_KEY ||
+              seedEntries.XAI_API_KEY,
+          };
 
-        const missingMessages: string[] = [];
-        if (!baseEnv.BROWSERBASE_API_KEY) {
+        const missingMessages: string[] =
+          [];
+        if (
+          !baseEnv.BROWSERBASE_API_KEY
+        ) {
           missingMessages.push(
             "BROWSERBASE_API_KEY (only required for Browserbase runs; LOCAL Stagehand runs can work without it)",
           );
@@ -550,13 +688,16 @@ export async function POST(
         if (
           !baseEnv.OPENAI_API_KEY &&
           !baseEnv.ANTHROPIC_API_KEY &&
-          !baseEnv.GOOGLE_GENERATIVE_AI_API_KEY
+          !baseEnv.GOOGLE_GENERATIVE_AI_API_KEY &&
+          !baseEnv.XAI_API_KEY
         ) {
           missingMessages.push(
-            "OPENAI_API_KEY (or ANTHROPIC_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY) (required for Stagehand LLM features like extract/act)",
+            "OPENAI_API_KEY (or ANTHROPIC_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY / XAI_API_KEY) (required for Stagehand LLM features like extract/act)",
           );
         }
-        if (missingMessages.length > 0) {
+        if (
+          missingMessages.length > 0
+        ) {
           controller.enqueue(
             encoder.encode(
               `\nEnvironment variables not set:\n- ${missingMessages.join("\n- ")}\n\nYou can set them in Settings → Tests, in agelum-test/.env, or in your shell environment.\n`,

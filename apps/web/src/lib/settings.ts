@@ -42,17 +42,24 @@ export interface UserSettings {
   openaiApiKey: string;
   anthropicApiKey: string;
   googleApiKey: string;
+  grokApiKey: string;
   workflows: WorkflowConfig[];
   activeWorkflow: string;
   createBranchPerTask: boolean;
 }
 
 function getSettingsDir(): string {
-  return path.join(os.homedir(), ".agelum");
+  return path.join(
+    os.homedir(),
+    ".agelum",
+  );
 }
 
 function getSettingsFile(): string {
-  return path.join(getSettingsDir(), "user-settings.json");
+  return path.join(
+    getSettingsDir(),
+    "user-settings.json",
+  );
 }
 
 export const defaultSettings: UserSettings =
@@ -75,6 +82,7 @@ export const defaultSettings: UserSettings =
     openaiApiKey: "",
     anthropicApiKey: "",
     googleApiKey: "",
+    grokApiKey: "",
     workflows: [],
     activeWorkflow: "default",
     createBranchPerTask: false,
@@ -97,56 +105,123 @@ export function readSettings(): UserSettings {
       let merged: UserSettings = {
         ...defaultSettings,
       };
-      const backfill: Partial<UserSettings> = {};
-      if (!merged.stagehandApiKey && process.env.BROWSERBASE_API_KEY) {
-        backfill.stagehandApiKey = process.env.BROWSERBASE_API_KEY;
+      const backfill: Partial<UserSettings> =
+        {};
+      if (
+        !merged.stagehandApiKey &&
+        process.env.BROWSERBASE_API_KEY
+      ) {
+        backfill.stagehandApiKey =
+          process.env.BROWSERBASE_API_KEY;
       }
-      if (!merged.openaiApiKey && process.env.OPENAI_API_KEY) {
-        backfill.openaiApiKey = process.env.OPENAI_API_KEY;
+      if (
+        !merged.openaiApiKey &&
+        process.env.OPENAI_API_KEY
+      ) {
+        backfill.openaiApiKey =
+          process.env.OPENAI_API_KEY;
       }
-      if (!merged.anthropicApiKey && process.env.ANTHROPIC_API_KEY) {
-        backfill.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+      if (
+        !merged.anthropicApiKey &&
+        process.env.ANTHROPIC_API_KEY
+      ) {
+        backfill.anthropicApiKey =
+          process.env.ANTHROPIC_API_KEY;
       }
-      if (!merged.googleApiKey && process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-        backfill.googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      if (
+        !merged.googleApiKey &&
+        process.env
+          .GOOGLE_GENERATIVE_AI_API_KEY
+      ) {
+        backfill.googleApiKey =
+          process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      }
+      if (
+        !merged.grokApiKey &&
+        process.env.XAI_API_KEY
+      ) {
+        backfill.grokApiKey =
+          process.env.XAI_API_KEY;
       }
       merged = {
         ...merged,
         ...backfill,
       };
-      fs.writeFileSync(file, JSON.stringify(merged, null, 2), { mode: 0o600 });
+      fs.writeFileSync(
+        file,
+        JSON.stringify(merged, null, 2),
+        { mode: 0o600 },
+      );
       return merged;
     }
-    const content = fs.readFileSync(file, "utf-8");
-    const parsed = JSON.parse(content) as Partial<UserSettings>;
+    const content = fs.readFileSync(
+      file,
+      "utf-8",
+    );
+    const parsed = JSON.parse(
+      content,
+    ) as Partial<UserSettings>;
     let merged: UserSettings = {
       ...defaultSettings,
       ...parsed,
     };
 
-    const backfill: Partial<UserSettings> = {};
-    if (!merged.stagehandApiKey && process.env.BROWSERBASE_API_KEY) {
-      backfill.stagehandApiKey = process.env.BROWSERBASE_API_KEY;
+    const backfill: Partial<UserSettings> =
+      {};
+    if (
+      !merged.stagehandApiKey &&
+      process.env.BROWSERBASE_API_KEY
+    ) {
+      backfill.stagehandApiKey =
+        process.env.BROWSERBASE_API_KEY;
     }
-    if (!merged.openaiApiKey && process.env.OPENAI_API_KEY) {
-      backfill.openaiApiKey = process.env.OPENAI_API_KEY;
+    if (
+      !merged.openaiApiKey &&
+      process.env.OPENAI_API_KEY
+    ) {
+      backfill.openaiApiKey =
+        process.env.OPENAI_API_KEY;
     }
-    if (!merged.anthropicApiKey && process.env.ANTHROPIC_API_KEY) {
-      backfill.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (
+      !merged.anthropicApiKey &&
+      process.env.ANTHROPIC_API_KEY
+    ) {
+      backfill.anthropicApiKey =
+        process.env.ANTHROPIC_API_KEY;
     }
-    if (!merged.googleApiKey && process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      backfill.googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (
+      !merged.googleApiKey &&
+      process.env
+        .GOOGLE_GENERATIVE_AI_API_KEY
+    ) {
+      backfill.googleApiKey =
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    }
+    if (
+      !merged.grokApiKey &&
+      process.env.XAI_API_KEY
+    ) {
+      backfill.grokApiKey =
+        process.env.XAI_API_KEY;
     }
 
-    const needsMigration = Object.keys(defaultSettings).some(
-      (key) => !(key in parsed),
-    );
-    if (Object.keys(backfill).length > 0 || needsMigration) {
+    const needsMigration = Object.keys(
+      defaultSettings,
+    ).some((key) => !(key in parsed));
+    if (
+      Object.keys(backfill).length >
+        0 ||
+      needsMigration
+    ) {
       merged = {
         ...merged,
         ...backfill,
       };
-      fs.writeFileSync(file, JSON.stringify(merged, null, 2), { mode: 0o600 });
+      fs.writeFileSync(
+        file,
+        JSON.stringify(merged, null, 2),
+        { mode: 0o600 },
+      );
     }
 
     return merged;
@@ -164,9 +239,13 @@ export function saveSettings(
 ): void {
   try {
     ensureSettingsDir();
-    fs.writeFileSync(getSettingsFile(), JSON.stringify(settings, null, 2), {
-      mode: 0o600,
-    });
+    fs.writeFileSync(
+      getSettingsFile(),
+      JSON.stringify(settings, null, 2),
+      {
+        mode: 0o600,
+      },
+    );
   } catch (error) {
     console.error(
       "Error saving settings:",
