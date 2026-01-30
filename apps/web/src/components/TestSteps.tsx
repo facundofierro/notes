@@ -162,13 +162,13 @@ export function TestSteps({
 
   if (steps.length === 0) {
     return (
-      <div className="flex flex-col justify-center items-center py-12 h-full text-gray-500">
+      <div className="flex flex-col justify-center items-center py-12 h-full text-muted-foreground">
         <Search className="mb-4 w-12 h-12 opacity-20" />
         <p>
           No test steps detected in the
           code.
         </p>
-        <p className="mt-1 text-xs text-gray-600">
+        <p className="mt-1 text-xs text-muted-foreground/60">
           Try adding page.act() or
           page.goto() commands.
         </p>
@@ -185,23 +185,23 @@ export function TestSteps({
             className="relative"
           >
             {i < steps.length - 1 && (
-              <div className="absolute left-[18px] top-10 bottom-[-24px] w-0.5 bg-gray-800" />
+              <div className="absolute left-[18px] top-10 bottom-[-24px] w-0.5 bg-secondary" />
             )}
             <div className="flex gap-4 items-start group">
-              <div className="flex z-10 flex-shrink-0 justify-center items-center w-9 h-9 bg-gray-800 rounded-full border border-gray-700 transition-colors group-hover:border-gray-500">
+              <div className="flex z-10 flex-shrink-0 justify-center items-center w-9 h-9 rounded-full border transition-colors bg-secondary border-border group-hover:border-muted-foreground">
                 {getIcon(step.type)}
               </div>
               <div className="flex-1 pt-1.5">
                 <div className="flex gap-2 items-center mb-1">
-                  <span className="font-mono text-xs text-gray-600">
+                  <span className="font-mono text-xs text-muted-foreground">
                     Step {i + 1}
                   </span>
-                  <span className="text-[10px] text-gray-700 font-mono">
+                  <span className="text-[10px] text-muted-foreground font-mono">
                     L{step.line}
                   </span>
                 </div>
-                <div className="p-3 rounded-lg border border-gray-800 transition-all cursor-default bg-gray-800/50 hover:bg-gray-800 hover:border-gray-700">
-                  <p className="text-sm font-medium text-gray-200">
+                <div className="p-3 rounded-lg border transition-all cursor-default border-border bg-secondary/50 hover:bg-secondary hover:border-muted-foreground">
+                  <p className="text-sm font-medium text-foreground">
                     {getLabel(step)}
                   </p>
                   {step.type ===

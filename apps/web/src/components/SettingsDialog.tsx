@@ -137,9 +137,9 @@ export function SettingsDialog({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <DialogContent className="max-w-5xl h-[80vh] flex gap-0 p-0 overflow-hidden bg-gray-950 border-gray-800 text-gray-100">
+      <DialogContent className="max-w-5xl h-[80vh] flex gap-0 p-0 overflow-hidden bg-background border-border text-foreground">
         {/* Sidebar */}
-        <div className="flex flex-col gap-2 p-4 w-64 border-r border-gray-800 bg-gray-950">
+        <div className="flex flex-col gap-2 p-4 w-64 border-r border-border bg-background">
           <div className="px-2 pt-2 mb-4">
             <h2 className="text-lg font-bold text-white">
               Settings
@@ -156,7 +156,7 @@ export function SettingsDialog({
                   onClick={() =>
                     setActiveTab(tab.id)
                   }
-                  className={`w-full justify-start gap-3 ${activeTab === tab.id ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800/50"}`}
+                  className={`w-full justify-start gap-3 ${activeTab === tab.id ? "bg-secondary text-white" : "text-muted-foreground hover:text-white hover:bg-secondary/50"}`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -165,12 +165,12 @@ export function SettingsDialog({
             })}
           </div>
 
-          <div className="flex flex-col gap-2 pt-4 mt-auto border-t border-gray-800">
+          <div className="flex flex-col gap-2 pt-4 mt-auto border-t border-border">
             <Button
               variant="outline"
               onClick={handleReset}
               disabled={isLoading}
-              className="gap-2 justify-start w-full text-gray-400 bg-transparent border-gray-800 hover:bg-gray-900 hover:text-white"
+              className="gap-2 justify-start w-full text-muted-foreground bg-transparent border-border hover:bg-secondary hover:text-white"
             >
               <RotateCcw className="w-4 h-4" />
               Reset Defaults
@@ -190,7 +190,7 @@ export function SettingsDialog({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1 p-8 bg-gray-900">
+        <div className="overflow-y-auto flex-1 p-8 bg-background">
           {activeTab === "projects" && (
             <SettingsProjects
               settings={localSettings}

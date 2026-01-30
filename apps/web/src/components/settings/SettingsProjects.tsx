@@ -143,13 +143,13 @@ export function SettingsProjects({
         <h3 className="mb-4 text-lg font-medium text-white">
           Projects Configuration
         </h3>
-        <p className="mb-4 text-sm text-gray-400">
+        <p className="mb-4 text-sm text-muted-foreground">
           Manage your projects and
           project folders.
         </p>
       </div>
 
-      <div className="grid gap-4 p-4 rounded-lg border border-gray-800 bg-gray-950/50">
+      <div className="grid gap-4 p-4 rounded-lg border border-border bg-background/50">
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Project Name</Label>
@@ -161,7 +161,7 @@ export function SettingsProjects({
                 )
               }
               placeholder="My Project"
-              className="text-gray-100 bg-gray-900 border-gray-800"
+              className="text-foreground bg-background border-border"
             />
           </div>
           <div className="space-y-2">
@@ -172,10 +172,10 @@ export function SettingsProjects({
                 v: "project" | "folder",
               ) => setNewType(v)}
             >
-              <SelectTrigger className="text-gray-100 bg-gray-900 border-gray-800">
+              <SelectTrigger className="text-foreground bg-background border-border">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-800">
+              <SelectContent className="bg-background border-border">
                 <SelectItem value="project">
                   Single Project
                 </SelectItem>
@@ -194,10 +194,10 @@ export function SettingsProjects({
                 setNewWorkflowId
               }
             >
-              <SelectTrigger className="text-gray-100 bg-gray-900 border-gray-800">
+              <SelectTrigger className="text-foreground bg-background border-border">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-800">
+              <SelectContent className="bg-background border-border">
                 <SelectItem value="default">
                   Default
                 </SelectItem>
@@ -233,7 +233,7 @@ export function SettingsProjects({
                   validatePath(newPath)
                 }
                 placeholder="/absolute/path/to/project"
-                className={`text-gray-100 bg-gray-900 border-gray-800 ${
+                className={`text-foreground bg-background border-border ${
                   pathError
                     ? "border-red-500"
                     : isPathValid
@@ -252,7 +252,7 @@ export function SettingsProjects({
                 </p>
               )}
               {isValidating && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Validating...
                 </p>
               )}
@@ -279,7 +279,7 @@ export function SettingsProjects({
           (project) => (
             <div
               key={project.id}
-              className="flex justify-between items-center p-3 bg-gray-900 rounded-lg border border-gray-800"
+              className="flex justify-between items-center p-3 bg-background rounded-lg border border-border"
             >
               <div className="flex gap-3 items-center">
                 {project.type ===
@@ -289,10 +289,10 @@ export function SettingsProjects({
                   <Folder className="w-5 h-5 text-green-400" />
                 )}
                 <div>
-                  <div className="font-medium text-gray-200">
+                  <div className="font-medium text-foreground">
                     {project.name}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {project.path}
                   </div>
                 </div>
@@ -305,7 +305,7 @@ export function SettingsProjects({
                     project.id,
                   )
                 }
-                className="text-gray-500 hover:text-red-400 hover:bg-gray-800"
+                className="text-muted-foreground hover:text-red-400 hover:bg-secondary"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -314,7 +314,7 @@ export function SettingsProjects({
         )}
         {(settings.projects || [])
           .length === 0 && (
-          <div className="py-8 text-center text-gray-500 rounded-lg border border-gray-800 border-dashed">
+          <div className="py-8 text-center text-muted-foreground rounded-lg border border-border border-dashed">
             No projects configured
           </div>
         )}

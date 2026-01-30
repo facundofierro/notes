@@ -34,20 +34,20 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium text-white mb-4">Default Configuration</h3>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Set default settings for projects.
         </p>
       </div>
 
       {/* Appearance Section */}
-      <div className="space-y-4 border-t border-gray-800 pt-4">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+      <div className="space-y-4 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Appearance
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="theme" className="text-gray-300">
+            <Label htmlFor="theme" className="text-muted-foreground">
               Theme
             </Label>
             <Select
@@ -58,11 +58,11 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
             >
               <SelectTrigger
                 id="theme"
-                className="bg-gray-800 border-gray-700 text-gray-100"
+                className="bg-secondary border-border text-foreground"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="bg-secondary border-border">
                 <SelectItem value="light">Light</SelectItem>
                 <SelectItem value="dark">Dark</SelectItem>
                 <SelectItem value="system">System</SelectItem>
@@ -71,7 +71,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="language" className="text-gray-300">
+            <Label htmlFor="language" className="text-muted-foreground">
               Language
             </Label>
             <Select
@@ -80,11 +80,11 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
             >
               <SelectTrigger
                 id="language"
-                className="bg-gray-800 border-gray-700 text-gray-100"
+                className="bg-secondary border-border text-foreground"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="bg-secondary border-border">
                 <SelectItem value="en">English</SelectItem>
                 <SelectItem value="es">Español</SelectItem>
                 <SelectItem value="pt">Português</SelectItem>
@@ -95,14 +95,14 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
       </div>
 
       {/* Editor Section */}
-      <div className="space-y-4 border-t border-gray-800 pt-4">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+      <div className="space-y-4 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Editor
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="fontSize" className="text-gray-300">
+            <Label htmlFor="fontSize" className="text-muted-foreground">
               Font Size
             </Label>
             <Input
@@ -114,12 +114,12 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
               onChange={(e) =>
                 onChange("editorFontSize", parseInt(e.target.value, 10) || 14)
               }
-              className="bg-gray-800 border-gray-700 text-gray-100"
+              className="bg-secondary border-border text-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fontFamily" className="text-gray-300">
+            <Label htmlFor="fontFamily" className="text-muted-foreground">
               Font Family
             </Label>
             <Select
@@ -128,11 +128,11 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
             >
               <SelectTrigger
                 id="fontFamily"
-                className="bg-gray-800 border-gray-700 text-gray-100"
+                className="bg-secondary border-border text-foreground"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="bg-secondary border-border">
                 <SelectItem value="monospace">Monospace</SelectItem>
                 <SelectItem value="serif">Serif</SelectItem>
                 <SelectItem value="sans-serif">Sans Serif</SelectItem>
@@ -146,7 +146,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         <div className="flex items-center justify-between py-2">
           <Label
             htmlFor="showLineNumbers"
-            className="text-gray-300 cursor-pointer"
+            className="text-muted-foreground cursor-pointer"
           >
             Show Line Numbers
           </Label>
@@ -158,7 +158,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         </div>
 
         <div className="flex items-center justify-between py-2">
-          <Label htmlFor="wordWrap" className="text-gray-300 cursor-pointer">
+          <Label htmlFor="wordWrap" className="text-muted-foreground cursor-pointer">
             Word Wrap
           </Label>
           <Switch
@@ -170,13 +170,13 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
       </div>
 
       {/* Application Section */}
-      <div className="space-y-4 border-t border-gray-800 pt-4">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+      <div className="space-y-4 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Application
         </h3>
 
         <div className="space-y-2">
-          <Label htmlFor="defaultView" className="text-gray-300">
+          <Label htmlFor="defaultView" className="text-muted-foreground">
             Default View
           </Label>
           <Select
@@ -187,11 +187,11 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
           >
             <SelectTrigger
               id="defaultView"
-              className="bg-gray-800 border-gray-700 text-gray-100"
+              className="bg-secondary border-border text-foreground"
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-700">
+            <SelectContent className="bg-secondary border-border">
               {viewModeOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -202,7 +202,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="defaultWorkflow" className="text-gray-300">
+          <Label htmlFor="defaultWorkflow" className="text-muted-foreground">
             Default Workflow
           </Label>
           <Select
@@ -213,11 +213,11 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
           >
             <SelectTrigger
               id="defaultWorkflow"
-              className="bg-gray-800 border-gray-700 text-gray-100"
+              className="bg-secondary border-border text-foreground"
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-700">
+            <SelectContent className="bg-secondary border-border">
               <SelectItem value="default">Default (All items)</SelectItem>
               {(settings.workflows || []).map((workflow) => (
                 <SelectItem key={workflow.id} value={workflow.id}>
@@ -231,7 +231,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         <div className="flex items-center justify-between py-2">
           <Label
             htmlFor="notifications"
-            className="text-gray-300 cursor-pointer"
+            className="text-muted-foreground cursor-pointer"
           >
             Enable Notifications
           </Label>
@@ -243,7 +243,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         </div>
 
         <div className="flex items-center justify-between py-2">
-          <Label htmlFor="autoSave" className="text-gray-300 cursor-pointer">
+          <Label htmlFor="autoSave" className="text-muted-foreground cursor-pointer">
             Auto Save
           </Label>
           <Switch
@@ -254,7 +254,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         </div>
         
         <div className="flex items-center justify-between py-2">
-          <Label htmlFor="createBranchPerTask" className="text-gray-300 cursor-pointer">
+          <Label htmlFor="createBranchPerTask" className="text-muted-foreground cursor-pointer">
             Create Branch per Task (Default)
           </Label>
           <Switch
@@ -266,14 +266,14 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
       </div>
 
       {/* AI Section */}
-      <div className="space-y-4 border-t border-gray-800 pt-4">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+      <div className="space-y-4 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           AI Configuration
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="aiProvider" className="text-gray-300">
+            <Label htmlFor="aiProvider" className="text-muted-foreground">
               AI Provider
             </Label>
             <Select
@@ -282,11 +282,11 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
             >
               <SelectTrigger
                 id="aiProvider"
-                className="bg-gray-800 border-gray-700 text-gray-100"
+                className="bg-secondary border-border text-foreground"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="bg-secondary border-border">
                 <SelectItem value="auto">Auto</SelectItem>
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="anthropic">Anthropic</SelectItem>
@@ -297,7 +297,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="aiModel" className="text-gray-300">
+            <Label htmlFor="aiModel" className="text-muted-foreground">
               Default Model
             </Label>
             <Input
@@ -305,7 +305,7 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
               value={settings.aiModel}
               onChange={(e) => onChange("aiModel", e.target.value)}
               placeholder="default"
-              className="bg-gray-800 border-gray-700 text-gray-100"
+              className="bg-secondary border-border text-foreground"
             />
           </div>
         </div>

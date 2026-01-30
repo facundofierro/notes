@@ -45,11 +45,11 @@ export function TerminalViewer({
         'Menlo, Monaco, "Courier New", monospace',
       fontSize: 12,
       theme: {
-        background: "#111827", // bg-gray-900
-        foreground: "#e5e7eb", // text-gray-200
-        cursor: "#9ca3af",
+        background: "#09090b", // Zinc 950
+        foreground: "#f8fafc", // text-foreground
+        cursor: "#94a3b8",
         selectionBackground:
-          "rgba(255, 255, 255, 0.3)",
+          "rgba(255, 255, 255, 0.2)",
       },
       convertEol: true, // Treat \n as \r\n
       disableStdin: false, // Allow input

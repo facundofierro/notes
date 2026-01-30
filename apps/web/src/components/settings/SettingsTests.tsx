@@ -23,7 +23,7 @@ export function SettingsTests({
         <h3 className="text-lg font-medium text-white mb-4">
           Test Configuration
         </h3>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Configure testing tools and
           API keys.
         </p>
@@ -47,9 +47,9 @@ export function SettingsTests({
               )
             }
             placeholder="sk_..."
-            className="bg-gray-900 border-gray-800 text-gray-100"
+            className="bg-background border-border text-foreground"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Required for running
             Stagehand browser tests
             (Browserbase).
@@ -71,9 +71,9 @@ export function SettingsTests({
               )
             }
             placeholder="sk-..."
-            className="bg-gray-900 border-gray-800 text-gray-100"
+            className="bg-background border-border text-foreground"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Used for Stagehand if no
             other key is provided.
           </p>
@@ -96,9 +96,9 @@ export function SettingsTests({
               )
             }
             placeholder="sk-ant-..."
-            className="bg-gray-900 border-gray-800 text-gray-100"
+            className="bg-background border-border text-foreground"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Alternative LLM provider for
             Stagehand.
           </p>
@@ -119,9 +119,9 @@ export function SettingsTests({
               )
             }
             placeholder="AIza..."
-            className="bg-gray-900 border-gray-800 text-gray-100"
+            className="bg-background border-border text-foreground"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Used for Google Gemini
             models.
           </p>

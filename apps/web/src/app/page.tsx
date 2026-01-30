@@ -1,12 +1,6 @@
 "use client";
 
 import * as React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@agelum/shadcn";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import TaskKanban from "@/components/TaskKanban";
@@ -202,10 +196,6 @@ export default function Home() {
   const [
     isTestRunning,
     setIsTestRunning,
-  ] = React.useState(false);
-  const [
-    isTestDialogOpen,
-    setIsTestDialogOpen,
   ] = React.useState(false);
   const [
     testsSetupStatus,
@@ -731,9 +721,7 @@ export default function Home() {
         docMode: "modify" | "start";
         file: {
           path: string;
-          content: string;
         };
-        includeFile: boolean;
         viewMode: ViewMode;
         selectedRepo: string | null;
       }) => {
@@ -744,20 +732,20 @@ export default function Home() {
         const filePath = opts.file.path;
         const normalizedPath =
           filePath.replace(/\\/g, "/");
-        const fileName =
-          normalizedPath
-            .split("/")
-            .pop() || "";
-        const fileStem =
-          fileName.replace(/\.md$/, "");
         const isEpicDoc =
           normalizedPath.includes(
             "/.agelum/work/epics/",
+          ) ||
+          normalizedPath.includes(
+            "/agelum/epics/",
           ) ||
           opts.viewMode === "epics";
         const isTaskDoc =
           normalizedPath.includes(
             "/.agelum/work/tasks/",
+          ) ||
+          normalizedPath.includes(
+            "/agelum/tasks/",
           ) ||
           opts.viewMode === "kanban" ||
           opts.viewMode === "tasks";
@@ -784,64 +772,102 @@ export default function Home() {
                 ? "work_on_task"
                 : "start";
 
-        const operationInstructions =
+        if (
           operation === "modify_test"
-            ? [
-                `- Modify the test file at "${filePath}".`,
-                "- Keep changes minimal and focused on the request.",
-              ]
-            : operation ===
-                "modify_document"
-              ? [
-                  `- Modify the document at "${filePath}".`,
-                  "- Apply changes directly to that file.",
-                ]
-              : operation ===
-                  "create_tasks_from_epic"
-                ? [
-                    `- Use the epic at "${filePath}" as the source of scope.`,
-                    `- Epic id (from filename): "${fileStem}".`,
-                    "- First, propose a list of tasks to create (titles + short descriptions + proposed file paths).",
-                    "- Ask for confirmation before creating any new files.",
-                    `- When creating task files, place them under ".agelum/work/tasks/pending/${fileStem}/" unless a different state is explicitly requested.`,
-                  ]
-                : operation ===
-                    "work_on_task"
-                  ? [
-                      `- Use the task document at "${filePath}" as the source of requirements and acceptance criteria.`,
-                      "- Make the necessary code changes in the repository to complete the task.",
-                    ]
-                  : [
-                      `- Start work using "${filePath}" as context.`,
-                    ];
-
-        const contextInstructions = [
-          "Context and Instructions:",
-          `1. Current file path: "${filePath}".`,
-          `2. Mode: "${effectiveDocMode}".`,
-          `3. Operation: "${operation}".`,
-          `4. User request: "${trimmed}".`,
-          "5. Operation-specific instructions:",
-          ...operationInstructions.map(
-            (line) => `   ${line}`,
-          ),
-          "6. General rules:",
-          `   - If the request implies changing the current document, update the file at "${filePath}".`,
-          "   - When creating any new file, ensure it has a valid filename and is placed in the correct directory.",
-        ].join("\n");
-
-        if (!opts.includeFile) {
-          return `${contextInstructions}\n\nRequest:\n${trimmed}`;
+        ) {
+          return [
+            `Modify the test file at "${filePath}" with these user instructions:`,
+            trimmed,
+            "",
+            "Rules:",
+            "- Locate/open the file by path (do not expect its contents in this prompt).",
+            "- Keep changes minimal and focused on the instructions.",
+            "- If you create new files, use valid filenames and place them in the correct directories.",
+          ].join("\n");
         }
 
-        const maxChars = 16000;
-        const clippedContent =
-          opts.file.content.length >
-          maxChars
-            ? `${opts.file.content.slice(0, maxChars)}\n\n[...truncated...]`
-            : opts.file.content;
+        if (
+          operation ===
+          "modify_document"
+        ) {
+          return [
+            `Modify the file at "${filePath}" with these user instructions:`,
+            trimmed,
+            "",
+            "Rules:",
+            "- Locate/open the file by path (do not expect its contents in this prompt).",
+            "- Apply changes directly to that file.",
+            "- If you create new files, use valid filenames and place them in the correct directories.",
+          ].join("\n");
+        }
 
-        return `${contextInstructions}\n\nCurrent File Content:\n${clippedContent}\n\nRequest:\n${trimmed}`;
+        if (
+          operation ===
+          "create_tasks_from_epic"
+        ) {
+          return [
+            `Create task files from the epic document at "${filePath}".`,
+            "",
+            "User instructions:",
+            trimmed,
+            "",
+            "What to do:",
+            "- Read the epic document and extract its goal and acceptance criteria.",
+            "- Propose a set of tasks that together satisfy the epic acceptance criteria.",
+            "- For each proposed task, include: title, story points, priority (two digits), short description, and the proposed file path.",
+            "- Ask for confirmation before creating any task files.",
+            "",
+            "Where to create task files:",
+            `- Prefer ".agelum/work/tasks/pending/<EPIC TITLE>/" if the repo uses ".agelum".`,
+            `- Otherwise use "agelum/tasks/pending/<EPIC TITLE>/" (legacy structure).`,
+            "",
+            "Task file naming convention:",
+            '- "<PRIORITY> <TASK TITLE> (<STORY_POINTS>).md" (example: "01 Design new hero section (3).md").',
+            "",
+            "Task file format:",
+            "---",
+            "title: <Task title>",
+            "created: <ISO timestamp>",
+            "type: task",
+            "state: pending",
+            "priority: <two digits>",
+            "storyPoints: <number>",
+            "epic: <Epic title>",
+            "---",
+            "",
+            "# <Task title>",
+            "",
+            "<Task description>",
+            "",
+            "## Acceptance Criteria",
+            "- [ ] ...",
+          ].join("\n");
+        }
+
+        if (
+          operation === "work_on_task"
+        ) {
+          return [
+            `Use the task document at "${filePath}" as the source of requirements and acceptance criteria.`,
+            "",
+            "User instructions:",
+            trimmed,
+            "",
+            "Rules:",
+            "- Locate/open the file by path (do not expect its contents in this prompt).",
+            "- Make the necessary repository changes to complete the task.",
+          ].join("\n");
+        }
+
+        return [
+          `Start work using "${filePath}" as context.`,
+          "",
+          "User instructions:",
+          trimmed,
+          "",
+          "Rules:",
+          "- Locate/open the file by path (do not expect its contents in this prompt).",
+        ].join("\n");
       },
       [],
     );
@@ -920,8 +946,9 @@ export default function Home() {
         promptText: trimmedPrompt,
         mode: promptMode,
         docMode: docAiMode,
-        file: selectedFile,
-        includeFile: !workDocIsDraft,
+        file: {
+          path: selectedFile.path,
+        },
         viewMode,
         selectedRepo,
       });
@@ -1033,7 +1060,6 @@ export default function Home() {
       promptText,
       selectedFile,
       toolModelByTool,
-      workDocIsDraft,
       basePath,
       selectedRepo,
       viewMode,
@@ -1152,7 +1178,7 @@ export default function Home() {
   ) => {
     setTestOutput("");
     setIsTestRunning(true);
-    setIsTestDialogOpen(true);
+    setTestViewMode("results");
 
     try {
       const response = await fetch(
@@ -1210,7 +1236,7 @@ export default function Home() {
 
     return (
       <div className="flex h-full">
-        <div className="flex overflow-hidden flex-1 border-r border-gray-800">
+        <div className="flex overflow-hidden flex-1 border-r border-border">
           <FileViewer
             file={selectedFile}
             onFileSaved={loadFileTree}
@@ -1234,7 +1260,7 @@ export default function Home() {
           />
         </div>
         <div
-          className={`flex overflow-hidden flex-col bg-gray-900 border-l border-gray-800 transition-all duration-300 ${
+          className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${
             (rightSidebarView ===
               "terminal" &&
               isTerminalRunning) ||
@@ -1244,470 +1270,534 @@ export default function Home() {
               : "w-[360px]"
           }`}
         >
-          {rightSidebarView ===
-          "terminal" ? (
-            <div className="flex overflow-hidden flex-col flex-1 h-full">
-              <div className="flex-1 min-h-0 bg-black">
-                {terminalOutput ||
-                isTerminalRunning ? (
-                  <TerminalViewer
-                    output={
-                      terminalOutput ||
-                      (isTerminalRunning
-                        ? "Initializing..."
-                        : "")
-                    }
-                    className="w-full h-full"
-                    onInput={
-                      handleTerminalInput
-                    }
-                  />
-                ) : (
-                  <div className="flex justify-center items-center h-full text-xs text-gray-500">
-                    No terminal output
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end p-2 border-t border-gray-800">
-                <button
-                  onClick={() => {
-                    if (
-                      isTerminalRunning
-                    ) {
-                      cancelTerminal();
-                    } else {
-                      setRightSidebarView(
-                        "prompt",
-                      );
-                    }
-                  }}
-                  className={`px-3 py-2 w-full text-sm text-white rounded transition-colors ${
-                    isTerminalRunning
-                      ? "border border-red-800 bg-red-900/50 hover:bg-red-900"
-                      : "bg-gray-800 border border-gray-700 hover:bg-gray-700"
-                  }`}
-                >
-                  {isTerminalRunning
-                    ? "Cancel"
-                    : "Back to Prompt"}
-                </button>
-              </div>
+          {/* Terminal View */}
+          <div
+            className={`flex overflow-hidden flex-col flex-1 h-full ${
+              rightSidebarView ===
+              "terminal"
+                ? ""
+                : "hidden"
+            }`}
+          >
+            <div className="flex-1 min-h-0 bg-black">
+              {terminalOutput ||
+              isTerminalRunning ? (
+                <TerminalViewer
+                  output={
+                    terminalOutput ||
+                    (isTerminalRunning
+                      ? "Initializing..."
+                      : "")
+                  }
+                  className="w-full h-full"
+                  onInput={
+                    handleTerminalInput
+                  }
+                />
+              ) : (
+                <div className="flex justify-center items-center h-full text-xs text-muted-foreground">
+                  No terminal output
+                </div>
+              )}
             </div>
-          ) : rightSidebarView ===
-            "iframe" ? (
-            <div className="flex overflow-hidden flex-col flex-1 h-full">
-              <div className="relative flex-1 min-h-0 bg-black">
-                {iframeUrl ? (
-                  <iframe
-                    src={iframeUrl}
-                    className="w-full h-full bg-black border-0"
-                    onLoad={() => {
-                      setIsOpenCodeWebLoading(
-                        false,
-                      );
-                      const msg =
-                        pendingOpenCodeWebMessage;
-                      if (msg) {
-                        setPendingOpenCodeWebMessage(
-                          null,
-                        );
-                        void fetch(
-                          "/api/opencode/message",
-                          {
-                            method:
-                              "POST",
-                            headers: {
-                              "Content-Type":
-                                "application/json",
-                            },
-                            body: JSON.stringify(
-                              msg,
-                            ),
-                          },
-                        ).catch(
-                          () =>
-                            undefined,
-                        );
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="flex justify-center items-center h-full text-xs text-gray-500">
-                    {openCodeWebError ||
-                      "No URL loaded"}
-                  </div>
-                )}
-
-                {isOpenCodeWebLoading && (
-                  <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-black">
-                    <div className="w-6 h-6 rounded-full border-2 border-gray-500 border-t-transparent animate-spin" />
-                    <div className="text-xs text-gray-400">
-                      {openCodeWebLoadingLabel ||
-                        "Loading…"}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end p-2 border-t border-gray-800">
+            <div className="flex gap-2 p-2 border-t border-border">
+              {isTerminalRunning && (
                 <button
-                  onClick={() => {
-                    setRightSidebarView(
-                      "prompt",
-                    );
+                  onClick={() =>
+                    cancelTerminal()
+                  }
+                  className="px-3 py-2 flex-1 text-sm text-white rounded border border-red-800 bg-red-900/50 hover:bg-red-900 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={() =>
+                  setRightSidebarView(
+                    "prompt",
+                  )
+                }
+                className="px-3 py-2 flex-1 text-sm text-white bg-secondary rounded border border-border transition-colors hover:bg-accent"
+              >
+                {isTerminalRunning
+                  ? "Return to Prompt"
+                  : "Back to Prompt"}
+              </button>
+            </div>
+          </div>
+
+          {/* Iframe / OpenCode Web View */}
+          <div
+            className={`flex overflow-hidden flex-col flex-1 h-full ${
+              rightSidebarView ===
+              "iframe"
+                ? ""
+                : "hidden"
+            }`}
+          >
+            <div className="relative flex-1 min-h-0 bg-black">
+              {iframeUrl ? (
+                <iframe
+                  src={iframeUrl}
+                  className="w-full h-full bg-black border-0"
+                  onLoad={() => {
                     setIsOpenCodeWebLoading(
                       false,
                     );
-                    setOpenCodeWebLoadingLabel(
-                      "",
-                    );
-                    setOpenCodeWebError(
-                      "",
-                    );
-                    setPendingOpenCodeWebMessage(
-                      null,
-                    );
+                    const msg =
+                      pendingOpenCodeWebMessage;
+                    if (msg) {
+                      setPendingOpenCodeWebMessage(
+                        null,
+                      );
+                      void fetch(
+                        "/api/opencode/message",
+                        {
+                          method:
+                            "POST",
+                          headers: {
+                            "Content-Type":
+                              "application/json",
+                          },
+                          body: JSON.stringify(
+                            msg,
+                          ),
+                        },
+                      ).catch(
+                        () => undefined,
+                      );
+                    }
                   }}
-                  className="px-3 py-2 w-full text-sm text-white bg-gray-800 rounded border border-gray-700 transition-colors hover:bg-gray-700"
-                >
-                  Back to Prompt
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex overflow-hidden flex-col flex-1">
-              <div className="flex gap-2 p-3 border-b border-gray-800">
-                {viewMode ===
-                "tests" ? (
-                  <button
-                    onClick={() =>
-                      selectedFile &&
-                      handleRunTest(
-                        selectedFile.path,
-                      )
-                    }
-                    disabled={
-                      !selectedFile ||
-                      isTestRunning
-                    }
-                    className="flex flex-1 items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-800 bg-gray-950 text-gray-200 hover:bg-gray-800 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-950 disabled:hover:text-gray-200"
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                    {isTestRunning
-                      ? "Running…"
-                      : "Run test"}
-                  </button>
-                ) : (
-                  !workDocIsDraft && (
-                    <div className="flex flex-1 p-1 rounded-lg border border-gray-800 bg-gray-950">
-                      <button
-                        onClick={() =>
-                          setDocAiMode(
-                            "modify",
-                          )
-                        }
-                        className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
-                          docAiMode ===
-                          "modify"
-                            ? "bg-gray-800 text-white shadow-sm border border-gray-700"
-                            : "text-gray-400 hover:text-gray-200"
-                        }`}
-                      >
-                        Modify
-                      </button>
-                      <button
-                        onClick={() =>
-                          setDocAiMode(
-                            "start",
-                          )
-                        }
-                        className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
-                          docAiMode ===
-                          "start"
-                            ? "bg-gray-800 text-white shadow-sm border border-gray-700"
-                            : "text-gray-400 hover:text-gray-200"
-                        }`}
-                      >
-                        {selectedFile?.path
-                          ?.replace(
-                            /\\/g,
-                            "/",
-                          )
-                          .includes(
-                            "/.agelum/work/epics/",
-                          ) ||
-                        viewMode ===
-                          "epics"
-                          ? "Create tasks"
-                          : "Start"}
-                      </button>
-                    </div>
-                  )
-                )}
-
-                <div className="flex relative flex-1 justify-end items-center">
-                  <select
-                    value={promptMode}
-                    onChange={(e) =>
-                      setPromptMode(
-                        e.target
-                          .value as any,
-                      )
-                    }
-                    className="pr-6 w-full h-full text-xs text-right text-gray-300 bg-transparent appearance-none cursor-pointer outline-none hover:text-white"
-                  >
-                    <option
-                      value="agent"
-                      className="text-right bg-gray-800"
-                    >
-                      Agent
-                    </option>
-                    <option
-                      value="plan"
-                      className="text-right bg-gray-800"
-                    >
-                      Plan
-                    </option>
-                    <option
-                      value="chat"
-                      className="text-right bg-gray-800"
-                    >
-                      Chat
-                    </option>
-                  </select>
-                  <ChevronDown className="absolute right-0 top-1/2 w-4 h-4 text-gray-400 -translate-y-1/2 pointer-events-none" />
+                />
+              ) : (
+                <div className="flex justify-center items-center h-full text-xs text-muted-foreground">
+                  {openCodeWebError ||
+                    "No URL loaded"}
                 </div>
-              </div>
+              )}
 
-              <div className="p-3 border-b border-gray-800">
-                <textarea
-                  value={promptText}
-                  onChange={(e) =>
-                    setPromptText(
-                      e.target.value,
+              {isOpenCodeWebLoading && (
+                <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-black">
+                  <div className="w-6 h-6 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />
+                  <div className="text-xs text-muted-foreground">
+                    {openCodeWebLoadingLabel ||
+                      "Loading…"}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end p-2 border-t border-border">
+              <button
+                onClick={() =>
+                  setRightSidebarView(
+                    "prompt",
+                  )
+                }
+                className="px-3 py-2 w-full text-sm text-white bg-secondary rounded border border-border transition-colors hover:bg-accent"
+              >
+                Return to Prompt
+              </button>
+            </div>
+          </div>
+
+          {/* Prompt View */}
+          <div
+            className={`flex overflow-hidden flex-col flex-1 ${
+              rightSidebarView ===
+              "prompt"
+                ? ""
+                : "hidden"
+            }`}
+          >
+            <div className="flex gap-2 p-3 border-b border-border">
+              {viewMode === "tests" ? (
+                <button
+                  onClick={() =>
+                    selectedFile &&
+                    handleRunTest(
+                      selectedFile.path,
                     )
                   }
-                  className="px-3 py-2 w-full h-32 text-sm text-gray-100 bg-gray-800 rounded border border-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  placeholder="Write a prompt…"
-                />
+                  disabled={
+                    !selectedFile ||
+                    isTestRunning
+                  }
+                  className="flex flex-1 items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-secondary hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-foreground"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  {isTestRunning
+                    ? "Running…"
+                    : "Run test"}
+                </button>
+              ) : (
+                !workDocIsDraft && (
+                  <div className="flex flex-1 p-1 rounded-lg border border-border bg-background">
+                    <button
+                      onClick={() =>
+                        setDocAiMode(
+                          "modify",
+                        )
+                      }
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        docAiMode ===
+                        "modify"
+                          ? "bg-secondary text-white shadow-sm border border-border"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Modify
+                    </button>
+                    <button
+                      onClick={() =>
+                        setDocAiMode(
+                          "start",
+                        )
+                      }
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        docAiMode ===
+                        "start"
+                          ? "bg-secondary text-white shadow-sm border border-border"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {selectedFile?.path
+                        ?.replace(
+                          /\\/g,
+                          "/",
+                        )
+                        .includes(
+                          "/.agelum/work/epics/",
+                        ) ||
+                      selectedFile?.path
+                        ?.replace(
+                          /\\/g,
+                          "/",
+                        )
+                        .includes(
+                          "/agelum/epics/",
+                        ) ||
+                      viewMode ===
+                        "epics"
+                        ? "Create tasks"
+                        : "Start"}
+                    </button>
+                  </div>
+                )
+              )}
+
+              <div className="flex relative flex-1 justify-end items-center">
+                <select
+                  value={promptMode}
+                  onChange={(e) =>
+                    setPromptMode(
+                      e.target
+                        .value as any,
+                    )
+                  }
+                  className="pr-6 w-full h-full text-xs text-right text-muted-foreground bg-transparent appearance-none cursor-pointer outline-none hover:text-foreground"
+                >
+                  <option
+                    value="agent"
+                    className="text-right bg-secondary"
+                  >
+                    Agent
+                  </option>
+                  <option
+                    value="plan"
+                    className="text-right bg-secondary"
+                  >
+                    Plan
+                  </option>
+                  <option
+                    value="chat"
+                    className="text-right bg-secondary"
+                  >
+                    Chat
+                  </option>
+                </select>
+                <ChevronDown className="absolute right-0 top-1/2 w-4 h-4 text-muted-foreground -translate-y-1/2 pointer-events-none" />
               </div>
+            </div>
 
-              <div className="flex overflow-auto flex-col flex-1">
-                <div className="p-3 border-b border-gray-800">
-                  <div className="grid grid-cols-2 gap-2">
-                    {filteredTools.map(
-                      (tool) => {
-                        const models =
-                          toolModelsByTool[
-                            tool.name
-                          ] || [];
-                        const selectedModel =
-                          toolModelByTool[
-                            tool.name
-                          ] || "";
+            <div className="p-3 border-b border-border">
+              <textarea
+                value={promptText}
+                onChange={(e) =>
+                  setPromptText(
+                    e.target.value,
+                  )
+                }
+                className="px-3 py-2 w-full h-32 text-sm text-foreground bg-secondary rounded border border-border resize-none focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="Write a prompt…"
+              />
+            </div>
 
-                        return (
-                          <div
-                            key={
-                              tool.name
-                            }
-                            onMouseEnter={() =>
-                              void ensureModelsForTool(
-                                tool.name,
-                              )
-                            }
-                            className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${
-                              tool.available
-                                ? "border-gray-700 bg-gray-800 hover:border-gray-600 shadow-sm"
-                                : "border-gray-800 bg-gray-900/50 opacity-50"
-                            }`}
-                          >
-                            <button
-                              onClick={() =>
+            <div className="flex overflow-auto flex-col flex-1">
+              <div className="p-3 border-b border-border">
+                <div className="grid grid-cols-2 gap-2">
+                  {filteredTools.map(
+                    (tool) => {
+                      const models =
+                        toolModelsByTool[
+                          tool.name
+                        ] || [];
+                      const selectedModel =
+                        toolModelByTool[
+                          tool.name
+                        ] || "";
+                      const isActive =
+                        isTerminalRunning &&
+                        terminalToolName ===
+                          tool.name;
+
+                      return (
+                        <div
+                          key={
+                            tool.name
+                          }
+                          onMouseEnter={() =>
+                            void ensureModelsForTool(
+                              tool.name,
+                            )
+                          }
+                          className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${
+                            tool.available
+                              ? isActive
+                                ? "border-blue-600/50 bg-blue-900/10 shadow-lg"
+                                : "border-border bg-secondary hover:border-muted-foreground shadow-sm"
+                              : "border-border bg-background opacity-50"
+                          }`}
+                        >
+                          <button
+                            onClick={() => {
+                              if (
+                                isActive
+                              ) {
+                                setRightSidebarView(
+                                  "terminal",
+                                );
+                              } else {
                                 runTool(
                                   tool.name,
-                                )
+                                );
                               }
-                              disabled={
-                                !tool.available ||
-                                !promptText.trim()
-                              }
-                              className="flex-1 px-3 py-3 text-left group disabled:opacity-50"
-                            >
-                              <div className="text-sm font-medium text-gray-100 group-hover:text-white mb-0.5">
+                            }}
+                            disabled={
+                              !tool.available ||
+                              (!isActive &&
+                                !promptText.trim())
+                            }
+                            className="flex-1 px-3 py-3 text-left group disabled:opacity-50"
+                          >
+                            <div className="flex gap-2 items-center mb-0.5">
+                              <div className="text-sm font-medium text-foreground group-hover:text-white">
                                 {
                                   tool.displayName
                                 }
                               </div>
-                              <div className="text-[10px] text-gray-400">
-                                Click to
-                                run
-                              </div>
-                            </button>
-
-                            <div className="p-1 border-t bg-gray-900/50 border-gray-700/50">
-                              <select
-                                value={
-                                  selectedModel
-                                }
-                                onChange={(
-                                  e,
-                                ) =>
-                                  setToolModelByTool(
-                                    (
-                                      prev,
-                                    ) => ({
-                                      ...prev,
-                                      [tool.name]:
-                                        e
-                                          .target
-                                          .value,
-                                    }),
-                                  )
-                                }
-                                className="w-full bg-transparent text-[10px] text-gray-400 focus:text-gray-200 outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-gray-800/50"
-                                disabled={
-                                  !tool.available
-                                }
-                              >
-                                <option value="">
-                                  Default
-                                </option>
-                                {models.map(
-                                  (
-                                    model,
-                                  ) => (
-                                    <option
-                                      key={
-                                        model
-                                      }
-                                      value={
-                                        model
-                                      }
-                                    >
-                                      {
-                                        model
-                                      }
-                                    </option>
-                                  ),
-                                )}
-                              </select>
+                              {isActive && (
+                                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                              )}
                             </div>
-                          </div>
-                        );
-                      },
-                    )}
-                    <div className="flex overflow-hidden flex-col w-full bg-gray-800 rounded-lg border border-gray-700 shadow-sm transition-all hover:border-gray-600">
-                      <button
-                        onClick={async () => {
-                          setRightSidebarView(
-                            "iframe",
-                          );
-                          setIframeUrl(
-                            "",
-                          );
-                          setOpenCodeWebError(
-                            "",
-                          );
-                          setIsOpenCodeWebLoading(
-                            true,
-                          );
-                          setOpenCodeWebLoadingLabel(
-                            "Starting OpenCode…",
-                          );
-                          setPendingOpenCodeWebMessage(
-                            null,
-                          );
-                          try {
-                            let apiPath =
-                              "/api/opencode";
-                            const params =
-                              new URLSearchParams();
-                            let fullPath =
-                              "";
-                            if (
-                              basePath &&
-                              selectedRepo
-                            ) {
-                              const nextFullPath =
-                                `${basePath}/${selectedRepo}`.replace(
-                                  /\/+/g,
-                                  "/",
-                                );
-                              fullPath =
-                                nextFullPath;
-                              params.set(
-                                "path",
-                                nextFullPath,
-                              );
-                            }
-                            const trimmedPrompt =
-                              promptText.trim();
-                            if (
-                              trimmedPrompt
-                            ) {
-                              params.set(
-                                "deferPrompt",
-                                "1",
-                              );
-                              params.set(
-                                "createSession",
-                                "1",
-                              );
-                            }
-                            const queryString =
-                              params.toString();
-                            if (
-                              queryString
-                            ) {
-                              apiPath += `?${queryString}`;
-                            }
-                            const res =
-                              await fetch(
-                                apiPath,
-                              );
-                            const data =
-                              await res.json();
-                            if (
-                              data?.url
-                            ) {
-                              setIframeUrl(
-                                data.url,
-                              );
-                              setOpenCodeWebLoadingLabel(
-                                "Loading OpenCode Web…",
-                              );
-                              if (
-                                trimmedPrompt &&
-                                data?.sessionId
-                              ) {
-                                const prompt =
-                                  buildToolPrompt(
+                            <div className="text-[10px] text-muted-foreground">
+                              {isActive
+                                ? "Continue working"
+                                : "Click to run"}
+                            </div>
+                          </button>
+
+                          <div className="p-1 border-t bg-background border-border">
+                            <select
+                              value={
+                                selectedModel
+                              }
+                              onChange={(
+                                e,
+                              ) =>
+                                setToolModelByTool(
+                                  (
+                                    prev,
+                                  ) => ({
+                                    ...prev,
+                                    [tool.name]:
+                                      e
+                                        .target
+                                        .value,
+                                  }),
+                                )
+                              }
+                              className="w-full bg-transparent text-[10px] text-muted-foreground focus:text-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary"
+                              disabled={
+                                !tool.available
+                              }
+                            >
+                              <option value="">
+                                Default
+                              </option>
+                              {models.map(
+                                (
+                                  model,
+                                ) => (
+                                  <option
+                                    key={
+                                      model
+                                    }
+                                    value={
+                                      model
+                                    }
+                                  >
                                     {
-                                      promptText:
-                                        trimmedPrompt,
-                                      mode: promptMode,
-                                      docMode:
-                                        docAiMode,
-                                      file: selectedFile!,
-                                      includeFile:
-                                        !workDocIsDraft,
-                                      viewMode,
-                                      selectedRepo,
-                                    },
+                                      model
+                                    }
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    },
+                  )}
+                  {(() => {
+                    const isOpenCodeActive =
+                      isOpenCodeWebLoading ||
+                      iframeUrl;
+                    return (
+                      <div
+                        className={`flex overflow-hidden flex-col w-full rounded-lg border shadow-sm transition-all ${
+                          isOpenCodeActive
+                            ? "border-blue-600/50 bg-blue-900/10 shadow-lg"
+                            : "border-border bg-secondary hover:border-muted-foreground"
+                        }`}
+                      >
+                        <button
+                          onClick={async () => {
+                            if (
+                              isOpenCodeActive
+                            ) {
+                              setRightSidebarView(
+                                "iframe",
+                              );
+                              return;
+                            }
+                            setRightSidebarView(
+                              "iframe",
+                            );
+                            setIframeUrl(
+                              "",
+                            );
+                            setOpenCodeWebError(
+                              "",
+                            );
+                            setIsOpenCodeWebLoading(
+                              true,
+                            );
+                            setOpenCodeWebLoadingLabel(
+                              "Starting OpenCode…",
+                            );
+                            setPendingOpenCodeWebMessage(
+                              null,
+                            );
+                            try {
+                              let apiPath =
+                                "/api/opencode";
+                              const params =
+                                new URLSearchParams();
+                              let fullPath =
+                                "";
+                              if (
+                                basePath &&
+                                selectedRepo
+                              ) {
+                                const nextFullPath =
+                                  `${basePath}/${selectedRepo}`.replace(
+                                    /\/+/g,
+                                    "/",
                                   );
-                                setPendingOpenCodeWebMessage(
-                                  {
-                                    sessionId:
-                                      data.sessionId,
-                                    prompt:
-                                      prompt,
-                                    path:
-                                      fullPath ||
-                                      undefined,
-                                  },
+                                fullPath =
+                                  nextFullPath;
+                                params.set(
+                                  "path",
+                                  nextFullPath,
                                 );
                               }
-                            } else {
+                              const trimmedPrompt =
+                                promptText.trim();
+                              if (
+                                trimmedPrompt
+                              ) {
+                                params.set(
+                                  "deferPrompt",
+                                  "1",
+                                );
+                                params.set(
+                                  "createSession",
+                                  "1",
+                                );
+                              }
+                              const queryString =
+                                params.toString();
+                              if (
+                                queryString
+                              ) {
+                                apiPath += `?${queryString}`;
+                              }
+                              const res =
+                                await fetch(
+                                  apiPath,
+                                );
+                              const data =
+                                await res.json();
+                              if (
+                                data?.url
+                              ) {
+                                setIframeUrl(
+                                  data.url,
+                                );
+                                setOpenCodeWebLoadingLabel(
+                                  "Loading OpenCode Web…",
+                                );
+                                if (
+                                  trimmedPrompt &&
+                                  data?.sessionId
+                                ) {
+                                  const prompt =
+                                    buildToolPrompt(
+                                      {
+                                        promptText:
+                                          trimmedPrompt,
+                                        mode: promptMode,
+                                        docMode:
+                                          docAiMode,
+                                        file: {
+                                          path: selectedFile!
+                                            .path,
+                                        },
+                                        viewMode,
+                                        selectedRepo,
+                                      },
+                                    );
+                                  setPendingOpenCodeWebMessage(
+                                    {
+                                      sessionId:
+                                        data.sessionId,
+                                      prompt:
+                                        prompt,
+                                      path:
+                                        fullPath ||
+                                        undefined,
+                                    },
+                                  );
+                                }
+                              } else {
+                                setIsOpenCodeWebLoading(
+                                  false,
+                                );
+                                setOpenCodeWebError(
+                                  "Failed to open OpenCode Web",
+                                );
+                              }
+                            } catch {
                               setIsOpenCodeWebLoading(
                                 false,
                               );
@@ -1715,40 +1805,42 @@ export default function Home() {
                                 "Failed to open OpenCode Web",
                               );
                             }
-                          } catch {
-                            setIsOpenCodeWebLoading(
-                              false,
-                            );
-                            setOpenCodeWebError(
-                              "Failed to open OpenCode Web",
-                            );
+                          }}
+                          disabled={
+                            isOpenCodeWebLoading
                           }
-                        }}
-                        disabled={
-                          isOpenCodeWebLoading
-                        }
-                        className="flex-1 px-3 py-3 text-left group disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        <div className="text-sm font-medium text-gray-100 group-hover:text-white mb-0.5">
-                          OpenCode Web
-                        </div>
-                        <div className="text-[10px] text-gray-400">
-                          {isOpenCodeWebLoading
-                            ? "Opening…"
-                            : "Click to open"}
-                        </div>
-                      </button>
-                      <div className="p-1 border-t bg-gray-900/50 border-gray-700/50">
-                        <div className="w-full text-[10px] text-gray-500 py-0.5 px-1">
-                          Web Interface
+                          className="flex-1 px-3 py-3 text-left group disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          <div className="flex gap-2 items-center mb-0.5">
+                            <div className="text-sm font-medium text-foreground group-hover:text-white">
+                              OpenCode
+                              Web
+                            </div>
+                            {isOpenCodeActive && (
+                              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {isOpenCodeWebLoading
+                              ? "Opening…"
+                              : isOpenCodeActive
+                                ? "Continue working"
+                                : "Click to open"}
+                          </div>
+                        </button>
+                        <div className="p-1 border-t bg-background border-border">
+                          <div className="w-full text-[10px] text-muted-foreground py-0.5 px-1">
+                            Web
+                            Interface
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -1756,7 +1848,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col w-full h-full">
-      <div className="flex justify-between items-center px-4 py-2 bg-gray-800 border-b border-gray-700">
+      <div className="flex justify-between items-center px-4 py-2 bg-secondary border-b border-border">
         <div className="flex gap-6 items-center">
           <MonochromeLogo
             size="sm"
@@ -1803,7 +1895,7 @@ export default function Home() {
                         viewMode ===
                         mode
                           ? "bg-blue-600 text-white"
-                          : "text-gray-300 hover:bg-gray-700"
+                          : "text-muted-foreground hover:bg-accent"
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -1825,12 +1917,12 @@ export default function Home() {
                   e.target.value,
                 )
               }
-              className="bg-transparent text-gray-100 text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
+              className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
             >
               <option
                 value=""
                 disabled
-                className="bg-gray-800"
+                className="bg-secondary"
               >
                 {repositories.length ===
                 0
@@ -1842,27 +1934,27 @@ export default function Home() {
                   <option
                     key={repo.name}
                     value={repo.name}
-                    className="bg-gray-800"
+                    className="bg-secondary"
                   >
                     {repo.name}
                   </option>
                 ),
               )}
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 text-gray-400 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 text-muted-foreground -translate-y-1/2 pointer-events-none" />
           </div>
 
-          <div className="mx-2 w-px h-6 bg-gray-700" />
+          <div className="mx-2 w-px h-6 bg-border" />
 
           <button
             onClick={() =>
               setIsSettingsOpen(true)
             }
-            className="p-2 text-gray-400 rounded-lg transition-colors hover:text-white hover:bg-gray-700"
+            className="p-2 text-muted-foreground rounded-lg transition-colors hover:text-white hover:bg-accent"
           >
             <Settings className="w-5 h-5" />
           </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg text-sm transition-colors">
+          <button className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-white hover:bg-accent rounded-lg text-sm transition-colors">
             <LogIn className="w-4 h-4" />
             Login
           </button>
@@ -1901,14 +1993,14 @@ export default function Home() {
                   testsSetupStatus.state !==
                     "ready" ? (
                     <div
-                      className={`bg-gray-800 border-b border-gray-700 min-h-0 ${
+                      className={`bg-secondary border-b border-border min-h-0 ${
                         isSetupLogsVisible
                           ? "flex overflow-hidden flex-col flex-1"
                           : ""
                       }`}
                     >
                       <div className="flex flex-shrink-0 justify-between items-center px-3 py-2">
-                        <div className="text-sm text-gray-300">
+                        <div className="text-sm text-muted-foreground">
                           Setup:{" "}
                           <span
                             className={`${
@@ -1940,7 +2032,7 @@ export default function Home() {
                               (v) => !v,
                             )
                           }
-                          className="px-2 py-1 text-xs text-gray-200 rounded transition-colors hover:text-white hover:bg-gray-700"
+                          className="px-2 py-1 text-xs text-foreground rounded transition-colors hover:text-white hover:bg-accent"
                         >
                           {isSetupLogsVisible
                             ? "Hide logs"
@@ -1958,7 +2050,7 @@ export default function Home() {
                                   el.scrollHeight;
                               }
                             }}
-                            className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs text-gray-200 whitespace-pre-wrap bg-black rounded"
+                            className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs text-foreground whitespace-pre-wrap bg-black rounded"
                           >
                             {testsSetupStatus.log ||
                               `State: ${testsSetupStatus.state}`}
@@ -2017,7 +2109,15 @@ export default function Home() {
                                     )
                                     .pop()
                                 : "";
-                            const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                            const newPath =
+                              ext &&
+                              newTitle
+                                .toLowerCase()
+                                .endsWith(
+                                  `.${ext.toLowerCase()}`,
+                                )
+                                ? `${dir}/${newTitle}`
+                                : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
 
                             const res =
                               await fetch(
@@ -2100,7 +2200,15 @@ export default function Home() {
                             .split(".")
                             .pop()
                         : "";
-                    const newPath = `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                    const newPath =
+                      ext &&
+                      newTitle
+                        .toLowerCase()
+                        .endsWith(
+                          `.${ext.toLowerCase()}`,
+                        )
+                        ? `${dir}/${newTitle}`
+                        : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
 
                     const res =
                       await fetch(
@@ -2366,29 +2474,6 @@ export default function Home() {
           )}
         </div>
       </div>
-      <Dialog
-        open={isTestDialogOpen}
-        onOpenChange={
-          setIsTestDialogOpen
-        }
-      >
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-gray-900 border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              Test Execution
-            </DialogTitle>
-          </DialogHeader>
-          <div className="overflow-auto flex-1 p-4 font-mono text-sm text-green-400 whitespace-pre-wrap bg-black rounded">
-            {testOutput}
-            {isTestRunning && (
-              <span className="animate-pulse">
-                _
-              </span>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <SettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}

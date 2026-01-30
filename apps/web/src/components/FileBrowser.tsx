@@ -98,7 +98,7 @@ function FileTreeNode({
   return (
     <div className="select-none">
       <div
-        className={`group flex items-center gap-1 py-1 px-2 hover:bg-gray-700 rounded relative ${
+        className={`group flex items-center gap-1 py-1 px-2 hover:bg-secondary rounded relative ${
           isSelectable
             ? "cursor-pointer"
             : "cursor-default"
@@ -126,9 +126,9 @@ function FileTreeNode({
         >
           {hasChildren ? (
             isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             )
           ) : (
             <span className="w-4" />
@@ -140,9 +140,9 @@ function FileTreeNode({
               <Folder className="w-4 h-4 text-yellow-400" />
             )
           ) : (
-            <FileText className="w-4 h-4 text-gray-400" />
+            <FileText className="w-4 h-4 text-muted-foreground" />
           )}
-          <span className="text-sm text-gray-200">
+          <span className="text-sm text-foreground">
             {node.name}
           </span>
         </div>
@@ -172,10 +172,10 @@ function FileTreeNode({
                       node.path,
                     );
                   }}
-                  className="p-1 hover:bg-gray-600 rounded"
+                  className="p-1 hover:bg-accent rounded"
                   title="New file"
                 >
-                  <FilePlus className="w-3 h-3 text-gray-400" />
+                  <FilePlus className="w-3 h-3 text-muted-foreground" />
                 </button>
                 <button
                   onClick={(e) => {
@@ -184,10 +184,10 @@ function FileTreeNode({
                       node.path,
                     );
                   }}
-                  className="p-1 hover:bg-gray-600 rounded"
+                  className="p-1 hover:bg-accent rounded"
                   title="New folder"
                 >
-                  <FolderPlus className="w-3 h-3 text-gray-400" />
+                  <FolderPlus className="w-3 h-3 text-muted-foreground" />
                 </button>
               </>
             )}
@@ -208,7 +208,7 @@ function FileTreeNode({
               className="p-1 hover:bg-red-600 rounded"
               title="Delete"
             >
-              <Trash2 className="w-3 h-3 text-gray-400" />
+              <Trash2 className="w-3 h-3 text-muted-foreground" />
             </button>
           </div>
         )}
@@ -488,7 +488,7 @@ export default function FileBrowser({
   return (
     <>
       <div
-        className="relative flex shrink-0 flex-col border-r border-gray-700 bg-gray-800"
+        className="relative flex shrink-0 flex-col border-r border-border bg-background"
         style={{ width: sidebarWidth }}
       >
         <div
@@ -496,7 +496,7 @@ export default function FileBrowser({
           aria-orientation="vertical"
           aria-valuenow={sidebarWidth}
           tabIndex={0}
-          className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize select-none border-r border-transparent transition-colors hover:border-gray-500 hover:bg-gray-600/50 active:bg-gray-600"
+          className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize select-none border-r border-transparent transition-colors hover:border-muted-foreground hover:bg-secondary active:bg-accent"
           onMouseDown={
             handleResizeStart
           }
@@ -523,7 +523,7 @@ export default function FileBrowser({
               onRunFolder={onRunFolder}
             />
           ) : (
-            <p className="text-sm text-gray-500 p-2">
+            <p className="text-sm text-muted-foreground p-2">
               No repository selected
             </p>
           )}

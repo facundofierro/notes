@@ -104,9 +104,9 @@ export function TestResults({
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left Sidebar: History List */}
-      <div className="w-64 border-r border-gray-800 flex flex-col bg-gray-900/50">
-        <div className="p-3 border-b border-gray-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+      <div className="w-64 border-r border-border flex flex-col bg-background">
+        <div className="p-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <History className="w-3.5 h-3.5" />
             Executions
           </div>
@@ -118,14 +118,14 @@ export function TestResults({
               onClick={() =>
                 setSelectedId("current")
               }
-              className={`w-full p-3 text-left border-b border-gray-800 transition-colors hover:bg-gray-800/50 ${
+              className={`w-full p-3 text-left border-b border-border transition-colors hover:bg-secondary ${
                 selectedId === "current"
-                  ? "bg-gray-800"
+                  ? "bg-secondary"
                   : ""
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-gray-500 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   {new Date().toLocaleTimeString()}
                 </span>
                 {isTestRunning ? (
@@ -137,10 +137,10 @@ export function TestResults({
                 ) : currentOutput ? (
                   <XCircle className="w-3.5 h-3.5 text-red-500" />
                 ) : (
-                  <Clock className="w-3.5 h-3.5 text-gray-500" />
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
               </div>
-              <div className="text-xs font-medium text-gray-200 truncate">
+              <div className="text-xs font-medium text-foreground truncate">
                 Current Execution
               </div>
             </button>
@@ -149,7 +149,7 @@ export function TestResults({
           {history.length === 0 &&
             !isTestRunning &&
             !currentOutput && (
-              <div className="p-8 text-center text-gray-600">
+              <div className="p-8 text-center text-muted-foreground">
                 <Clock className="w-8 h-8 mx-auto mb-2 opacity-20" />
                 <p className="text-xs">
                   No execution history
@@ -164,14 +164,14 @@ export function TestResults({
               onClick={() =>
                 setSelectedId(exec.id)
               }
-              className={`w-full p-3 text-left border-b border-gray-800 transition-colors hover:bg-gray-800/50 ${
+              className={`w-full p-3 text-left border-b border-border transition-colors hover:bg-secondary ${
                 selectedId === exec.id
-                  ? "bg-gray-800"
+                  ? "bg-secondary"
                   : ""
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-gray-500 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   {new Date(
                     exec.timestamp,
                   ).toLocaleTimeString()}
@@ -183,7 +183,7 @@ export function TestResults({
                   <XCircle className="w-3.5 h-3.5 text-red-500" />
                 )}
               </div>
-              <div className="text-xs font-medium text-gray-200 truncate">
+              <div className="text-xs font-medium text-foreground truncate">
                 {new Date(
                   exec.timestamp,
                 ).toLocaleDateString()}
@@ -197,7 +197,7 @@ export function TestResults({
       <div className="flex-1 flex flex-col bg-black overflow-hidden">
         {selectedExecution ? (
           <>
-            <div className="p-3 border-b border-gray-800 flex items-center justify-between bg-gray-900">
+            <div className="p-3 border-b border-border flex items-center justify-between bg-background">
               <div className="flex items-center gap-3">
                 <div
                   className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
@@ -214,31 +214,31 @@ export function TestResults({
                     selectedExecution.status
                   }
                 </div>
-                <span className="text-xs text-gray-400 font-mono">
+                <span className="text-xs text-muted-foreground font-mono">
                   {new Date(
                     selectedExecution.timestamp,
                   ).toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <button className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors">
+                <button className="p-1.5 text-muted-foreground hover:text-white hover:bg-accent rounded transition-colors">
                   <Terminal className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-4 font-mono text-xs overflow-auto text-gray-300">
+            <div className="flex-1 p-4 font-mono text-xs overflow-auto text-foreground">
               <pre className="whitespace-pre-wrap break-all leading-relaxed">
                 {selectedExecution.output ||
                   "Waiting for output..."}
                 {selectedExecution.status ===
                   "running" && (
-                  <span className="inline-block w-2 h-4 bg-gray-500 animate-pulse align-middle ml-1" />
+                  <span className="inline-block w-2 h-4 bg-muted-foreground animate-pulse align-middle ml-1" />
                 )}
               </pre>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-600 p-8">
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
             <Terminal className="w-12 h-12 mb-4 opacity-10" />
             <p className="text-sm">
               Select an execution to

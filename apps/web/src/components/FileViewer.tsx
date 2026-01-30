@@ -317,8 +317,8 @@ export default function FileViewer({
 
   if (!file) {
     return (
-      <div className="flex flex-1 justify-center items-center bg-gray-900">
-        <div className="text-center text-gray-500">
+      <div className="flex flex-1 justify-center items-center bg-background">
+        <div className="text-center text-muted-foreground">
           <FileText className="mx-auto mb-4 w-16 h-16 opacity-50" />
           <p>Select a file to view</p>
         </div>
@@ -327,18 +327,18 @@ export default function FileViewer({
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-gray-900">
-      <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700">
+    <div className="flex flex-col flex-1 bg-background">
+      <div className="flex justify-between items-center p-3 bg-secondary border-b border-border">
         <div className="flex gap-2 items-center">
           {onBack && (
             <button
               onClick={onBack}
-              className="p-1 mr-1 text-gray-400 rounded transition-colors hover:text-white hover:bg-gray-700"
+              className="p-1 mr-1 text-muted-foreground rounded transition-colors hover:text-white hover:bg-accent"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
-          <FileText className="w-4 h-4 text-gray-400" />
+          <FileText className="w-4 h-4 text-muted-foreground" />
           {isRenaming ? (
             <input
               value={renameValue}
@@ -365,7 +365,7 @@ export default function FileViewer({
                   setRenameValue("");
                 }
               }}
-              className="bg-gray-700 text-gray-100 text-sm rounded border border-gray-600 px-2 py-1 w-[320px]"
+              className="bg-secondary text-foreground text-sm rounded border border-border px-2 py-1 w-[320px]"
               autoFocus
               disabled={
                 isRenamingSaving
@@ -373,7 +373,7 @@ export default function FileViewer({
             />
           ) : (
             <span
-              className={`text-sm font-medium text-gray-200 truncate ${onRename ? "cursor-pointer hover:text-white" : ""}`}
+              className={`text-sm font-medium text-foreground truncate ${onRename ? "cursor-pointer hover:text-white" : ""}`}
               onClick={() => {
                 if (!onRename) return;
                 setRenameValue(
@@ -393,7 +393,7 @@ export default function FileViewer({
         </div>
 
         {isTestFile && (
-          <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
+          <div className="flex bg-background rounded-lg p-1 border border-border">
             <button
               onClick={() =>
                 onTestViewModeChange?.(
@@ -402,8 +402,8 @@ export default function FileViewer({
               }
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                 testViewMode === "steps"
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                  ? "bg-secondary text-white"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
               }`}
             >
               <ListTree className="w-3.5 h-3.5" />
@@ -417,8 +417,8 @@ export default function FileViewer({
               }
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                 testViewMode === "code"
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                  ? "bg-secondary text-white"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
               }`}
             >
               <Code className="w-3.5 h-3.5" />
@@ -433,8 +433,8 @@ export default function FileViewer({
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                 testViewMode ===
                 "results"
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                  ? "bg-secondary text-white"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
               }`}
             >
               <History className="w-3.5 h-3.5" />
@@ -459,7 +459,7 @@ export default function FileViewer({
             <>
               <button
                 onClick={handleCancel}
-                className="flex gap-1 items-center px-3 py-1 text-sm text-gray-300 rounded transition-colors hover:text-white hover:bg-gray-700"
+                className="flex gap-1 items-center px-3 py-1 text-sm text-muted-foreground rounded transition-colors hover:text-white hover:bg-accent"
                 disabled={isSaving}
               >
                 <X className="w-4 h-4" />
@@ -481,7 +481,7 @@ export default function FileViewer({
               onClick={() =>
                 updateEditing(true)
               }
-              className="flex gap-1 items-center px-3 py-1 text-sm text-gray-300 rounded transition-colors hover:text-white hover:bg-gray-700"
+              className="flex gap-1 items-center px-3 py-1 text-sm text-muted-foreground rounded transition-colors hover:text-white hover:bg-accent"
             >
               <Edit className="w-4 h-4" />
               Edit
@@ -608,8 +608,8 @@ export default function FileViewer({
           />
         )}
       </div>
-      <div className="px-3 py-1 bg-gray-800 border-t border-gray-700">
-        <span className="text-[10px] text-gray-500 font-mono">
+      <div className="px-3 py-1 bg-secondary border-t border-border">
+        <span className="text-[10px] text-muted-foreground font-mono">
           {file.path}
         </span>
       </div>

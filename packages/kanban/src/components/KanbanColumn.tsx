@@ -70,17 +70,17 @@ export function KanbanColumn({
     <div
       className={cn(
         'group flex h-full flex-1 basis-0 min-w-[160px] flex-col rounded-2xl transition-all duration-200',
-        'bg-gray-800/50 backdrop-blur-sm',
-        'border border-gray-700/40',
-        isOver && 'bg-gray-700/60 border-blue-500/40'
+        'bg-secondary/50 backdrop-blur-sm',
+        'border border-border',
+        isOver && 'bg-secondary border-blue-500/40'
       )}
     >
       {/* Column Header */}
       <div className="flex items-center justify-between px-4 py-3.5">
         <div className="flex items-center gap-2.5">
           <div className={cn('h-2.5 w-2.5 rounded-full shadow-sm', columnColorMap[color])} />
-          <h3 className="font-semibold text-sm text-gray-200">{column.title}</h3>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-gray-700/60 px-1.5 text-[11px] font-medium text-gray-400">
+          <h3 className="font-semibold text-sm text-foreground">{column.title}</h3>
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-secondary px-1.5 text-[11px] font-medium text-muted-foreground">
             {cards.length}
           </span>
         </div>
@@ -89,7 +89,7 @@ export function KanbanColumn({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
               onClick={() => onAddCard(column.id)}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -98,7 +98,7 @@ export function KanbanColumn({
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-7 w-7 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
@@ -111,7 +111,7 @@ export function KanbanColumn({
           ref={setNodeRef}
           className={cn(
             'flex flex-col gap-2.5 pb-2.5 min-h-[80px] transition-colors duration-200 rounded-xl',
-            isOver && 'bg-gray-700/30'
+            isOver && 'bg-secondary/30'
           )}
         >
           <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
@@ -126,7 +126,7 @@ export function KanbanColumn({
             ))}
           </SortableContext>
           {cards.length === 0 && (
-            <div className="flex items-center justify-center h-20 text-xs text-gray-500">
+            <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
               No cards
             </div>
           )}
@@ -138,7 +138,7 @@ export function KanbanColumn({
         <div className="p-2.5 pt-0">
           <Button
             variant="ghost"
-            className="w-full h-9 justify-center gap-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-xl text-xs font-normal border border-dashed border-gray-600/40 hover:border-gray-500/50 transition-all"
+            className="w-full h-9 justify-center gap-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl text-xs font-normal border border-dashed border-border hover:border-muted-foreground/50 transition-all"
             onClick={() => onAddCard(column.id)}
           >
             <Plus className="h-3.5 w-3.5" />

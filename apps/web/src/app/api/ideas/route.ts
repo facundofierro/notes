@@ -527,7 +527,9 @@ function renameIdea(
 
   const targetPathCandidate = path.join(
     dir,
-    `${safeTitle}.md`,
+    safeTitle.toLowerCase().endsWith(".md")
+      ? safeTitle
+      : `${safeTitle}.md`,
   );
   if (
     resolvedFilePath !==
