@@ -46,6 +46,7 @@ export function SettingsDialog({
   const {
     settings,
     isLoading,
+    error,
     updateSettings,
     resetSettings,
   } = useSettings();
@@ -166,6 +167,11 @@ export function SettingsDialog({
           </div>
 
           <div className="flex flex-col gap-2 pt-4 mt-auto border-t border-border">
+            {error ? (
+              <div className="px-2 py-1 text-xs text-red-400">
+                {error}
+              </div>
+            ) : null}
             <Button
               variant="outline"
               onClick={handleReset}

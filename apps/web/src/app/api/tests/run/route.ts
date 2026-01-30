@@ -3,6 +3,10 @@ import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 import { readSettings } from "@/lib/settings";
+import {
+  ensureEnvFileMissingOnly,
+  readDotenvFile,
+} from "@/lib/env-file";
 
 function findAgelumTestsDir(
   inputPath: string,
@@ -219,104 +223,11 @@ function normalizeAgelumTestProjectStructure(
   } catch {}
 }
 
-function dotenvEscape(
-  value: string,
-): string {
-  if (
-    /^[A-Za-z0-9_./:@+-]+$/.test(value)
-  )
-    return value;
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
-}
-
-function ensureEnvFile(
-  dir: string,
-  entries: Record<
-    string,
-    string | undefined
-  >,
-) {
-  const pairs = Object.entries(
-    entries,
-  ).filter(
-    ([, v]) =>
-      typeof v === "string" &&
-      v.length > 0,
-  ) as Array<[string, string]>;
-  if (pairs.length === 0) return;
-
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, {
-      recursive: true,
-    });
-  }
-
-  const envPath = path.join(
-    dir,
-    ".env",
-  );
-  let lines: string[] = [];
-  const lineIndexByKey = new Map<
-    string,
-    number
-  >();
-
-  if (fs.existsSync(envPath)) {
-    const raw = fs.readFileSync(
-      envPath,
-      "utf8",
-    );
-    lines = raw.split(/\r?\n/);
-    for (
-      let i = 0;
-      i < lines.length;
-      i++
-    ) {
-      const line = lines[i];
-      if (!line) continue;
-      if (/^\s*#/.test(line)) continue;
-      const match =
-        /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(
-          line,
-        );
-      if (!match) continue;
-      lineIndexByKey.set(match[1], i);
-    }
-  }
-
-  for (const [key, value] of pairs) {
-    const nextLine = `${key}=${dotenvEscape(value)}`;
-    const idx = lineIndexByKey.get(key);
-    if (typeof idx === "number") {
-      lines[idx] = nextLine;
-    } else {
-      lines.push(nextLine);
-    }
-  }
-
-  while (
-    lines.length > 0 &&
-    lines[lines.length - 1] === ""
-  ) {
-    lines.pop();
-  }
-  fs.writeFileSync(
-    envPath,
-    `${lines.join("\n")}\n`,
-    {
-      mode: 0o600,
-    },
-  );
-}
-
 function ensureAgelumTestEnvFiles(
   projectDir: string,
-  entries: Record<
-    string,
-    string | undefined
-  >,
+  entries: Record<string, string | undefined>,
 ) {
-  ensureEnvFile(projectDir, entries);
+  ensureEnvFileMissingOnly(projectDir, entries);
 }
 
 function ensureStagehandTestProject(
@@ -581,42 +492,76 @@ export async function POST(
           );
         }
 
-        const baseEnv: NodeJS.ProcessEnv =
-          {
-            ...process.env,
-            PATH: process.env.PATH,
-            BROWSERBASE_API_KEY:
-              settings.stagehandApiKey ||
-              process.env
-                .BROWSERBASE_API_KEY,
-            OPENAI_API_KEY:
-              settings.openaiApiKey ||
-              process.env
-                .OPENAI_API_KEY,
-            ANTHROPIC_API_KEY:
-              settings.anthropicApiKey ||
-              process.env
-                .ANTHROPIC_API_KEY,
-            GOOGLE_GENERATIVE_AI_API_KEY:
-              settings.googleApiKey ||
-              process.env
-                .GOOGLE_GENERATIVE_AI_API_KEY,
-          };
+        const dotenvValues =
+          agelumTestProjectDir
+            ? readDotenvFile(
+                path.join(
+                  agelumTestProjectDir,
+                  ".env",
+                ),
+              )
+            : {};
+
+        const seedEntries: Record<string, string | undefined> = {
+          BROWSERBASE_API_KEY:
+            settings.stagehandApiKey ||
+            process.env.BROWSERBASE_API_KEY,
+          OPENAI_API_KEY:
+            settings.openaiApiKey ||
+            process.env.OPENAI_API_KEY,
+          ANTHROPIC_API_KEY:
+            settings.anthropicApiKey ||
+            process.env.ANTHROPIC_API_KEY,
+          GOOGLE_GENERATIVE_AI_API_KEY:
+            settings.googleApiKey ||
+            process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        };
 
         if (agelumTestProjectDir) {
           ensureAgelumTestEnvFiles(
             agelumTestProjectDir,
-            {
-              BROWSERBASE_API_KEY:
-                baseEnv.BROWSERBASE_API_KEY,
-              OPENAI_API_KEY:
-                baseEnv.OPENAI_API_KEY,
-              ANTHROPIC_API_KEY:
-                baseEnv.ANTHROPIC_API_KEY,
-              GOOGLE_GENERATIVE_AI_API_KEY:
-                baseEnv.GOOGLE_GENERATIVE_AI_API_KEY,
-            },
+            seedEntries,
           );
+        }
+
+        const baseEnv: NodeJS.ProcessEnv = {
+          ...process.env,
+          PATH: process.env.PATH,
+          BROWSERBASE_API_KEY:
+            dotenvValues.BROWSERBASE_API_KEY ||
+            seedEntries.BROWSERBASE_API_KEY,
+          OPENAI_API_KEY:
+            dotenvValues.OPENAI_API_KEY ||
+            seedEntries.OPENAI_API_KEY,
+          ANTHROPIC_API_KEY:
+            dotenvValues.ANTHROPIC_API_KEY ||
+            seedEntries.ANTHROPIC_API_KEY,
+          GOOGLE_GENERATIVE_AI_API_KEY:
+            dotenvValues.GOOGLE_GENERATIVE_AI_API_KEY ||
+            seedEntries.GOOGLE_GENERATIVE_AI_API_KEY,
+        };
+
+        const missingKeys: string[] = [];
+        if (!baseEnv.BROWSERBASE_API_KEY) {
+          missingKeys.push("BROWSERBASE_API_KEY");
+        }
+        if (
+          !baseEnv.OPENAI_API_KEY &&
+          !baseEnv.ANTHROPIC_API_KEY &&
+          !baseEnv.GOOGLE_GENERATIVE_AI_API_KEY
+        ) {
+          missingKeys.push(
+            "OPENAI_API_KEY (or ANTHROPIC_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY)",
+          );
+        }
+        if (missingKeys.length > 0) {
+          controller.enqueue(
+            encoder.encode(
+              `\nMissing required test environment variables:\n- ${missingKeys.join("\n- ")}\n\nSet them in Settings → Tests, in agelum-test/.env, or in your shell environment.\n`,
+            ),
+          );
+          controller.close();
+          return;
         }
 
         if (

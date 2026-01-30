@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
 import { readSettings } from "@/lib/settings";
+import { ensureEnvFileMissingOnly } from "@/lib/env-file";
 
 interface FileNode {
   name: string;
@@ -38,65 +39,11 @@ const runningSetups = new Map<
   number
 >();
 
-function dotenvEscape(value: string): string {
-  if (/^[A-Za-z0-9_./:@+-]+$/.test(value)) return value;
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
-}
-
-function ensureEnvFile(
-  dir: string,
-  entries: Record<string, string | undefined>,
-) {
-  const pairs = Object.entries(entries).filter(
-    ([, v]) => typeof v === "string" && v.length > 0,
-  ) as Array<[string, string]>;
-  if (pairs.length === 0) return;
-
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  const envPath = path.join(dir, ".env");
-  let lines: string[] = [];
-  const lineIndexByKey = new Map<string, number>();
-
-  if (fs.existsSync(envPath)) {
-    const raw = fs.readFileSync(envPath, "utf8");
-    lines = raw.split(/\r?\n/);
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) continue;
-      if (/^\s*#/.test(line)) continue;
-      const match =
-        /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line);
-      if (!match) continue;
-      lineIndexByKey.set(match[1], i);
-    }
-  }
-
-  for (const [key, value] of pairs) {
-    const nextLine = `${key}=${dotenvEscape(value)}`;
-    const idx = lineIndexByKey.get(key);
-    if (typeof idx === "number") {
-      lines[idx] = nextLine;
-    } else {
-      lines.push(nextLine);
-    }
-  }
-
-  while (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-  fs.writeFileSync(envPath, `${lines.join("\n")}\n`, {
-    mode: 0o600,
-  });
-}
-
 function ensureAgelumTestEnvFiles(
   projectDir: string,
   entries: Record<string, string | undefined>,
 ) {
-  ensureEnvFile(projectDir, entries);
+  ensureEnvFileMissingOnly(projectDir, entries);
 }
 
 function readTestsSetupStatus(
