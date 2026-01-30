@@ -1424,6 +1424,8 @@ Context and Instructions:
                           try {
                             let apiPath =
                               "/api/opencode";
+                            const params =
+                              new URLSearchParams();
                             if (
                               basePath &&
                               selectedRepo
@@ -1433,7 +1435,25 @@ Context and Instructions:
                                   /\/+/g,
                                   "/",
                                 );
-                              apiPath += `?path=${encodeURIComponent(fullPath)}`;
+                              params.set(
+                                "path",
+                                fullPath,
+                              );
+                            }
+                            if (
+                              promptText.trim()
+                            ) {
+                              params.set(
+                                "prompt",
+                                promptText.trim(),
+                              );
+                            }
+                            const queryString =
+                              params.toString();
+                            if (
+                              queryString
+                            ) {
+                              apiPath += `?${queryString}`;
                             }
                             const res =
                               await fetch(

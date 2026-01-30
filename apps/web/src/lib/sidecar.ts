@@ -18,6 +18,7 @@ type SidecarRegistry = {
   [name: string]: {
     process: ChildProcess | null;
     url: string;
+    cwd?: string;
   };
 };
 
@@ -60,13 +61,27 @@ async function isUp(
 export async function ensureServer(
   opts: EnsureServerOptions,
 ): Promise<string> {
+  const existingEntry =
+    registry[opts.name];
+  if (
+    existingEntry?.process &&
+    !existingEntry.process.killed &&
+    existingEntry.cwd &&
+    opts.cwd &&
+    existingEntry.cwd !== opts.cwd
+  ) {
+    existingEntry.process.kill();
+    existingEntry.process = null;
+  }
+
   const url = `${opts.url}${opts.healthPath || "/"}`;
   if (await isUp(url)) {
-    registry[opts.name] = registry[
-      opts.name
-    ] || {
-      process: null,
+    registry[opts.name] = {
+      process:
+        registry[opts.name]?.process ||
+        null,
       url: opts.url,
+      cwd: opts.cwd,
     };
     return opts.url;
   }
@@ -114,6 +129,7 @@ export async function ensureServer(
   registry[opts.name] = {
     process: child,
     url: opts.url,
+    cwd: opts.cwd,
   };
 
   const ok = await waitForHealth(

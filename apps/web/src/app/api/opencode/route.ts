@@ -9,6 +9,8 @@ export async function GET(
   );
   const projectPath =
     searchParams.get("path");
+  const prompt =
+    searchParams.get("prompt");
 
   const port = Number(
     process.env.OPENCODE_PORT || 9988,
@@ -18,23 +20,30 @@ export async function GET(
     `http://localhost:${port}`;
   const startCmd =
     process.env.OPENCODE_START_CMD ||
-    `opencode web --port ${port}`;
+    `opencode web --port ${port} --hostname 127.0.0.1`;
   const healthPath =
     process.env.OPENCODE_HEALTH_PATH ||
-    "/";
+    "/global/health";
 
   try {
+    const cwd =
+      projectPath || process.cwd();
+
     const url = await ensureServer({
       name: "opencode",
       port,
       url: baseUrl,
       healthPath,
       startCmd,
-      cwd: process.cwd(),
-      env: process.env as Record<
-        string,
-        string
-      >,
+      cwd,
+      env: {
+        ...(process.env as Record<
+          string,
+          string
+        >),
+        BROWSER: "none",
+        CI: "1",
+      },
       startTimeoutMs: Number(
         process.env
           .OPENCODE_START_TIMEOUT ||
@@ -42,13 +51,54 @@ export async function GET(
       ),
     });
 
-    let finalUrl = url;
-    if (projectPath) {
-      // Base64 encode the path to match OpenCode's expected format
-      const b64Path = Buffer.from(
-        projectPath,
-      ).toString("base64");
-      finalUrl = `${url}/${b64Path}/session`;
+    const dir = projectPath || cwd;
+    const b64Dir =
+      Buffer.from(dir).toString(
+        "base64",
+      );
+
+    let finalUrl = `${url}/${b64Dir}/session`;
+
+    if (prompt) {
+      try {
+        const session = await fetch(
+          `${url}/session?directory=${encodeURIComponent(dir)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({}),
+          },
+        ).then((res) => res.json());
+
+        const sessionId = session?.id;
+        if (sessionId) {
+          await fetch(
+            `${url}/session/${sessionId}/message?directory=${encodeURIComponent(dir)}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                parts: [
+                  {
+                    type: "text",
+                    text: prompt,
+                  },
+                ],
+              }),
+            },
+          ).catch(() => undefined);
+
+          finalUrl = `${url}/${b64Dir}/session/${sessionId}`;
+        }
+      } catch {
+        // ignore
+      }
     }
 
     return NextResponse.json({
