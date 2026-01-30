@@ -230,8 +230,10 @@ export default function Home() {
     rightSidebarView,
     setRightSidebarView,
   ] = React.useState<
-    "prompt" | "terminal"
+    "prompt" | "terminal" | "iframe"
   >("prompt");
+  const [iframeUrl, setIframeUrl] =
+    React.useState<string>("");
   const [
     workDocIsDraft,
     setWorkDocIsDraft,
@@ -440,6 +442,27 @@ export default function Home() {
             setCurrentPath(
               data.rootPath,
             );
+            if (viewMode === "tests") {
+              const nextStatus =
+                (
+                  data as {
+                    setupStatus?: TestsSetupStatus | null;
+                  }
+                ).setupStatus ?? null;
+              setTestsSetupStatus(
+                nextStatus,
+              );
+              if (!nextStatus) return;
+              if (
+                nextStatus.state ===
+                  "ready" &&
+                !nextStatus.error
+              )
+                return;
+              setIsSetupLogsVisible(
+                true,
+              );
+            }
           });
       }
     }, [selectedRepo, viewMode]);
@@ -448,11 +471,22 @@ export default function Home() {
     loadFileTree();
   }, [loadFileTree]);
 
+  const testsSetupState =
+    testsSetupStatus?.state ?? null;
+
   React.useEffect(() => {
     if (viewMode !== "tests") return;
     if (!selectedRepo) return;
+    if (!testsSetupState) return;
+    if (
+      testsSetupState === "ready" ||
+      testsSetupState === "error"
+    )
+      return;
 
     let cancelled = false;
+    let intervalId: number | null =
+      null;
 
     const poll = async () => {
       try {
@@ -467,7 +501,30 @@ export default function Home() {
         setTestsSetupStatus(
           data.status,
         );
-        if (!data.status) return;
+
+        if (!data.status) {
+          if (intervalId !== null) {
+            window.clearInterval(
+              intervalId,
+            );
+            intervalId = null;
+          }
+          return;
+        }
+
+        if (
+          data.status.state ===
+            "ready" ||
+          data.status.state === "error"
+        ) {
+          if (intervalId !== null) {
+            window.clearInterval(
+              intervalId,
+            );
+            intervalId = null;
+          }
+        }
+
         if (
           data.status.state ===
             "ready" &&
@@ -481,16 +538,24 @@ export default function Home() {
       }
     };
 
-    poll();
-    const id = window.setInterval(
+    intervalId = window.setInterval(
       poll,
       1500,
     );
+    poll();
+
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      if (intervalId !== null)
+        window.clearInterval(
+          intervalId,
+        );
     };
-  }, [selectedRepo, viewMode]);
+  }, [
+    selectedRepo,
+    viewMode,
+    testsSetupState,
+  ]);
 
   const openWorkDraft =
     React.useCallback(
@@ -1111,6 +1176,34 @@ Context and Instructions:
                 </button>
               </div>
             </div>
+          ) : rightSidebarView ===
+            "iframe" ? (
+            <div className="flex overflow-hidden flex-col flex-1 h-full">
+              <div className="flex-1 min-h-0">
+                {iframeUrl ? (
+                  <iframe
+                    src={iframeUrl}
+                    className="w-full h-full bg-black border-0"
+                  />
+                ) : (
+                  <div className="flex justify-center items-center h-full text-xs text-gray-500">
+                    No URL loaded
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end p-2 border-t border-gray-800">
+                <button
+                  onClick={() =>
+                    setRightSidebarView(
+                      "prompt",
+                    )
+                  }
+                  className="px-3 py-2 w-full text-sm text-white bg-gray-800 rounded border border-gray-700 transition-colors hover:bg-gray-700"
+                >
+                  Back to Prompt
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="flex overflow-hidden flex-col flex-1">
               <div className="flex gap-2 p-3 border-b border-gray-800">
@@ -1323,6 +1416,45 @@ Context and Instructions:
                         );
                       },
                     )}
+                    <div className="flex overflow-hidden flex-col w-full bg-gray-800 rounded-lg border border-gray-700 shadow-sm transition-all hover:border-gray-600">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res =
+                              await fetch(
+                                "/api/opencode",
+                              );
+                            const data =
+                              await res.json();
+                            if (
+                              data?.url
+                            ) {
+                              setIframeUrl(
+                                data.url,
+                              );
+                              setRightSidebarView(
+                                "iframe",
+                              );
+                            }
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="flex-1 px-3 py-3 text-left group"
+                      >
+                        <div className="text-sm font-medium text-gray-100 group-hover:text-white mb-0.5">
+                          OpenCode Web
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                          Click to open
+                        </div>
+                      </button>
+                      <div className="p-1 border-t bg-gray-900/50 border-gray-700/50">
+                        <div className="w-full text-[10px] text-gray-500 py-0.5 px-1">
+                          Web Interface
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1483,8 +1615,7 @@ Context and Instructions:
                       className={`bg-gray-800 border-b border-gray-700 min-h-0 ${
                         isSetupLogsVisible
                           ? "flex overflow-hidden flex-col flex-1"
-                          : ""
-                      }`}
+                          : ""}`}
                     >
                       <div className="flex flex-shrink-0 justify-between items-center px-3 py-2">
                         <div className="text-sm text-gray-300">
