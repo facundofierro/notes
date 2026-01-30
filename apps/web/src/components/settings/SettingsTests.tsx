@@ -17,6 +17,17 @@ export function SettingsTests({
   settings,
   onChange,
 }: SettingsTestsProps) {
+  const renderStatus = (value: string) => {
+    const isSet = value.trim().length > 0;
+    return (
+      <span
+        className={`text-[11px] ${isSet ? "text-emerald-400" : "text-muted-foreground"}`}
+      >
+        {isSet ? "Saved" : "Not set"}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -31,9 +42,10 @@ export function SettingsTests({
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>
-            Stagehand API Key
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label>Stagehand API Key</Label>
+            {renderStatus(settings.stagehandApiKey || "")}
+          </div>
           <Input
             type="password"
             value={
@@ -57,7 +69,10 @@ export function SettingsTests({
         </div>
 
         <div className="space-y-2">
-          <Label>OpenAI API Key</Label>
+          <div className="flex items-center justify-between">
+            <Label>OpenAI API Key</Label>
+            {renderStatus(settings.openaiApiKey || "")}
+          </div>
           <Input
             type="password"
             value={
@@ -80,9 +95,10 @@ export function SettingsTests({
         </div>
 
         <div className="space-y-2">
-          <Label>
-            Anthropic API Key
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label>Anthropic API Key</Label>
+            {renderStatus(settings.anthropicApiKey || "")}
+          </div>
           <Input
             type="password"
             value={
@@ -105,7 +121,10 @@ export function SettingsTests({
         </div>
 
         <div className="space-y-2">
-          <Label>Google API Key</Label>
+          <div className="flex items-center justify-between">
+            <Label>Google API Key</Label>
+            {renderStatus(settings.googleApiKey || "")}
+          </div>
           <Input
             type="password"
             value={
