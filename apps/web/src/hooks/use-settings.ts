@@ -6,6 +6,20 @@ import {
   useCallback,
 } from "react";
 
+export interface ProjectConfig {
+  id: string;
+  name: string;
+  path: string;
+  type: "project" | "folder";
+  workflowId?: string;
+}
+
+export interface WorkflowConfig {
+  id: string;
+  name: string;
+  items: string[];
+}
+
 export interface UserSettings {
   theme: "light" | "dark" | "system";
   language: string;
@@ -27,6 +41,12 @@ export interface UserSettings {
   wordWrap: boolean;
   aiModel: string;
   aiProvider: string;
+  projects: ProjectConfig[];
+  enabledAgents: string[];
+  stagehandApiKey: string;
+  workflows: WorkflowConfig[];
+  defaultWorkflowId?: string;
+  createBranchPerTask: boolean;
 }
 
 const defaultSettings: UserSettings = {
@@ -42,6 +62,11 @@ const defaultSettings: UserSettings = {
   wordWrap: true,
   aiModel: "default",
   aiProvider: "auto",
+  projects: [],
+  enabledAgents: [],
+  stagehandApiKey: "",
+  workflows: [],
+  createBranchPerTask: false,
 };
 
 interface UseSettingsReturn {
@@ -49,15 +74,16 @@ interface UseSettingsReturn {
   isLoading: boolean;
   error: string | null;
   updateSettings: (
-    newSettings: Partial<UserSettings>
+    newSettings: Partial<UserSettings>,
   ) => Promise<void>;
   resetSettings: () => Promise<void>;
+  refetch: () => Promise<void>;
 }
 
 export function useSettings(): UseSettingsReturn {
   const [settings, setSettings] =
     useState<UserSettings>(
-      defaultSettings
+      defaultSettings,
     );
   const [isLoading, setIsLoading] =
     useState(true);
@@ -65,17 +91,16 @@ export function useSettings(): UseSettingsReturn {
     string | null
   >(null);
 
-  // Fetch settings on mount
-  useEffect(() => {
-    const fetchSettings = async () => {
+  const fetchSettings =
+    useCallback(async () => {
       try {
         setIsLoading(true);
         const response = await fetch(
-          "/api/settings"
+          "/api/settings",
         );
         if (!response.ok) {
           throw new Error(
-            "Failed to fetch settings"
+            "Failed to fetch settings",
           );
         }
         const data =
@@ -87,23 +112,25 @@ export function useSettings(): UseSettingsReturn {
       } catch (err) {
         console.error(
           "Error fetching settings:",
-          err
+          err,
         );
         setError(
-          "Failed to load settings"
+          "Failed to load settings",
         );
         // Keep default settings on error
       } finally {
         setIsLoading(false);
       }
-    };
+    }, []);
 
+  // Fetch settings on mount
+  useEffect(() => {
     void fetchSettings();
-  }, []);
+  }, [fetchSettings]);
 
   const updateSettings = useCallback(
     async (
-      newSettings: Partial<UserSettings>
+      newSettings: Partial<UserSettings>,
     ) => {
       try {
         setIsLoading(true);
@@ -118,12 +145,12 @@ export function useSettings(): UseSettingsReturn {
             body: JSON.stringify({
               settings: newSettings,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
           throw new Error(
-            "Failed to update settings"
+            "Failed to update settings",
           );
         }
 
@@ -136,17 +163,17 @@ export function useSettings(): UseSettingsReturn {
       } catch (err) {
         console.error(
           "Error updating settings:",
-          err
+          err,
         );
         setError(
-          "Failed to save settings"
+          "Failed to save settings",
         );
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   const resetSettings =
@@ -157,12 +184,12 @@ export function useSettings(): UseSettingsReturn {
           "/api/settings",
           {
             method: "DELETE",
-          }
+          },
         );
 
         if (!response.ok) {
           throw new Error(
-            "Failed to reset settings"
+            "Failed to reset settings",
           );
         }
 
@@ -175,10 +202,10 @@ export function useSettings(): UseSettingsReturn {
       } catch (err) {
         console.error(
           "Error resetting settings:",
-          err
+          err,
         );
         setError(
-          "Failed to reset settings"
+          "Failed to reset settings",
         );
         throw err;
       } finally {
@@ -192,5 +219,6 @@ export function useSettings(): UseSettingsReturn {
     error,
     updateSettings,
     resetSettings,
+    refetch: fetchSettings,
   };
 }

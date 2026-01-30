@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { executeAgentCommand } from "@/lib/agent-tools";
+import { resolveProjectPath } from "@/lib/settings";
 
 interface Epic {
   id: string;
@@ -17,30 +18,23 @@ interface Epic {
   path: string;
 }
 
-function resolveGitDir(): string {
-  const currentPath = process.cwd();
-  return path.dirname(
-    path.dirname(
-      path.dirname(currentPath),
-    ),
-  );
-}
-
 function resolveRepoDirs(
   repo: string,
 ): {
-  gitDir: string;
   repoDir: string;
   primaryAgelumDir: string;
   legacyAgelumDir: string;
 } {
-  const gitDir = resolveGitDir();
-  const repoDir = path.join(
-    gitDir,
-    repo,
-  );
+  const repoDir =
+    resolveProjectPath(repo);
+
+  if (!repoDir) {
+    throw new Error(
+      `Repository not found: ${repo}`,
+    );
+  }
+
   return {
-    gitDir,
     repoDir,
     primaryAgelumDir: path.join(
       repoDir,
@@ -467,44 +461,86 @@ function renameEpic(
 } {
   const resolvedFilePath =
     path.resolve(filePath);
-  
-  if (!fs.existsSync(resolvedFilePath)) {
-    throw new Error("Epic file not found");
+
+  if (
+    !fs.existsSync(resolvedFilePath)
+  ) {
+    throw new Error(
+      "Epic file not found",
+    );
   }
 
-  const content = fs.readFileSync(resolvedFilePath, "utf-8");
-  const updatedMarkdown = updateMarkdownTitle(content, newTitle);
-  
+  const content = fs.readFileSync(
+    resolvedFilePath,
+    "utf-8",
+  );
+  const updatedMarkdown =
+    updateMarkdownTitle(
+      content,
+      newTitle,
+    );
+
   // Also update frontmatter title if present
-  const frontmatterMatch = updatedMarkdown.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatterMatch =
+    updatedMarkdown.match(
+      /^---\n([\s\S]*?)\n---/,
+    );
   let finalContent = updatedMarkdown;
   if (frontmatterMatch) {
-    const frontmatter = frontmatterMatch[1];
-    if (frontmatter.includes("title:")) {
-       const updatedFrontmatter = frontmatter.replace(/title:\s*.*/, `title: ${newTitle}`);
-       finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
+    const frontmatter =
+      frontmatterMatch[1];
+    if (
+      frontmatter.includes("title:")
+    ) {
+      const updatedFrontmatter =
+        frontmatter.replace(
+          /title:\s*.*/,
+          `title: ${newTitle}`,
+        );
+      finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
     } else {
-       const updatedFrontmatter = `title: ${newTitle}\n${frontmatter}`;
-       finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
+      const updatedFrontmatter = `title: ${newTitle}\n${frontmatter}`;
+      finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
     }
   }
 
-  const dir = path.dirname(resolvedFilePath);
-  const safeTitle = sanitizeFileBase(newTitle);
-  
-  const currentFileName = path.basename(resolvedFilePath, ".md");
+  const dir = path.dirname(
+    resolvedFilePath,
+  );
+  const safeTitle =
+    sanitizeFileBase(newTitle);
+
+  const currentFileName = path.basename(
+    resolvedFilePath,
+    ".md",
+  );
   let targetPath = resolvedFilePath;
-  
-  const targetPathCandidate = path.join(dir, `${safeTitle}.md`);
-  if (resolvedFilePath !== targetPathCandidate) {
-    targetPath = resolveUniqueFilePath(dir, safeTitle);
+
+  const targetPathCandidate = path.join(
+    dir,
+    `${safeTitle}.md`,
+  );
+  if (
+    resolvedFilePath !==
+    targetPathCandidate
+  ) {
+    targetPath = resolveUniqueFilePath(
+      dir,
+      safeTitle,
+    );
   }
 
   if (resolvedFilePath !== targetPath) {
-    fs.renameSync(resolvedFilePath, targetPath);
+    fs.renameSync(
+      resolvedFilePath,
+      targetPath,
+    );
   }
-  
-  fs.writeFileSync(targetPath, finalContent);
+
+  fs.writeFileSync(
+    targetPath,
+    finalContent,
+  );
 
   return {
     path: targetPath,
@@ -526,8 +562,16 @@ export async function GET(
     });
   }
 
-  const epics = readEpics(repo);
-  return NextResponse.json({ epics });
+  try {
+    const epics = readEpics(repo);
+    return NextResponse.json({ epics });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { epics: [] },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(
@@ -556,8 +600,16 @@ export async function POST(
       );
     }
 
-    if (action === "rename" && body.path && body.newTitle) {
-      const result = renameEpic(repo, body.path, body.newTitle);
+    if (
+      action === "rename" &&
+      body.path &&
+      body.newTitle
+    ) {
+      const result = renameEpic(
+        repo,
+        body.path,
+        body.newTitle,
+      );
       return NextResponse.json(result);
     }
 

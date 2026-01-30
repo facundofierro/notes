@@ -4,18 +4,7 @@ import * as React from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
   Button,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-  Input,
 } from "@agelum/shadcn";
 import {
   useSettings,
@@ -24,19 +13,35 @@ import {
 import {
   RotateCcw,
   Save,
+  Folder,
+  Bot,
+  TestTube,
+  Settings as SettingsIcon,
+  LayoutTemplate,
 } from "lucide-react";
+import { SettingsProjects } from "./settings/SettingsProjects";
+import { SettingsAgents } from "./settings/SettingsAgents";
+import { SettingsTests } from "./settings/SettingsTests";
+import { SettingsDefaults } from "./settings/SettingsDefaults";
+import { SettingsWorkflows } from "./settings/SettingsWorkflows";
 
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSave?: () => void;
 }
 
-type ViewMode =
-  UserSettings["defaultView"];
+type Tab =
+  | "projects"
+  | "agents"
+  | "tests"
+  | "defaults"
+  | "workflows";
 
 export function SettingsDialog({
   open,
   onOpenChange,
+  onSave,
 }: SettingsDialogProps) {
   const {
     settings,
@@ -49,12 +54,13 @@ export function SettingsDialog({
     setLocalSettings,
   ] =
     React.useState<UserSettings>(
-      settings
+      settings,
     );
   const [hasChanges, setHasChanges] =
     React.useState(false);
+  const [activeTab, setActiveTab] =
+    React.useState<Tab>("defaults");
 
-  // Update local settings when settings change from the server
   React.useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
@@ -63,7 +69,7 @@ export function SettingsDialog({
     K extends keyof UserSettings,
   >(
     key: K,
-    value: UserSettings[K]
+    value: UserSettings[K],
   ) => {
     setLocalSettings((prev) => ({
       ...prev,
@@ -75,10 +81,11 @@ export function SettingsDialog({
   const handleSave = async () => {
     try {
       await updateSettings(
-        localSettings
+        localSettings,
       );
       setHasChanges(false);
       onOpenChange(false);
+      onSave?.();
     } catch (error) {
       // Error is handled in the hook
     }
@@ -93,23 +100,35 @@ export function SettingsDialog({
     }
   };
 
-  const viewModeOptions: {
-    value: ViewMode;
+  const tabs: {
+    id: Tab;
     label: string;
+    icon: any;
   }[] = [
-    { value: "ideas", label: "Ideas" },
-    { value: "docs", label: "Docs" },
-    { value: "plan", label: "Plan" },
-    { value: "epics", label: "Epics" },
-    { value: "kanban", label: "Tasks" },
-    { value: "tests", label: "Tests" },
     {
-      value: "commands",
-      label: "Commands",
+      id: "projects",
+      label: "Projects",
+      icon: Folder,
     },
     {
-      value: "cli-tools",
-      label: "CLI Tools",
+      id: "agents",
+      label: "Agents",
+      icon: Bot,
+    },
+    {
+      id: "tests",
+      label: "Tests",
+      icon: TestTube,
+    },
+    {
+      id: "defaults",
+      label: "Defaults",
+      icon: SettingsIcon,
+    },
+    {
+      id: "workflows",
+      label: "Workflows",
+      icon: LayoutTemplate,
     },
   ];
 
@@ -118,443 +137,92 @@ export function SettingsDialog({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-gray-900 border-gray-700 text-gray-100">
-        <DialogHeader>
-          <DialogTitle className="text-xl text-white">
-            Settings
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Appearance Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Appearance
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="theme"
-                  className="text-gray-300"
-                >
-                  Theme
-                </Label>
-                <Select
-                  value={
-                    localSettings.theme
-                  }
-                  onValueChange={(
-                    value
-                  ) =>
-                    handleChange(
-                      "theme",
-                      value as UserSettings["theme"]
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id="theme"
-                    className="bg-gray-800 border-gray-700 text-gray-100"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="light">
-                      Light
-                    </SelectItem>
-                    <SelectItem value="dark">
-                      Dark
-                    </SelectItem>
-                    <SelectItem value="system">
-                      System
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="language"
-                  className="text-gray-300"
-                >
-                  Language
-                </Label>
-                <Select
-                  value={
-                    localSettings.language
-                  }
-                  onValueChange={(
-                    value
-                  ) =>
-                    handleChange(
-                      "language",
-                      value
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id="language"
-                    className="bg-gray-800 border-gray-700 text-gray-100"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="en">
-                      English
-                    </SelectItem>
-                    <SelectItem value="es">
-                      Español
-                    </SelectItem>
-                    <SelectItem value="pt">
-                      Português
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      <DialogContent className="max-w-5xl h-[80vh] flex gap-0 p-0 overflow-hidden bg-gray-950 border-gray-800 text-gray-100">
+        {/* Sidebar */}
+        <div className="flex flex-col gap-2 p-4 w-64 border-r border-gray-800 bg-gray-950">
+          <div className="px-2 pt-2 mb-4">
+            <h2 className="text-lg font-bold text-white">
+              Settings
+            </h2>
           </div>
 
-          {/* Editor Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Editor
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="fontSize"
-                  className="text-gray-300"
+          <div className="space-y-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <Button
+                  key={tab.id}
+                  variant="ghost"
+                  onClick={() =>
+                    setActiveTab(tab.id)
+                  }
+                  className={`w-full justify-start gap-3 ${activeTab === tab.id ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800/50"}`}
                 >
-                  Font Size
-                </Label>
-                <Input
-                  id="fontSize"
-                  type="number"
-                  min={8}
-                  max={32}
-                  value={
-                    localSettings.editorFontSize
-                  }
-                  onChange={(e) =>
-                    handleChange(
-                      "editorFontSize",
-                      parseInt(
-                        e.target.value,
-                        10
-                      ) || 14
-                    )
-                  }
-                  className="bg-gray-800 border-gray-700 text-gray-100"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="fontFamily"
-                  className="text-gray-300"
-                >
-                  Font Family
-                </Label>
-                <Select
-                  value={
-                    localSettings.editorFontFamily
-                  }
-                  onValueChange={(
-                    value
-                  ) =>
-                    handleChange(
-                      "editorFontFamily",
-                      value
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id="fontFamily"
-                    className="bg-gray-800 border-gray-700 text-gray-100"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="monospace">
-                      Monospace
-                    </SelectItem>
-                    <SelectItem value="serif">
-                      Serif
-                    </SelectItem>
-                    <SelectItem value="sans-serif">
-                      Sans Serif
-                    </SelectItem>
-                    <SelectItem value="Fira Code">
-                      Fira Code
-                    </SelectItem>
-                    <SelectItem value="JetBrains Mono">
-                      JetBrains Mono
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <Label
-                htmlFor="showLineNumbers"
-                className="text-gray-300 cursor-pointer"
-              >
-                Show Line Numbers
-              </Label>
-              <Switch
-                id="showLineNumbers"
-                checked={
-                  localSettings.showLineNumbers
-                }
-                onCheckedChange={(
-                  checked
-                ) =>
-                  handleChange(
-                    "showLineNumbers",
-                    checked
-                  )
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <Label
-                htmlFor="wordWrap"
-                className="text-gray-300 cursor-pointer"
-              >
-                Word Wrap
-              </Label>
-              <Switch
-                id="wordWrap"
-                checked={
-                  localSettings.wordWrap
-                }
-                onCheckedChange={(
-                  checked
-                ) =>
-                  handleChange(
-                    "wordWrap",
-                    checked
-                  )
-                }
-              />
-            </div>
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </Button>
+              );
+            })}
           </div>
 
-          {/* Application Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Application
-            </h3>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="defaultView"
-                className="text-gray-300"
-              >
-                Default View
-              </Label>
-              <Select
-                value={
-                  localSettings.defaultView
-                }
-                onValueChange={(
-                  value
-                ) =>
-                  handleChange(
-                    "defaultView",
-                    value as ViewMode
-                  )
-                }
-              >
-                <SelectTrigger
-                  id="defaultView"
-                  className="bg-gray-800 border-gray-700 text-gray-100"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  {viewModeOptions.map(
-                    (option) => (
-                      <SelectItem
-                        key={
-                          option.value
-                        }
-                        value={
-                          option.value
-                        }
-                      >
-                        {option.label}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <Label
-                htmlFor="notifications"
-                className="text-gray-300 cursor-pointer"
-              >
-                Enable Notifications
-              </Label>
-              <Switch
-                id="notifications"
-                checked={
-                  localSettings.notifications
-                }
-                onCheckedChange={(
-                  checked
-                ) =>
-                  handleChange(
-                    "notifications",
-                    checked
-                  )
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <Label
-                htmlFor="autoSave"
-                className="text-gray-300 cursor-pointer"
-              >
-                Auto Save
-              </Label>
-              <Switch
-                id="autoSave"
-                checked={
-                  localSettings.autoSave
-                }
-                onCheckedChange={(
-                  checked
-                ) =>
-                  handleChange(
-                    "autoSave",
-                    checked
-                  )
-                }
-              />
-            </div>
-          </div>
-
-          {/* AI Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              AI Configuration
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="aiProvider"
-                  className="text-gray-300"
-                >
-                  AI Provider
-                </Label>
-                <Select
-                  value={
-                    localSettings.aiProvider
-                  }
-                  onValueChange={(
-                    value
-                  ) =>
-                    handleChange(
-                      "aiProvider",
-                      value
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id="aiProvider"
-                    className="bg-gray-800 border-gray-700 text-gray-100"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="auto">
-                      Auto
-                    </SelectItem>
-                    <SelectItem value="openai">
-                      OpenAI
-                    </SelectItem>
-                    <SelectItem value="anthropic">
-                      Anthropic
-                    </SelectItem>
-                    <SelectItem value="google">
-                      Google
-                    </SelectItem>
-                    <SelectItem value="local">
-                      Local
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="aiModel"
-                  className="text-gray-300"
-                >
-                  Default Model
-                </Label>
-                <Input
-                  id="aiModel"
-                  value={
-                    localSettings.aiModel
-                  }
-                  onChange={(e) =>
-                    handleChange(
-                      "aiModel",
-                      e.target.value
-                    )
-                  }
-                  placeholder="default"
-                  className="bg-gray-800 border-gray-700 text-gray-100"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter className="flex justify-between items-center border-t border-gray-700 pt-4">
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            disabled={isLoading}
-            className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset to Defaults
-          </Button>
-
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 pt-4 mt-auto border-t border-gray-800">
             <Button
               variant="outline"
-              onClick={() =>
-                onOpenChange(false)
-              }
+              onClick={handleReset}
               disabled={isLoading}
-              className="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+              className="gap-2 justify-start w-full text-gray-400 bg-transparent border-gray-800 hover:bg-gray-900 hover:text-white"
             >
-              Cancel
+              <RotateCcw className="w-4 h-4" />
+              Reset Defaults
             </Button>
+
             <Button
               onClick={handleSave}
               disabled={
                 isLoading || !hasChanges
               }
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="gap-2 justify-start w-full text-white bg-blue-600 hover:bg-blue-700"
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4" />
               Save Changes
             </Button>
           </div>
-        </DialogFooter>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 p-8 bg-gray-900">
+          {activeTab === "projects" && (
+            <SettingsProjects
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
+          {activeTab === "agents" && (
+            <SettingsAgents
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
+          {activeTab === "tests" && (
+            <SettingsTests
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
+          {activeTab === "defaults" && (
+            <SettingsDefaults
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
+          {activeTab ===
+            "workflows" && (
+            <SettingsWorkflows
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

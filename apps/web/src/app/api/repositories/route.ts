@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import { ensureRootGitDirectory } from '@/lib/config'
+import { readSettings } from '@/lib/settings'
 
 // Server mode: when deployed (e.g., Vercel), will use database instead of filesystem
 const SERVER_MODE = process.env.SERVER_MODE === 'true'
@@ -17,16 +18,53 @@ export async function GET() {
       })
     }
 
-    // Local mode: use filesystem with global config
-    const basePath = ensureRootGitDirectory()
+    // 1. Try to read from settings
+    const settings = readSettings();
+    let repositories: { name: string; path: string }[] = [];
+    
+    if (settings.projects && settings.projects.length > 0) {
+      for (const p of settings.projects) {
+        if (p.type === 'project') {
+          repositories.push({ name: p.name, path: p.path });
+        } else if (p.type === 'folder') {
+           if (fs.existsSync(p.path)) {
+             try {
+               const entries = fs.readdirSync(p.path, { withFileTypes: true });
+               for (const entry of entries) {
+                 if (entry.isDirectory() && !entry.name.startsWith('.')) {
+                    repositories.push({ 
+                      name: entry.name, 
+                      path: path.join(p.path, entry.name) 
+                    });
+                 }
+               }
+             } catch (e) {
+               console.error(`Error reading project folder ${p.path}:`, e);
+             }
+           }
+        }
+      }
+      
+      // Remove duplicates (by name)
+      const uniqueRepos = new Map();
+      for (const repo of repositories) {
+        if (!uniqueRepos.has(repo.name)) {
+          uniqueRepos.set(repo.name, repo);
+        }
+      }
+      repositories = Array.from(uniqueRepos.values());
+      
+      return NextResponse.json({ repositories, basePath: '', serverMode: false })
+    } 
 
-    let repositories: string[] = []
+    // 2. Fallback to legacy mode: use filesystem with global config
+    const basePath = ensureRootGitDirectory()
 
     if (fs.existsSync(basePath)) {
       const entries = fs.readdirSync(basePath, { withFileTypes: true })
       repositories = entries
         .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
-        .map(entry => entry.name)
+        .map(entry => ({ name: entry.name, path: path.join(basePath, entry.name) }))
     }
 
     return NextResponse.json({ repositories, basePath, serverMode: false })

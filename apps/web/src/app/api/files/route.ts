@@ -713,6 +713,8 @@ function migrateAgelumStructure(
   }
 }
 
+import { resolveProjectPath } from "@/lib/settings";
+
 export async function GET(
   request: Request,
 ) {
@@ -731,21 +733,24 @@ export async function GET(
   }
 
   try {
-    // Navigate up from the current working directory to get to the git directory
-    // Current structure: /Users/facundofierro/git/agelum/apps/web
-    // Target: /Users/facundofierro/git/{repo}
-    const currentPath = process.cwd();
-    const gitDir = path.dirname(
-      path.dirname(
-        path.dirname(currentPath),
-      ),
-    );
+    const repoPath =
+      resolveProjectPath(repo);
 
-    const repoPath = path.join(
-      gitDir,
-      repo,
-    );
-    const basePath = gitDir;
+    if (!repoPath) {
+      console.error(
+        `Repository path not found for: ${repo}`,
+      );
+      return NextResponse.json(
+        { tree: null, rootPath: "" },
+        { status: 404 },
+      );
+    }
+
+    // Legacy support for migration
+    migrateAgelumStructure(repoPath);
+
+    const basePath = ""; // Unused in buildFileTree but required by signature
+
     const agelumDir = path.join(
       repoPath,
       ".agelum",

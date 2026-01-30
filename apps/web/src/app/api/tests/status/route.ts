@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { resolveProjectPath } from "@/lib/settings";
 
 type TestsSetupState =
   | "missing"
@@ -36,17 +37,15 @@ export async function GET(
   }
 
   try {
-    const currentPath = process.cwd();
-    const gitDir = path.dirname(
-      path.dirname(
-        path.dirname(currentPath),
-      ),
-    );
+    const repoPath =
+      resolveProjectPath(repo);
 
-    const repoPath = path.join(
-      gitDir,
-      repo,
-    );
+    if (!repoPath) {
+      return NextResponse.json({
+        status: null,
+      });
+    }
+
     const testsDir = path.join(
       repoPath,
       ".agelum",
@@ -68,9 +67,12 @@ export async function GET(
       statusPath,
       "utf8",
     );
-    const status =
-      JSON.parse(raw) as TestsSetupStatus;
-    return NextResponse.json({ status });
+    const status = JSON.parse(
+      raw,
+    ) as TestsSetupStatus;
+    return NextResponse.json({
+      status,
+    });
   } catch (error) {
     return NextResponse.json(
       { status: null },
@@ -78,4 +80,3 @@ export async function GET(
     );
   }
 }
-

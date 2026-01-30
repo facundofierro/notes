@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { executeAgentCommand } from "@/lib/agent-tools";
+import { resolveProjectPath, readSettings } from "@/lib/settings";
+import { execSync } from "child_process";
 
 interface Task {
   id: string;
@@ -19,30 +21,23 @@ interface Task {
   path: string;
 }
 
-function resolveGitDir(): string {
-  const currentPath = process.cwd();
-  return path.dirname(
-    path.dirname(
-      path.dirname(currentPath),
-    ),
-  );
-}
-
 function resolveRepoDirs(
   repo: string,
 ): {
-  gitDir: string;
   repoDir: string;
   primaryAgelumDir: string;
   legacyAgelumDir: string;
 } {
-  const gitDir = resolveGitDir();
-  const repoDir = path.join(
-    gitDir,
-    repo,
-  );
+  const repoDir =
+    resolveProjectPath(repo);
+
+  if (!repoDir) {
+    throw new Error(
+      `Repository not found: ${repo}`,
+    );
+  }
+
   return {
-    gitDir,
     repoDir,
     primaryAgelumDir: path.join(
       repoDir,
@@ -598,6 +593,32 @@ function createTaskFromContent(
     filePath,
     nextContent,
   );
+
+  try {
+    const settings = readSettings();
+    if (settings.createBranchPerTask) {
+      const { repoDir } =
+        resolveRepoDirs(repo);
+      const branchName = `task/${finalBase}`;
+      try {
+        execSync(
+          `git branch "${branchName}"`,
+          {
+            cwd: repoDir,
+            stdio: "ignore",
+          },
+        );
+      } catch (e) {
+        // Ignore if branch exists or other git error
+      }
+    }
+  } catch (e) {
+    console.error(
+      "Failed to create branch:",
+      e,
+    );
+  }
+
   return {
     path: filePath,
     content: nextContent,
@@ -849,8 +870,16 @@ export async function GET(
     });
   }
 
-  const tasks = readTasks(repo);
-  return NextResponse.json({ tasks });
+  try {
+    const tasks = readTasks(repo);
+    return NextResponse.json({ tasks });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { tasks: [] },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(

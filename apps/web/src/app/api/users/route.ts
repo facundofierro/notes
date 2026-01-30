@@ -1,19 +1,27 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { resolveProjectPath } from "@/lib/settings";
 
 interface UsersConfig {
   users: string[]
 }
 
 function ensureUsersConfig(repo: string): { filePath: string; data: UsersConfig } {
-  const homeDir = (process.env.HOME || process.env.USERPROFILE || process.cwd())
-  const gitDir = path.join(homeDir, 'git')
-  const agelumDir = path.join(gitDir, repo, 'agelum')
+  const repoPath = resolveProjectPath(repo);
+  
+  if (!repoPath) {
+    // If repo not found, return empty users
+    return { filePath: '', data: { users: [] } }
+  }
+
+  const agelumDir = path.join(repoPath, '.agelum')
   const configDir = path.join(agelumDir, 'config')
   const filePath = path.join(configDir, 'users.json')
 
-  fs.mkdirSync(configDir, { recursive: true })
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true })
+  }
 
   if (!fs.existsSync(filePath)) {
     const initial: UsersConfig = { users: [] }

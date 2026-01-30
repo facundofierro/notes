@@ -32,6 +32,42 @@ import {
   Play,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useSettings } from "@/hooks/use-settings";
+
+const VIEW_MODE_CONFIG: Record<
+  string,
+  { label: string; icon: any }
+> = {
+  ideas: {
+    label: "Ideas",
+    icon: Lightbulb,
+  },
+  docs: {
+    label: "Docs",
+    icon: BookOpen,
+  },
+  plan: { label: "Plan", icon: Map },
+  epics: {
+    label: "Epics",
+    icon: Layers,
+  },
+  kanban: {
+    label: "Tasks",
+    icon: ListTodo,
+  },
+  tests: {
+    label: "Tests",
+    icon: TestTube,
+  },
+  commands: {
+    label: "Commands",
+    icon: Terminal,
+  },
+  "cli-tools": {
+    label: "Cli tools",
+    icon: Wrench,
+  },
+};
 
 const TerminalViewer = dynamic(
   () =>
@@ -122,10 +158,16 @@ interface Idea {
 }
 
 export default function Home() {
+  const {
+    settings,
+    refetch: refetchSettings,
+  } = useSettings();
   const [
     repositories,
     setRepositories,
-  ] = React.useState<string[]>([]);
+  ] = React.useState<
+    { name: string; path: string }[]
+  >([]);
   const [
     selectedRepo,
     setSelectedRepo,
@@ -253,31 +295,95 @@ export default function Home() {
     [],
   );
 
-  React.useEffect(() => {
-    fetch("/api/repositories")
-      .then((res) => res.json())
-      .then((data) => {
-        const nextRepos =
-          (data.repositories ||
-            []) as string[];
-        setRepositories(nextRepos);
-        if (data.basePath)
-          setBasePath(data.basePath);
+  const fetchRepositories =
+    React.useCallback(() => {
+      fetch("/api/repositories")
+        .then((res) => res.json())
+        .then((data) => {
+          const nextRepos =
+            (data.repositories ||
+              []) as {
+              name: string;
+              path: string;
+            }[];
+          setRepositories(nextRepos);
+          if (data.basePath)
+            setBasePath(data.basePath);
 
-        if (nextRepos.length > 0) {
-          const saved =
-            window.localStorage.getItem(
-              selectedRepoStorageKey,
+          if (nextRepos.length > 0) {
+            const saved =
+              window.localStorage.getItem(
+                selectedRepoStorageKey,
+              );
+            const nextSelected =
+              saved &&
+              nextRepos.some(
+                (r) => r.name === saved,
+              )
+                ? saved
+                : nextRepos[0].name;
+            setSelectedRepo(
+              nextSelected,
             );
-          const nextSelected =
-            saved &&
-            nextRepos.includes(saved)
-              ? saved
-              : nextRepos[0];
-          setSelectedRepo(nextSelected);
-        }
-      });
-  }, []);
+          }
+        });
+    }, []);
+
+  const handleSettingsSave =
+    React.useCallback(() => {
+      fetchRepositories();
+      refetchSettings();
+    }, [
+      fetchRepositories,
+      refetchSettings,
+    ]);
+
+  const visibleItems =
+    React.useMemo(() => {
+      const defaultItems = [
+        "ideas",
+        "docs",
+        "plan",
+        "epics",
+        "kanban",
+        "tests",
+        "commands",
+        "cli-tools",
+      ];
+
+      if (
+        !selectedRepo ||
+        !settings.projects
+      ) {
+        return defaultItems;
+      }
+      const project =
+        settings.projects.find(
+          (p) =>
+            p.name === selectedRepo,
+        );
+
+      const workflowId =
+        project?.workflowId ||
+        settings.defaultWorkflowId;
+
+      if (!workflowId) {
+        return defaultItems;
+      }
+
+      const workflow =
+        settings.workflows?.find(
+          (w) => w.id === workflowId,
+        );
+      if (!workflow) {
+        return defaultItems;
+      }
+      return workflow.items;
+    }, [selectedRepo, settings]);
+
+  React.useEffect(() => {
+    fetchRepositories();
+  }, [fetchRepositories]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1237,119 +1343,55 @@ Context and Instructions:
           />
 
           <div className="flex gap-1 items-center">
-            {/* Doc Section */}
-            <button
-              onClick={() =>
-                setViewMode("ideas")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "ideas"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <Lightbulb className="w-4 h-4" />
-              Ideas
-            </button>
-            <button
-              onClick={() =>
-                setViewMode("docs")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "docs"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              Docs
-            </button>
-            <button
-              onClick={() =>
-                setViewMode("plan")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "plan"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <Map className="w-4 h-4" />
-              Plan
-            </button>
-
-            <div className="mx-2 w-px h-6 bg-gray-700" />
-
-            {/* Work Section */}
-            <button
-              onClick={() =>
-                setViewMode("epics")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "epics"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              Epics
-            </button>
-            <button
-              onClick={() =>
-                setViewMode("kanban")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "kanban"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <ListTodo className="w-4 h-4" />
-              Tasks
-            </button>
-            <button
-              onClick={() =>
-                setViewMode("tests")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "tests"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <TestTube className="w-4 h-4" />
-              Tests
-            </button>
-
-            <div className="mx-2 w-px h-6 bg-gray-700" />
-
-            {/* AI Section */}
-            <button
-              onClick={() =>
-                setViewMode("commands")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "commands"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <Terminal className="w-4 h-4" />
-              Commands
-            </button>
-            <button
-              onClick={() =>
-                setViewMode("cli-tools")
-              }
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                viewMode === "cli-tools"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              <Wrench className="w-4 h-4" />
-              Cli tools
-            </button>
+            {(() => {
+              const standardOrder = [
+                "ideas",
+                "docs",
+                "plan",
+                "epics",
+                "kanban",
+                "tests",
+                "commands",
+                "cli-tools",
+              ];
+              return standardOrder.map(
+                (mode) => {
+                  if (
+                    !visibleItems.includes(
+                      mode,
+                    )
+                  )
+                    return null;
+                  const config =
+                    VIEW_MODE_CONFIG[
+                      mode
+                    ];
+                  if (!config)
+                    return null;
+                  const Icon =
+                    config.icon;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() =>
+                        setViewMode(
+                          mode as ViewMode,
+                        )
+                      }
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        viewMode ===
+                        mode
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {config.label}
+                    </button>
+                  );
+                },
+              );
+            })()}
           </div>
         </div>
 
@@ -1377,11 +1419,11 @@ Context and Instructions:
               {repositories.map(
                 (repo) => (
                   <option
-                    key={repo}
-                    value={repo}
+                    key={repo.name}
+                    value={repo.name}
                     className="bg-gray-800"
                   >
-                    {repo}
+                    {repo.name}
                   </option>
                 ),
               )}
@@ -1440,11 +1482,11 @@ Context and Instructions:
                     <div
                       className={`bg-gray-800 border-b border-gray-700 min-h-0 ${
                         isSetupLogsVisible
-                          ? "flex-1 flex flex-col overflow-hidden"
+                          ? "flex overflow-hidden flex-col flex-1"
                           : ""
                       }`}
                     >
-                      <div className="flex justify-between items-center px-3 py-2 flex-shrink-0">
+                      <div className="flex flex-shrink-0 justify-between items-center px-3 py-2">
                         <div className="text-sm text-gray-300">
                           Setup:{" "}
                           <span
@@ -1495,7 +1537,7 @@ Context and Instructions:
                                   el.scrollHeight;
                               }
                             }}
-                            className="flex-1 p-3 font-mono text-xs text-gray-200 whitespace-pre-wrap bg-black rounded overflow-auto min-h-0"
+                            className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs text-gray-200 whitespace-pre-wrap bg-black rounded"
                           >
                             {testsSetupStatus.log ||
                               `State: ${testsSetupStatus.state}`}
@@ -1601,7 +1643,7 @@ Context and Instructions:
                           },
                       })
                     ) : (
-                      <div className="flex flex-1 items-center justify-center text-gray-500">
+                      <div className="flex flex-1 justify-center items-center text-gray-500">
                         Select a test
                         file to view and
                         edit
@@ -1929,6 +1971,7 @@ Context and Instructions:
       <SettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
+        onSave={handleSettingsSave}
       />
     </div>
   );
