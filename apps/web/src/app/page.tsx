@@ -2377,6 +2377,7 @@ export default function Home() {
                     ? handleRunTest
                     : undefined
                 }
+                viewMode={viewMode}
               />
               {viewMode === "tests" ? (
                 <div className="flex overflow-hidden flex-col flex-1 min-h-0">

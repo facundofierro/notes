@@ -15,14 +15,10 @@ import {
   FilePlus,
   FolderPlus,
   Trash2,
-  MoreVertical,
   Play,
+  Copy,
 } from "lucide-react";
-import path from "path";
-import {
-  Button,
-  useToast,
-} from "@agelum/shadcn";
+import { useToast } from "@agelum/shadcn";
 
 interface FileNode {
   name: string;
@@ -41,6 +37,7 @@ interface FileBrowserProps {
   basePath: string;
   onRefresh?: () => void;
   onRunFolder?: (path: string) => void;
+  viewMode?: string;
 }
 
 const SIDEBAR_MIN_WIDTH = 150;
@@ -62,6 +59,7 @@ function FileTreeNode({
   setNewItemName,
   onCancelNewItem,
   onSaveNewItem,
+  onCopyPath,
 }: {
   node: FileNode;
   level: number;
@@ -91,6 +89,7 @@ function FileTreeNode({
   ) => void;
   onCancelNewItem: () => void;
   onSaveNewItem: () => void;
+  onCopyPath: (path: string) => void;
 }) {
   const [showMenu, setShowMenu] =
     useState(false);
@@ -203,6 +202,16 @@ function FileTreeNode({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                onCopyPath(node.path);
+              }}
+              className="p-1 rounded hover:bg-accent"
+              title="Copy path"
+            >
+              <Copy className="w-3 h-3 text-muted-foreground" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
                 if (
                   confirm(
                     `Delete ${node.name}?`,
@@ -300,6 +309,9 @@ function FileTreeNode({
                   onSaveNewItem={
                     onSaveNewItem
                   }
+                  onCopyPath={
+                    onCopyPath
+                  }
                 />
               ),
             )}
@@ -314,6 +326,7 @@ export default function FileBrowser({
   onFileSelect,
   onRefresh,
   onRunFolder,
+  viewMode,
 }: FileBrowserProps) {
   const { toast } = useToast();
   const [
@@ -337,6 +350,17 @@ export default function FileBrowser({
   const resizeStartWidth = useRef(
     SIDEBAR_DEFAULT_WIDTH,
   );
+
+  const handleCopyPath = (
+    path: string,
+  ) => {
+    navigator.clipboard.writeText(path);
+    toast({
+      title: "Copied",
+      description:
+        "File path copied to clipboard",
+    });
+  };
 
   useEffect(() => {
     if (!fileTree) return;
@@ -516,8 +540,29 @@ export default function FileBrowser({
         handleCancelNewItem();
         return;
       }
+      let name = newItemName.trim();
 
-      const name = newItemName.trim();
+      if (newItem.type === "file") {
+        if (
+          viewMode === "docs" &&
+          !name
+            .toLowerCase()
+            .endsWith(".md")
+        ) {
+          name += ".md";
+        } else if (
+          viewMode === "tests" &&
+          !name
+            .toLowerCase()
+            .endsWith(".ts") &&
+          !name
+            .toLowerCase()
+            .endsWith(".tsx")
+        ) {
+          name += ".ts";
+        }
+      }
+
       const filePath =
         `${newItem.parentPath}/${name}`.replace(
           /\/+$/,
@@ -629,6 +674,9 @@ export default function FileBrowser({
               }
               onSaveNewItem={
                 handleSaveNewItem
+              }
+              onCopyPath={
+                handleCopyPath
               }
             />
           ) : (

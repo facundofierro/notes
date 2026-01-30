@@ -176,20 +176,30 @@ function shouldStartInstall(
 function ensureStagehandSetup(
   testsDir: string,
 ): TestsSetupStatus {
+  if (!fs.existsSync(testsDir)) {
+    fs.mkdirSync(testsDir, {
+      recursive: true,
+    });
+  }
+
+  // Add pnpm-workspace.yaml to isolate from monorepo
+  const workspacePath = path.join(
+    testsDir,
+    "pnpm-workspace.yaml",
+  );
+  if (!fs.existsSync(workspacePath)) {
+    fs.writeFileSync(
+      workspacePath,
+      "packages: []\n",
+    );
+  }
+
   const packageJsonPath = path.join(
     testsDir,
     "package.json",
   );
 
-  const srcDir = path.join(
-    testsDir,
-    "src",
-  );
-  if (!fs.existsSync(srcDir)) {
-    fs.mkdirSync(srcDir, {
-      recursive: true,
-    });
-  }
+  const srcDir = testsDir; // Tests are directly in the provided directory
 
   if (!fs.existsSync(packageJsonPath)) {
     const packageJson = {
@@ -285,8 +295,9 @@ if (require.main === module) {
   );
   const nowIso =
     new Date().toISOString();
-  const prev =
-    readTestsSetupStatus(testsDir);
+  const prev = readTestsSetupStatus(
+    testsDir,
+  );
 
   const hasNodeModules = fs.existsSync(
     nodeModulesPath,
@@ -437,7 +448,9 @@ if (require.main === module) {
     child.on(
       "close",
       (code, signal) => {
-        runningSetups.delete(testsDir);
+        runningSetups.delete(
+          testsDir,
+        );
         try {
           fs.unlinkSync(lockPath);
         } catch {}
@@ -769,7 +782,7 @@ export async function GET(
         "src",
       );
       const status =
-        ensureStagehandSetup(targetDir);
+        ensureStagehandSetup(srcDir);
       const tree = buildFileTree(
         srcDir,
         basePath,

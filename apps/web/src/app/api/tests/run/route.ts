@@ -27,12 +27,29 @@ function findAgelumTestsDir(
       path.dirname(path.dirname(current)),
     );
 
+    // If we are in the src folder of the tests, that's our root
+    if (
+      base === "src" &&
+      parent === "tests" &&
+      grandParent === "work"
+    ) {
+      const greatGrandParent = path.basename(
+        path.dirname(
+          path.dirname(path.dirname(current)),
+        ),
+      );
+      if (greatGrandParent === ".agelum") {
+        return current;
+      }
+    }
+
+    // If we are in the tests folder itself, use the src subfolder as the root
     if (
       base === "tests" &&
       parent === "work" &&
       grandParent === ".agelum"
     ) {
-      return current;
+      return path.join(current, "src");
     }
     current = path.dirname(current);
   }
@@ -43,9 +60,22 @@ function findAgelumTestsDir(
 function ensureStagehandTestProject(
   testsDir: string,
 ) {
-  const srcDir = path.join(testsDir, "src");
-  if (!fs.existsSync(srcDir)) {
-    fs.mkdirSync(srcDir, { recursive: true });
+  if (!fs.existsSync(testsDir)) {
+    fs.mkdirSync(testsDir, {
+      recursive: true,
+    });
+  }
+
+  // Add pnpm-workspace.yaml to isolate from monorepo
+  const workspacePath = path.join(
+    testsDir,
+    "pnpm-workspace.yaml",
+  );
+  if (!fs.existsSync(workspacePath)) {
+    fs.writeFileSync(
+      workspacePath,
+      "packages: []\n",
+    );
   }
 
   const packageJsonPath = path.join(
