@@ -34,6 +34,10 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSettings } from "@/hooks/use-settings";
+import {
+  formatTestOutputForPrompt,
+  inferTestExecutionStatus,
+} from "@/lib/test-output";
 
 const VIEW_MODE_CONFIG: Record<
   string,
@@ -219,8 +223,17 @@ export default function Home() {
     workEditorEditing,
     setWorkEditorEditing,
   ] = React.useState(false);
-  const [promptText, setPromptText] =
-    React.useState("");
+  const [
+    promptDrafts,
+    setPromptDrafts,
+  ] = React.useState<
+    Record<string, string>
+  >({
+    default: "",
+    "tests:steps": "",
+    "tests:code": "",
+    "tests:results": "",
+  });
   const [agentTools, setAgentTools] =
     React.useState<
       Array<{
@@ -267,6 +280,42 @@ export default function Home() {
     openCodeWebLoadingLabel,
     setOpenCodeWebLoadingLabel,
   ] = React.useState("");
+
+  const activePromptKey =
+    viewMode === "tests"
+      ? `tests:${testViewMode}`
+      : "default";
+  const promptText =
+    promptDrafts[activePromptKey] ?? "";
+  const setPromptText =
+    React.useCallback(
+      (
+        next:
+          | string
+          | ((prev: string) => string),
+      ) => {
+        setPromptDrafts((prev) => {
+          const prevValue =
+            prev[activePromptKey] ?? "";
+          const nextValue =
+            typeof next === "function"
+              ? next(prevValue)
+              : next;
+          if (
+            prev[activePromptKey] ===
+            nextValue
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            [activePromptKey]:
+              nextValue,
+          };
+        });
+      },
+      [activePromptKey],
+    );
   const [
     openCodeWebError,
     setOpenCodeWebError,
@@ -752,6 +801,17 @@ export default function Home() {
           path: string;
         };
         viewMode: ViewMode;
+        testContext?: {
+          testViewMode:
+            | "steps"
+            | "code"
+            | "results";
+          testOutput?: string;
+          testStatus?:
+            | "success"
+            | "failure"
+            | "running";
+        };
         selectedRepo: string | null;
       }) => {
         const trimmed =
@@ -807,6 +867,35 @@ export default function Home() {
         if (
           operation === "modify_test"
         ) {
+          if (
+            opts.testContext
+              ?.testViewMode ===
+              "results" &&
+            opts.testContext
+              ?.testStatus ===
+              "failure" &&
+            opts.testContext?.testOutput
+          ) {
+            const formattedOutput =
+              formatTestOutputForPrompt(
+                opts.testContext
+                  .testOutput,
+              );
+            return [
+              `Fix the failing Stagehand test file at "${filePath}".`,
+              "",
+              "Failure logs from the last execution:",
+              "```",
+              formattedOutput,
+              "```",
+              "",
+              "User instructions:",
+              trimmed,
+              "",
+              "Rules:",
+              "- Only modify the specified file with Stagehand test code. Request confirmation before making any other modifications.",
+            ].join("\n");
+          }
           return [
             `Modify the test file at "${filePath}" with these user instructions:`,
             trimmed,
@@ -964,6 +1053,18 @@ export default function Home() {
           path: selectedFile.path,
         },
         viewMode,
+        testContext:
+          viewMode === "tests"
+            ? {
+                testViewMode,
+                testOutput,
+                testStatus:
+                  inferTestExecutionStatus(
+                    testOutput,
+                    isTestRunning,
+                  ),
+              }
+            : undefined,
         selectedRepo,
       });
 
@@ -989,6 +1090,9 @@ export default function Home() {
       selectedRepo,
       buildToolPrompt,
       fileMap,
+      testViewMode,
+      testOutput,
+      isTestRunning,
     ]);
 
   const handleRecordAudio =
@@ -1062,7 +1166,7 @@ export default function Home() {
       recognitionRef.current =
         recognition;
       recognition.start();
-    }, [isRecording]);
+    }, [isRecording, setPromptText]);
 
   const handleFileUpload =
     React.useCallback(
@@ -1099,7 +1203,7 @@ export default function Home() {
           );
         }
       },
-      [],
+      [setPromptText],
     );
 
   const fetchFiles =
@@ -1179,6 +1283,18 @@ export default function Home() {
             path: selectedFile.path,
           },
           viewMode,
+          testContext:
+            viewMode === "tests"
+              ? {
+                  testViewMode,
+                  testOutput,
+                  testStatus:
+                    inferTestExecutionStatus(
+                      testOutput,
+                      isTestRunning,
+                    ),
+                }
+              : undefined,
           selectedRepo,
         },
       );
@@ -1304,6 +1420,9 @@ export default function Home() {
       selectedRepo,
       viewMode,
       fileMap,
+      testViewMode,
+      testOutput,
+      isTestRunning,
     ],
   );
 
@@ -1421,6 +1540,7 @@ export default function Home() {
     setIsTestRunning(true);
     setTestViewMode("results");
 
+    let fullOutput = "";
     try {
       const response = await fetch(
         "/api/tests/run",
@@ -1440,25 +1560,43 @@ export default function Home() {
         response.body?.getReader();
       if (!reader) return;
 
+      const decoder = new TextDecoder();
       while (true) {
         const { done, value } =
           await reader.read();
         if (done) break;
         const text =
-          new TextDecoder().decode(
-            value,
-          );
+          decoder.decode(value);
+        fullOutput += text;
         setTestOutput(
           (prev) => prev + text,
         );
       }
     } catch (error) {
+      fullOutput +=
+        "\nError running test";
       setTestOutput(
         (prev) =>
           prev + "\nError running test",
       );
     } finally {
       setIsTestRunning(false);
+      const status =
+        inferTestExecutionStatus(
+          fullOutput,
+          false,
+        );
+      if (status === "failure") {
+        setPromptDrafts((prev) => {
+          const key = "tests:results";
+          if (prev[key]?.trim())
+            return prev;
+          return {
+            ...prev,
+            [key]: `Fix the error in "${path}" so the test passes.`,
+          };
+        });
+      }
     }
   };
 

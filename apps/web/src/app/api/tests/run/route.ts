@@ -10,8 +10,11 @@ function findAgelumTestsDir(
   let current = inputPath;
   if (fs.existsSync(inputPath)) {
     try {
-      if (fs.statSync(inputPath).isFile()) {
-        current = path.dirname(inputPath);
+      if (
+        fs.statSync(inputPath).isFile()
+      ) {
+        current =
+          path.dirname(inputPath);
       }
     } catch {
       return null;
@@ -24,10 +27,15 @@ function findAgelumTestsDir(
       path.dirname(current),
     );
     const grandParent = path.basename(
-      path.dirname(path.dirname(current)),
+      path.dirname(
+        path.dirname(current),
+      ),
     );
 
-    if (base === "tests" && parent === "agelum-test") {
+    if (
+      base === "tests" &&
+      parent === "agelum-test"
+    ) {
       return current;
     }
 
@@ -37,12 +45,17 @@ function findAgelumTestsDir(
       parent === "tests" &&
       grandParent === "work"
     ) {
-      const greatGrandParent = path.basename(
-        path.dirname(
-          path.dirname(path.dirname(current)),
-        ),
-      );
-      if (greatGrandParent === ".agelum") {
+      const greatGrandParent =
+        path.basename(
+          path.dirname(
+            path.dirname(
+              path.dirname(current),
+            ),
+          ),
+        );
+      if (
+        greatGrandParent === ".agelum"
+      ) {
         const repoRoot = path.dirname(
           path.dirname(
             path.dirname(
@@ -64,10 +77,15 @@ function findAgelumTestsDir(
               path.dirname(newTestsDir),
               { recursive: true },
             );
-            fs.renameSync(current, newTestsDir);
+            fs.renameSync(
+              current,
+              newTestsDir,
+            );
           } catch {}
         }
-        return fs.existsSync(newTestsDir)
+        return fs.existsSync(
+          newTestsDir,
+        )
           ? newTestsDir
           : current;
       }
@@ -79,9 +97,14 @@ function findAgelumTestsDir(
       parent === "work" &&
       grandParent === ".agelum"
     ) {
-      const legacySrc = path.join(current, "src");
+      const legacySrc = path.join(
+        current,
+        "src",
+      );
       const repoRoot = path.dirname(
-        path.dirname(path.dirname(current)),
+        path.dirname(
+          path.dirname(current),
+        ),
       );
       const newTestsDir = path.join(
         repoRoot,
@@ -97,16 +120,128 @@ function findAgelumTestsDir(
             path.dirname(newTestsDir),
             { recursive: true },
           );
-          fs.renameSync(legacySrc, newTestsDir);
+          fs.renameSync(
+            legacySrc,
+            newTestsDir,
+          );
         } catch {}
       }
-      if (fs.existsSync(newTestsDir)) return newTestsDir;
+      if (fs.existsSync(newTestsDir))
+        return newTestsDir;
       return legacySrc;
     }
     current = path.dirname(current);
   }
 
   return null;
+}
+
+function dotenvEscape(
+  value: string,
+): string {
+  if (
+    /^[A-Za-z0-9_./:@+-]+$/.test(value)
+  )
+    return value;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+}
+
+function ensureEnvFile(
+  dir: string,
+  entries: Record<
+    string,
+    string | undefined
+  >,
+) {
+  const pairs = Object.entries(
+    entries,
+  ).filter(
+    ([, v]) =>
+      typeof v === "string" &&
+      v.length > 0,
+  ) as Array<[string, string]>;
+  if (pairs.length === 0) return;
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, {
+      recursive: true,
+    });
+  }
+
+  const envPath = path.join(
+    dir,
+    ".env",
+  );
+  let lines: string[] = [];
+  const lineIndexByKey = new Map<
+    string,
+    number
+  >();
+
+  if (fs.existsSync(envPath)) {
+    const raw = fs.readFileSync(
+      envPath,
+      "utf8",
+    );
+    lines = raw.split(/\r?\n/);
+    for (
+      let i = 0;
+      i < lines.length;
+      i++
+    ) {
+      const line = lines[i];
+      if (!line) continue;
+      if (/^\s*#/.test(line)) continue;
+      const match =
+        /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(
+          line,
+        );
+      if (!match) continue;
+      lineIndexByKey.set(match[1], i);
+    }
+  }
+
+  for (const [key, value] of pairs) {
+    const nextLine = `${key}=${dotenvEscape(value)}`;
+    const idx = lineIndexByKey.get(key);
+    if (typeof idx === "number") {
+      lines[idx] = nextLine;
+    } else {
+      lines.push(nextLine);
+    }
+  }
+
+  while (
+    lines.length > 0 &&
+    lines[lines.length - 1] === ""
+  ) {
+    lines.pop();
+  }
+  fs.writeFileSync(
+    envPath,
+    `${lines.join("\n")}\n`,
+    {
+      mode: 0o600,
+    },
+  );
+}
+
+function ensureAgelumTestEnvFiles(
+  testsDir: string,
+  entries: Record<
+    string,
+    string | undefined
+  >,
+) {
+  ensureEnvFile(testsDir, entries);
+  const parentDir =
+    path.dirname(testsDir);
+  if (
+    path.basename(parentDir) ===
+    "agelum-test"
+  ) {
+    ensureEnvFile(parentDir, entries);
+  }
 }
 
 function ensureStagehandTestProject(
@@ -140,7 +275,8 @@ function ensureStagehandTestProject(
       version: "1.0.0",
       packageManager: "pnpm@9.0.0",
       dependencies: {
-        "@browserbasehq/stagehand": "latest",
+        "@browserbasehq/stagehand":
+          "latest",
         dotenv: "latest",
         zod: "latest",
       },
@@ -151,7 +287,11 @@ function ensureStagehandTestProject(
     };
     fs.writeFileSync(
       packageJsonPath,
-      JSON.stringify(packageJson, null, 2),
+      JSON.stringify(
+        packageJson,
+        null,
+        2,
+      ),
     );
   }
 
@@ -197,46 +337,56 @@ async function runCommandStreaming(
     args: string[];
     cwd: string;
     env: NodeJS.ProcessEnv;
+    onStdoutChunk?: (
+      chunk: string,
+    ) => void;
+    onStderrChunk?: (
+      chunk: string,
+    ) => void;
   },
 ): Promise<number | null> {
-  return await new Promise<number | null>(
-    (resolve) => {
-      const child = spawn(
-        options.command,
-        options.args,
-        {
-          cwd: options.cwd,
-          env: options.env,
-          shell: true,
-        },
+  return await new Promise<
+    number | null
+  >((resolve) => {
+    const child = spawn(
+      options.command,
+      options.args,
+      {
+        cwd: options.cwd,
+        env: options.env,
+        shell: true,
+      },
+    );
+
+    child.stdout.on("data", (data) => {
+      const chunk = data.toString();
+      options.onStdoutChunk?.(chunk);
+      controller.enqueue(
+        encoder.encode(chunk),
       );
+    });
 
-      child.stdout.on("data", (data) => {
-        controller.enqueue(
-          encoder.encode(data.toString()),
-        );
-      });
+    child.stderr.on("data", (data) => {
+      const chunk = data.toString();
+      options.onStderrChunk?.(chunk);
+      controller.enqueue(
+        encoder.encode(chunk),
+      );
+    });
 
-      child.stderr.on("data", (data) => {
-        controller.enqueue(
-          encoder.encode(data.toString()),
-        );
-      });
+    child.on("close", (code) => {
+      resolve(code);
+    });
 
-      child.on("close", (code) => {
-        resolve(code);
-      });
-
-      child.on("error", (err) => {
-        controller.enqueue(
-          encoder.encode(
-            `\nFailed to start process: ${err.message}\n`,
-          ),
-        );
-        resolve(null);
-      });
-    },
-  );
+    child.on("error", (err) => {
+      controller.enqueue(
+        encoder.encode(
+          `\nFailed to start process: ${err.message}\n`,
+        ),
+      );
+      resolve(null);
+    });
+  });
 }
 
 export async function POST(
@@ -335,6 +485,14 @@ export async function POST(
 
     const settings = readSettings();
 
+    const chunkLooksErrorLike = (
+      text: string,
+    ) => {
+      return /\b(?:TypeError|ReferenceError|SyntaxError|RangeError|EvalError|URIError|AggregateError):|\bUnhandledPromiseRejection\b|\bERR_[A-Z0-9_]+\b/.test(
+        text,
+      );
+    };
+
     // Create a readable stream for the output
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -351,22 +509,43 @@ export async function POST(
           );
         }
 
-        const baseEnv: NodeJS.ProcessEnv = {
-          ...process.env,
-          PATH: process.env.PATH,
-          BROWSERBASE_API_KEY:
-            settings.stagehandApiKey ||
-            process.env.BROWSERBASE_API_KEY,
-          OPENAI_API_KEY:
-            settings.openaiApiKey ||
-            process.env.OPENAI_API_KEY,
-          ANTHROPIC_API_KEY:
-            settings.anthropicApiKey ||
-            process.env.ANTHROPIC_API_KEY,
-          GOOGLE_GENERATIVE_AI_API_KEY:
-            settings.googleApiKey ||
-            process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-        };
+        const baseEnv: NodeJS.ProcessEnv =
+          {
+            ...process.env,
+            PATH: process.env.PATH,
+            BROWSERBASE_API_KEY:
+              settings.stagehandApiKey ||
+              process.env
+                .BROWSERBASE_API_KEY,
+            OPENAI_API_KEY:
+              settings.openaiApiKey ||
+              process.env
+                .OPENAI_API_KEY,
+            ANTHROPIC_API_KEY:
+              settings.anthropicApiKey ||
+              process.env
+                .ANTHROPIC_API_KEY,
+            GOOGLE_GENERATIVE_AI_API_KEY:
+              settings.googleApiKey ||
+              process.env
+                .GOOGLE_GENERATIVE_AI_API_KEY,
+          };
+
+        if (agelumTestsDir) {
+          ensureAgelumTestEnvFiles(
+            agelumTestsDir,
+            {
+              BROWSERBASE_API_KEY:
+                baseEnv.BROWSERBASE_API_KEY,
+              OPENAI_API_KEY:
+                baseEnv.OPENAI_API_KEY,
+              ANTHROPIC_API_KEY:
+                baseEnv.ANTHROPIC_API_KEY,
+              GOOGLE_GENERATIVE_AI_API_KEY:
+                baseEnv.GOOGLE_GENERATIVE_AI_API_KEY,
+            },
+          );
+        }
 
         if (
           agelumTestsDir &&
@@ -403,7 +582,12 @@ export async function POST(
         }
 
         const tsxCandidatePaths = [
-          path.join(runCwd, "node_modules", ".bin", "tsx"),
+          path.join(
+            runCwd,
+            "node_modules",
+            ".bin",
+            "tsx",
+          ),
           path.join(
             projectRoot,
             "node_modules",
@@ -423,26 +607,82 @@ export async function POST(
           ) ?? null;
 
         for (const file of filesToRun) {
-          controller.enqueue(encoder.encode(`\n\n--- Running ${path.basename(file)} ---\n`));
+          controller.enqueue(
+            encoder.encode(
+              `\n\n--- Running ${path.basename(file)} ---\n`,
+            ),
+          );
+
+          let stdoutTail = "";
+          let stderrTail = "";
+          let sawErrorLikeInStdout = false;
+          let sawErrorLikeInStderr = false;
 
           const command =
             tsxPath ?? "npx";
-          const args =
-            tsxPath ? [file] : ["tsx", file];
-          const code = await runCommandStreaming(
-            controller,
-            encoder,
-            {
-              command,
-              args,
-              cwd: runCwd,
-              env: baseEnv,
-            },
-          );
+          const args = tsxPath
+            ? [file]
+            : ["tsx", file];
+          const code =
+            await runCommandStreaming(
+              controller,
+              encoder,
+              {
+                command,
+                args,
+                cwd: runCwd,
+                env: baseEnv,
+                onStdoutChunk: (
+                  chunk,
+                ) => {
+                  stdoutTail = (
+                    stdoutTail + chunk
+                  ).slice(-4000);
+                  if (
+                    !sawErrorLikeInStdout &&
+                    chunkLooksErrorLike(
+                      stdoutTail,
+                    )
+                  ) {
+                    sawErrorLikeInStdout = true;
+                  }
+                },
+                onStderrChunk: (
+                  chunk,
+                ) => {
+                  stderrTail = (
+                    stderrTail + chunk
+                  ).slice(-4000);
+                  if (
+                    !sawErrorLikeInStderr &&
+                    chunkLooksErrorLike(
+                      stderrTail,
+                    )
+                  ) {
+                    sawErrorLikeInStderr = true;
+                  }
+                },
+              },
+            );
+
+          const errorDetectedNote =
+            sawErrorLikeInStdout ||
+            sawErrorLikeInStderr
+              ? ` (errors detected in ${[
+                  sawErrorLikeInStdout
+                    ? "stdout"
+                    : null,
+                  sawErrorLikeInStderr
+                    ? "stderr"
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join("+")})`
+              : "";
 
           controller.enqueue(
             encoder.encode(
-              `\nTest ${path.basename(file)} exited with code ${code}\n`,
+              `\nTest ${path.basename(file)} exited with code ${code}${errorDetectedNote}\n`,
             ),
           );
         }

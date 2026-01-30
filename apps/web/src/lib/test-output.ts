@@ -19,6 +19,7 @@ export function inferTestExecutionStatus(
   if (isRunning) return "running";
   if (!output) return "failure";
 
+  EXIT_CODE_REGEX.lastIndex = 0;
   const exitCodes: number[] = [];
   let match: RegExpExecArray | null;
   while ((match = EXIT_CODE_REGEX.exec(output))) {
@@ -64,4 +65,3 @@ export function formatTestOutputForPrompt(
     tail,
   ].join("\n");
 }
-

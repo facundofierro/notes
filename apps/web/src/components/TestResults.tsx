@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
+import { inferTestExecutionStatus } from "../lib/test-output";
 
 interface TestExecution {
   id: string;
@@ -50,44 +51,17 @@ export function TestResults({
   const selectedExecution =
     React.useMemo(() => {
       if (selectedId === "current") {
-        // Determine status more accurately
-        let status:
-          | "success"
-          | "failure"
-          | "running" = "running";
-        if (!isTestRunning) {
-          if (
-            currentOutput?.includes(
-              "exited with code 0",
-            )
-          ) {
-            status = "success";
-          } else if (
-            currentOutput?.includes(
-              "failed",
-            ) ||
-            currentOutput?.includes(
-              "error",
-            ) ||
-            currentOutput?.includes(
-              "exited with code 1",
-            )
-          ) {
-            status = "failure";
-          } else if (currentOutput) {
-            // If we have output but it's not explicitly success/failure and not running, assume failure or unknown
-            // But let's check if it seems finished
-            status = "failure";
-          }
-        }
+        const status =
+          inferTestExecutionStatus(
+            currentOutput,
+            isTestRunning,
+          );
 
         return {
           id: "current",
           timestamp:
             new Date().toISOString(),
-          status: isTestRunning
-            ? "running"
-            : status,
+          status,
           output: currentOutput || "",
         } as TestExecution;
       }
@@ -128,11 +102,15 @@ export function TestResults({
                 <span className="text-[10px] text-muted-foreground font-mono">
                   {new Date().toLocaleTimeString()}
                 </span>
-                {isTestRunning ? (
+                {inferTestExecutionStatus(
+                  currentOutput,
+                  isTestRunning,
+                ) === "running" ? (
                   <span className="flex h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
-                ) : currentOutput?.includes(
-                    "exited with code 0",
-                  ) ? (
+                ) : inferTestExecutionStatus(
+                    currentOutput,
+                    isTestRunning,
+                  ) === "success" ? (
                   <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
                 ) : currentOutput ? (
                   <XCircle className="w-3.5 h-3.5 text-red-500" />

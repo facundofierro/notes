@@ -19,6 +19,30 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const body = (await request.json()) as
+      | { settings?: Partial<UserSettings> }
+      | Partial<UserSettings>;
+    const partial =
+      "settings" in body && body.settings ? body.settings : body;
+
+    const current = readSettings();
+    const merged: UserSettings = {
+      ...current,
+      ...partial,
+    };
+    saveSettings(merged);
+
+    return NextResponse.json({ settings: merged });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to update settings" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function DELETE() {
   // Reset logic is now handled by overwriting with defaults or deleting file
   // For simplicity, let's just write defaults
