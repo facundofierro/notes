@@ -46,6 +46,7 @@ export interface UserSettings {
   stagehandApiKey: string;
   openaiApiKey: string;
   anthropicApiKey: string;
+  googleApiKey: string;
   workflows: WorkflowConfig[];
   defaultWorkflowId?: string;
   createBranchPerTask: boolean;
@@ -69,6 +70,7 @@ const defaultSettings: UserSettings = {
   stagehandApiKey: "",
   openaiApiKey: "",
   anthropicApiKey: "",
+  googleApiKey: "",
   workflows: [],
   createBranchPerTask: false,
 };

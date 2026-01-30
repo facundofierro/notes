@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
+import { readSettings } from "@/lib/settings";
 
 export async function POST(
   request: Request,
@@ -97,6 +98,8 @@ export async function POST(
       );
     }
 
+    const settings = readSettings();
+
     // Find local tsx
     let tsxPath = 'npx tsx'; // Default fallback
     const localTsx = path.join(process.cwd(), 'node_modules', '.bin', 'tsx');
@@ -119,7 +122,14 @@ export async function POST(
 
             const child = spawn(command, args, {
               cwd: projectRoot,
-              env: { ...process.env, PATH: process.env.PATH },
+              env: { 
+                ...process.env, 
+                PATH: process.env.PATH,
+                BROWSERBASE_API_KEY: settings.stagehandApiKey || process.env.BROWSERBASE_API_KEY,
+                 OPENAI_API_KEY: settings.openaiApiKey || process.env.OPENAI_API_KEY,
+                 ANTHROPIC_API_KEY: settings.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
+                 GOOGLE_GENERATIVE_AI_API_KEY: settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+               },
               shell: true
             });
 
