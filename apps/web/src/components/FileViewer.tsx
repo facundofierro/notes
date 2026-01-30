@@ -498,14 +498,14 @@ export default function FileViewer({
         data-color-mode="dark"
       >
         {testViewMode === "steps" ? (
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 h-full overflow-auto">
             <TestSteps
               code={effectiveContent}
             />
           </div>
         ) : testViewMode ===
           "results" ? (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 h-full overflow-hidden">
             <TestResults
               testPath={file.path}
               currentOutput={testOutput}

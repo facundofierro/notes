@@ -6,6 +6,7 @@ module.exports = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
     '../../packages/kanban/src/**/*.{js,ts,jsx,tsx}',
     '../../packages/kanban/dist/**/*.{js,mjs}',
+    '../../packages/shadcn/src/**/*.{js,ts,jsx,tsx}',
   ],
   darkMode: 'class',
   theme: {

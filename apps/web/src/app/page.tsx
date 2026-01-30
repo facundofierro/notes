@@ -7,7 +7,7 @@ import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
 import IdeasKanban from "@/components/IdeasKanban";
 import { SettingsDialog } from "@/components/SettingsDialog";
-import { MonochromeLogo } from "@agelum/shadcn";
+import { AgelumNotesLogo } from "@agelum/shadcn";
 import {
   Kanban,
   Files,
@@ -24,6 +24,13 @@ import {
   LogIn,
   ChevronDown,
   Play,
+  AtSign,
+  Image as ImageIcon,
+  Mic,
+  Copy,
+  Paperclip,
+  Search,
+  X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSettings } from "@/hooks/use-settings";
@@ -230,6 +237,28 @@ export default function Home() {
   >("prompt");
   const [iframeUrl, setIframeUrl] =
     React.useState<string>("");
+  const [isRecording, setIsRecording] =
+    React.useState(false);
+  const [
+    filePickerOpen,
+    setFilePickerOpen,
+  ] = React.useState(false);
+  const [fileSearch, setFileSearch] =
+    React.useState("");
+  const [allFiles, setAllFiles] =
+    React.useState<
+      { name: string; path: string }[]
+    >([]);
+  const [fileMap, setFileMap] =
+    React.useState<
+      Record<string, string>
+    >({});
+  const fileInputRef =
+    React.useRef<HTMLInputElement>(
+      null,
+    );
+  const recognitionRef =
+    React.useRef<any>(null);
   const [
     isOpenCodeWebLoading,
     setIsOpenCodeWebLoading,
@@ -923,6 +952,204 @@ export default function Home() {
       [terminalProcessId],
     );
 
+  const handleCopyFullPrompt =
+    React.useCallback(() => {
+      if (!selectedFile) return;
+      const prompt = buildToolPrompt({
+        promptText: promptText,
+        mode: promptMode,
+        docMode: docAiMode,
+        file: {
+          path: selectedFile.path,
+        },
+        viewMode,
+        selectedRepo,
+      });
+
+      // Replace @mentions with full paths
+      let finalPrompt = prompt;
+      Object.entries(fileMap).forEach(
+        ([name, path]) => {
+          finalPrompt = finalPrompt
+            .split(`@${name}`)
+            .join(path);
+        },
+      );
+
+      navigator.clipboard.writeText(
+        finalPrompt,
+      );
+    }, [
+      selectedFile,
+      promptText,
+      promptMode,
+      docAiMode,
+      viewMode,
+      selectedRepo,
+      buildToolPrompt,
+      fileMap,
+    ]);
+
+  const handleRecordAudio =
+    React.useCallback(() => {
+      if (isRecording) {
+        recognitionRef.current?.stop();
+        setIsRecording(false);
+        return;
+      }
+
+      const SpeechRecognition =
+        (window as any)
+          .SpeechRecognition ||
+        (window as any)
+          .webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert(
+          "Speech recognition not supported in this browser.",
+        );
+        return;
+      }
+
+      const recognition =
+        new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (
+        event: any,
+      ) => {
+        let finalTranscript = "";
+
+        for (
+          let i = event.resultIndex;
+          i < event.results.length;
+          ++i
+        ) {
+          if (
+            event.results[i].isFinal
+          ) {
+            finalTranscript +=
+              event.results[i][0]
+                .transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setPromptText((prev) =>
+            prev
+              ? `${prev} ${finalTranscript}`
+              : finalTranscript,
+          );
+        }
+      };
+
+      recognition.onstart = () =>
+        setIsRecording(true);
+      recognition.onend = () =>
+        setIsRecording(false);
+      recognition.onerror = (
+        event: any,
+      ) => {
+        console.error(
+          "Speech recognition error:",
+          event.error,
+        );
+        setIsRecording(false);
+      };
+
+      recognitionRef.current =
+        recognition;
+      recognition.start();
+    }, [isRecording]);
+
+  const handleFileUpload =
+    React.useCallback(
+      async (
+        e: React.ChangeEvent<HTMLInputElement>,
+      ) => {
+        const file =
+          e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const res = await fetch(
+            "/api/upload",
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
+          const data = await res.json();
+          if (data.path) {
+            setPromptText((prev) =>
+              prev
+                ? `${prev}\n![${data.name}](${data.path})`
+                : `![${data.name}](${data.path})`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Upload failed:",
+            error,
+          );
+        }
+      },
+      [],
+    );
+
+  const fetchFiles =
+    React.useCallback(async () => {
+      if (!selectedRepo) return;
+      try {
+        const res = await fetch(
+          `/api/files?repo=${selectedRepo}`,
+        );
+        const data = await res.json();
+
+        const flatten = (
+          nodes: any[],
+        ): any[] => {
+          return nodes.reduce(
+            (acc, node) => {
+              if (
+                node.type === "file"
+              ) {
+                acc.push({
+                  name: node.name,
+                  path: node.path,
+                });
+              } else if (
+                node.children
+              ) {
+                acc.push(
+                  ...flatten(
+                    node.children,
+                  ),
+                );
+              }
+              return acc;
+            },
+            [],
+          );
+        };
+
+        if (data.tree?.children) {
+          setAllFiles(
+            flatten(data.tree.children),
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Failed to fetch files:",
+          error,
+        );
+      }
+    }, [selectedRepo]);
+
   const runTool = React.useCallback(
     async (toolName: string) => {
       if (!selectedFile) return;
@@ -942,16 +1169,28 @@ export default function Home() {
       setIsTerminalRunning(true);
       setRightSidebarView("terminal");
 
-      const prompt = buildToolPrompt({
-        promptText: trimmedPrompt,
-        mode: promptMode,
-        docMode: docAiMode,
-        file: {
-          path: selectedFile.path,
+      const rawPrompt = buildToolPrompt(
+        {
+          promptText: trimmedPrompt,
+          mode: promptMode,
+          docMode: docAiMode,
+          file: {
+            path: selectedFile.path,
+          },
+          viewMode,
+          selectedRepo,
         },
-        viewMode,
-        selectedRepo,
-      });
+      );
+
+      // Replace @mentions with full paths
+      let prompt = rawPrompt;
+      Object.entries(fileMap).forEach(
+        ([name, path]) => {
+          prompt = prompt
+            .split(`@${name}`)
+            .join(path);
+        },
+      );
 
       const cwd =
         basePath && selectedRepo
@@ -1063,6 +1302,7 @@ export default function Home() {
       basePath,
       selectedRepo,
       viewMode,
+      fileMap,
     ],
   );
 
@@ -1520,16 +1760,170 @@ export default function Home() {
             </div>
 
             <div className="p-3 border-b border-border">
-              <textarea
-                value={promptText}
-                onChange={(e) =>
-                  setPromptText(
-                    e.target.value,
-                  )
-                }
-                className="px-3 py-2 w-full h-32 text-sm text-foreground bg-secondary rounded border border-border resize-none focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="Write a prompt…"
-              />
+              <div className="relative flex flex-col w-full bg-secondary rounded-xl border border-border focus-within:ring-2 focus-within:ring-blue-600/50 overflow-hidden transition-all">
+                <textarea
+                  value={promptText}
+                  onChange={(e) => {
+                    const val =
+                      e.target.value;
+                    setPromptText(val);
+                    if (
+                      val.endsWith("@")
+                    ) {
+                      setFilePickerOpen(
+                        true,
+                      );
+                      void fetchFiles();
+                    }
+                  }}
+                  className="px-3 py-2 w-full h-32 text-sm text-foreground bg-transparent resize-none focus:outline-none"
+                  placeholder="Write a prompt…"
+                />
+
+                {filePickerOpen && (
+                  <div className="absolute bottom-12 left-3 z-10 w-64 max-h-48 overflow-auto bg-background border border-border rounded-lg shadow-xl">
+                    <div className="sticky top-0 p-2 bg-background border-b border-border flex items-center gap-2">
+                      <Search className="w-3 h-3 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        value={
+                          fileSearch
+                        }
+                        onChange={(e) =>
+                          setFileSearch(
+                            e.target
+                              .value,
+                          )
+                        }
+                        placeholder="Search files..."
+                        className="flex-1 bg-transparent text-xs outline-none"
+                      />
+                      <button
+                        onClick={() =>
+                          setFilePickerOpen(
+                            false,
+                          )
+                        }
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {allFiles
+                      .filter((f) =>
+                        f.name
+                          .toLowerCase()
+                          .includes(
+                            fileSearch.toLowerCase(),
+                          ),
+                      )
+                      .map((f) => (
+                        <button
+                          key={f.path}
+                          onClick={() => {
+                            setPromptText(
+                              (
+                                prev,
+                              ) => {
+                                const lastAt =
+                                  prev.lastIndexOf(
+                                    "@",
+                                  );
+                                return (
+                                  prev.substring(
+                                    0,
+                                    lastAt +
+                                      1,
+                                  ) +
+                                  f.name +
+                                  " "
+                                );
+                              },
+                            );
+                            setFileMap(
+                              (
+                                prev,
+                              ) => ({
+                                ...prev,
+                                [f.name]:
+                                  f.path,
+                              }),
+                            );
+                            setFilePickerOpen(
+                              false,
+                            );
+                            setFileSearch(
+                              "",
+                            );
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-xs hover:bg-secondary truncate"
+                        >
+                          {f.name}
+                        </button>
+                      ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between px-3 py-2 border-t border-border/50 bg-secondary/30">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setFilePickerOpen(
+                          true,
+                        );
+                        void fetchFiles();
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background rounded-md transition-colors"
+                      title="Add file"
+                    >
+                      <AtSign className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        fileInputRef.current?.click()
+                      }
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background rounded-md transition-colors"
+                      title="Add image"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={
+                        handleFileUpload
+                      }
+                      className="hidden"
+                      accept="image/*"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={
+                        handleRecordAudio
+                      }
+                      className={`p-1.5 rounded-md transition-colors ${
+                        isRecording
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background"
+                      }`}
+                      title="Record audio"
+                    >
+                      <Mic
+                        className={`w-4 h-4 ${isRecording ? "animate-pulse" : ""}`}
+                      />
+                    </button>
+                    <button
+                      onClick={
+                        handleCopyFullPrompt
+                      }
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background rounded-md transition-colors"
+                      title="Copy full prompt"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex overflow-auto flex-col flex-1">
@@ -1850,10 +2244,7 @@ export default function Home() {
     <div className="flex flex-col w-full h-full">
       <div className="flex justify-between items-center px-4 py-2 bg-secondary border-b border-border">
         <div className="flex gap-6 items-center">
-          <MonochromeLogo
-            size="sm"
-            color="text-white"
-          />
+          <AgelumNotesLogo size="sm" />
 
           <div className="flex gap-1 items-center">
             {(() => {
@@ -1894,8 +2285,8 @@ export default function Home() {
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                         viewMode ===
                         mode
-                          ? "bg-blue-600 text-white"
-                          : "text-muted-foreground hover:bg-accent"
+                          ? "bg-amber-500/15 text-amber-500 border border-amber-500/20"
+                          : "text-muted-foreground hover:bg-accent border border-transparent"
                       }`}
                     >
                       <Icon className="w-4 h-4" />

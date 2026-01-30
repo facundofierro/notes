@@ -41,6 +41,11 @@ export const DerivedLogo: React.FC<DerivedLogoProps> = ({
         primary: 'oklch(0.55 0.18 315.544)', // More saturated purple
         secondary: 'oklch(0.637 0.237 25.331)', // Orange
       }
+    } else if (lowerText.includes('notes')) {
+      return {
+        primary: '#ffffff', // White Agelum
+        secondary: '#fbbf24', // Tailwind yellow-400
+      }
     }
     return {
       primary: 'oklch(0.65 0.08 315.544)', // Default desaturated purple
@@ -78,6 +83,11 @@ export const DerivedLogo: React.FC<DerivedLogoProps> = ({
         textStroke: '0.20px rgba(15, 23, 42, 0.45)',
       }
     }
+    if (lowerText.includes('notes')) {
+      return {
+        color: '#ffffff',
+      }
+    }
     return {
       color: colors.primary,
       WebkitTextStroke: `0.5px ${colors.secondary}`,
@@ -95,6 +105,16 @@ export const DerivedLogo: React.FC<DerivedLogoProps> = ({
         // Very thin dark border
         WebkitTextStroke: '0.20px rgba(15, 23, 42, 0.45)',
         textStroke: '0.20px rgba(15, 23, 42, 0.45)',
+      }
+    }
+    if (lowerText.includes('notes')) {
+      return {
+        color: '#fbbf24',
+        fontFamily: 'var(--font-caveat), cursive',
+        transform: 'rotate(-5deg)',
+        display: 'inline-block',
+        fontSize: '1.2em',
+        lineHeight: '1',
       }
     }
     return {
@@ -121,7 +141,6 @@ export const DerivedLogo: React.FC<DerivedLogoProps> = ({
           className={`${secondary} ${isHorizontal ? '' : 'text-right'}`}
           style={{
             marginTop: isHorizontal ? '0' : '-0.3em',
-            fontFamily: 'cursive',
             ...getSecondaryStyle(),
           }}
         >

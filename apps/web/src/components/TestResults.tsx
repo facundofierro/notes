@@ -104,7 +104,7 @@ export function TestResults({
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left Sidebar: History List */}
-      <div className="w-64 border-r border-border flex flex-col bg-background">
+      <div className="w-52 border-r border-border flex flex-col bg-background">
         <div className="p-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <History className="w-3.5 h-3.5" />
