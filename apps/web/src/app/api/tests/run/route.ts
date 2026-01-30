@@ -541,27 +541,27 @@ export async function POST(
             seedEntries.GOOGLE_GENERATIVE_AI_API_KEY,
         };
 
-        const missingKeys: string[] = [];
+        const missingMessages: string[] = [];
         if (!baseEnv.BROWSERBASE_API_KEY) {
-          missingKeys.push("BROWSERBASE_API_KEY");
+          missingMessages.push(
+            "BROWSERBASE_API_KEY (only required for Browserbase runs; LOCAL Stagehand runs can work without it)",
+          );
         }
         if (
           !baseEnv.OPENAI_API_KEY &&
           !baseEnv.ANTHROPIC_API_KEY &&
           !baseEnv.GOOGLE_GENERATIVE_AI_API_KEY
         ) {
-          missingKeys.push(
-            "OPENAI_API_KEY (or ANTHROPIC_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY)",
+          missingMessages.push(
+            "OPENAI_API_KEY (or ANTHROPIC_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY) (required for Stagehand LLM features like extract/act)",
           );
         }
-        if (missingKeys.length > 0) {
+        if (missingMessages.length > 0) {
           controller.enqueue(
             encoder.encode(
-              `\nMissing required test environment variables:\n- ${missingKeys.join("\n- ")}\n\nSet them in Settings → Tests, in agelum-test/.env, or in your shell environment.\n`,
+              `\nEnvironment variables not set:\n- ${missingMessages.join("\n- ")}\n\nYou can set them in Settings → Tests, in agelum-test/.env, or in your shell environment.\n`,
             ),
           );
-          controller.close();
-          return;
         }
 
         if (
