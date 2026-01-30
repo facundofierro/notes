@@ -572,6 +572,7 @@ function buildFileTree(
   basePath: string,
   allowedFileExtensions: string[] = [
     ".md",
+    ".json",
   ],
 ): FileNode | null {
   if (!fs.existsSync(dir)) return null;

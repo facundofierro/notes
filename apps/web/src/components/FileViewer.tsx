@@ -238,6 +238,8 @@ export default function FileViewer({
 
   const isMarkdown =
     displayedFileName.endsWith(".md");
+  const isJSON =
+    displayedFileName.endsWith(".json");
   const isTypeScript =
     displayedFileName.endsWith(".ts") ||
     displayedFileName.endsWith(".tsx");
@@ -556,7 +558,9 @@ export default function FileViewer({
                 ? isTSX
                   ? "typescriptreact"
                   : "typescript"
-                : "plaintext"
+                : isJSON
+                  ? "json"
+                  : "plaintext"
             }
             theme="vs-dark"
             height="100%"

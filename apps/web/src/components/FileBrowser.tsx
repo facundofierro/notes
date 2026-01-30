@@ -543,21 +543,15 @@ export default function FileBrowser({
       let name = newItemName.trim();
 
       if (newItem.type === "file") {
+        const hasExtension = name.includes(".");
         if (
           viewMode === "docs" &&
-          !name
-            .toLowerCase()
-            .endsWith(".md")
+          !hasExtension
         ) {
           name += ".md";
         } else if (
           viewMode === "tests" &&
-          !name
-            .toLowerCase()
-            .endsWith(".ts") &&
-          !name
-            .toLowerCase()
-            .endsWith(".tsx")
+          !hasExtension
         ) {
           name += ".ts";
         }
