@@ -726,6 +726,35 @@ function migrateAgelumStructure(
   }
 }
 
+function migrateAgelumTestsStructure(
+  repoPath: string,
+): string {
+  const newTestsDir = path.join(
+    repoPath,
+    "agelum-test",
+    "tests",
+  );
+  const oldTestsSrcDir = path.join(
+    repoPath,
+    ".agelum",
+    "work",
+    "tests",
+    "src",
+  );
+  if (
+    !fs.existsSync(newTestsDir) &&
+    fs.existsSync(oldTestsSrcDir)
+  ) {
+    try {
+      fs.mkdirSync(path.dirname(newTestsDir), {
+        recursive: true,
+      });
+      fs.renameSync(oldTestsSrcDir, newTestsDir);
+    } catch {}
+  }
+  return newTestsDir;
+}
+
 import { resolveProjectPath } from "@/lib/settings";
 
 export async function GET(
@@ -777,27 +806,25 @@ export async function GET(
 
     // Check if we are targeting tests
     if (subPath === "work/tests") {
-      const srcDir = path.join(
-        targetDir,
-        "src",
-      );
+      const testsDir =
+        migrateAgelumTestsStructure(repoPath);
       const status =
-        ensureStagehandSetup(srcDir);
+        ensureStagehandSetup(testsDir);
       const tree = buildFileTree(
-        srcDir,
+        testsDir,
         basePath,
         [".ts", ".tsx", ".md"],
       );
       const root: FileNode = {
         name: "tests",
-        path: srcDir,
+        path: testsDir,
         type: "directory",
         children: tree?.children ?? [],
       };
 
       return NextResponse.json({
         tree: root,
-        rootPath: srcDir,
+        rootPath: testsDir,
         setupStatus: status,
       });
     }

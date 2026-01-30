@@ -782,6 +782,9 @@ export default function Home() {
           normalizedPath.includes(
             "/.agelum/work/tests/",
           ) ||
+          normalizedPath.includes(
+            "/agelum-test/tests/",
+          ) ||
           opts.viewMode === "tests";
 
         const effectiveDocMode:
@@ -1544,7 +1547,7 @@ export default function Home() {
                   onClick={() =>
                     cancelTerminal()
                   }
-                  className="px-3 py-2 flex-1 text-sm text-white rounded border border-red-800 bg-red-900/50 hover:bg-red-900 transition-colors"
+                  className="flex-1 px-3 py-2 text-sm text-white rounded border border-red-800 transition-colors bg-red-900/50 hover:bg-red-900"
                 >
                   Cancel
                 </button>
@@ -1555,7 +1558,7 @@ export default function Home() {
                     "prompt",
                   )
                 }
-                className="px-3 py-2 flex-1 text-sm text-white bg-secondary rounded border border-border transition-colors hover:bg-accent"
+                className="flex-1 px-3 py-2 text-sm text-white rounded border transition-colors bg-secondary border-border hover:bg-accent"
               >
                 {isTerminalRunning
                   ? "Return to Prompt"
@@ -1615,8 +1618,8 @@ export default function Home() {
               )}
 
               {isOpenCodeWebLoading && (
-                <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-black">
-                  <div className="w-6 h-6 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />
+                <div className="flex absolute inset-0 flex-col gap-3 justify-center items-center bg-black">
+                  <div className="w-6 h-6 rounded-full border-2 animate-spin border-muted-foreground border-t-transparent" />
                   <div className="text-xs text-muted-foreground">
                     {openCodeWebLoadingLabel ||
                       "Loading…"}
@@ -1631,7 +1634,7 @@ export default function Home() {
                     "prompt",
                   )
                 }
-                className="px-3 py-2 w-full text-sm text-white bg-secondary rounded border border-border transition-colors hover:bg-accent"
+                className="px-3 py-2 w-full text-sm text-white rounded border transition-colors bg-secondary border-border hover:bg-accent"
               >
                 Return to Prompt
               </button>
@@ -1732,7 +1735,7 @@ export default function Home() {
                         .value as any,
                     )
                   }
-                  className="pr-6 w-full h-full text-xs text-right text-muted-foreground bg-transparent appearance-none cursor-pointer outline-none hover:text-foreground"
+                  className="pr-6 w-full h-full text-xs text-right bg-transparent appearance-none cursor-pointer outline-none text-muted-foreground hover:text-foreground"
                 >
                   <option
                     value="agent"
@@ -1753,12 +1756,12 @@ export default function Home() {
                     Chat
                   </option>
                 </select>
-                <ChevronDown className="absolute right-0 top-1/2 w-4 h-4 text-muted-foreground -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="absolute right-0 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
               </div>
             </div>
 
             <div className="p-3 border-b border-border">
-              <div className="relative flex flex-col w-full bg-secondary rounded-xl border border-border focus-within:ring-2 focus-within:ring-blue-600/50 overflow-hidden transition-all">
+              <div className="flex overflow-hidden relative flex-col w-full rounded-xl border transition-all bg-secondary border-border focus-within:ring-2 focus-within:ring-blue-600/50">
                 <textarea
                   value={promptText}
                   onChange={(e) => {
@@ -1774,13 +1777,13 @@ export default function Home() {
                       void fetchFiles();
                     }
                   }}
-                  className="px-3 py-2 w-full h-32 text-sm text-foreground bg-transparent resize-none focus:outline-none"
+                  className="px-3 py-2 w-full h-32 text-sm bg-transparent resize-none text-foreground focus:outline-none"
                   placeholder="Write a prompt…"
                 />
 
                 {filePickerOpen && (
-                  <div className="absolute bottom-12 left-3 z-10 w-64 max-h-48 overflow-auto bg-background border border-border rounded-lg shadow-xl">
-                    <div className="sticky top-0 p-2 bg-background border-b border-border flex items-center gap-2">
+                  <div className="overflow-auto absolute left-3 bottom-12 z-10 w-64 max-h-48 rounded-lg border shadow-xl bg-background border-border">
+                    <div className="flex sticky top-0 gap-2 items-center p-2 border-b bg-background border-border">
                       <Search className="w-3 h-3 text-muted-foreground" />
                       <input
                         autoFocus
@@ -1794,7 +1797,7 @@ export default function Home() {
                           )
                         }
                         placeholder="Search files..."
-                        className="flex-1 bg-transparent text-xs outline-none"
+                        className="flex-1 text-xs bg-transparent outline-none"
                       />
                       <button
                         onClick={() =>
@@ -1861,8 +1864,8 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between px-3 py-2 border-t border-border/50 bg-secondary/30">
-                  <div className="flex items-center gap-1">
+                <div className="flex justify-between items-center px-3 py-2 border-t border-border/50 bg-secondary/30">
+                  <div className="flex gap-1 items-center">
                     <button
                       onClick={() => {
                         setFilePickerOpen(
@@ -1894,7 +1897,7 @@ export default function Home() {
                       accept="image/*"
                     />
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex gap-1 items-center">
                     <button
                       onClick={
                         handleRecordAudio
@@ -2058,7 +2061,7 @@ export default function Home() {
                       <div
                         className={`flex overflow-hidden flex-col w-full rounded-lg border shadow-sm transition-all ${
                           isOpenCodeActive
-                            ? "border-blue-600/50 bg-blue-900/10 shadow-lg"
+                            ? "shadow-lg border-blue-600/50 bg-blue-900/10"
                             : "border-border bg-secondary hover:border-muted-foreground"
                         }`}
                       >
@@ -2240,7 +2243,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col w-full h-full">
-      <div className="flex justify-between items-center px-4 py-2 bg-secondary border-b border-border">
+      <div className="flex justify-between items-center px-4 py-2 border-b bg-secondary border-border">
         <div className="flex gap-6 items-center">
           <AgelumNotesLogo size="sm" />
 
@@ -2330,7 +2333,7 @@ export default function Home() {
                 ),
               )}
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 text-muted-foreground -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
           </div>
 
           <div className="mx-2 w-px h-6 bg-border" />
@@ -2339,7 +2342,7 @@ export default function Home() {
             onClick={() =>
               setIsSettingsOpen(true)
             }
-            className="p-2 text-muted-foreground rounded-lg transition-colors hover:text-white hover:bg-accent"
+            className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-white hover:bg-accent"
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -2422,7 +2425,7 @@ export default function Home() {
                               (v) => !v,
                             )
                           }
-                          className="px-2 py-1 text-xs text-foreground rounded transition-colors hover:text-white hover:bg-accent"
+                          className="px-2 py-1 text-xs rounded transition-colors text-foreground hover:text-white hover:bg-accent"
                         >
                           {isSetupLogsVisible
                             ? "Hide logs"
@@ -2440,7 +2443,7 @@ export default function Home() {
                                   el.scrollHeight;
                               }
                             }}
-                            className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs text-foreground whitespace-pre-wrap bg-black rounded"
+                            className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs whitespace-pre-wrap bg-black rounded text-foreground"
                           >
                             {testsSetupStatus.log ||
                               `State: ${testsSetupStatus.state}`}

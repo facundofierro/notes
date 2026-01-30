@@ -1,6 +1,8 @@
+declare const require: any;
+declare const process: any;
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 interface FileNode {
   name: string;
@@ -78,6 +80,15 @@ function buildFileTree(
   };
 }
 
-const srcDir = path.join(process.cwd(), '.agelum/work/tests/src');
-const tree = buildFileTree(srcDir, '', [".ts", ".tsx", ".md"]);
-console.log(JSON.stringify(tree, null, 2));
+const srcDir = path.join(
+  process.cwd(),
+  "agelum-test/tests",
+);
+const tree = buildFileTree(srcDir, "", [
+  ".ts",
+  ".tsx",
+  ".md",
+]);
+console.log(
+  JSON.stringify(tree, null, 2),
+);

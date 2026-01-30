@@ -27,6 +27,10 @@ function findAgelumTestsDir(
       path.dirname(path.dirname(current)),
     );
 
+    if (base === "tests" && parent === "agelum-test") {
+      return current;
+    }
+
     // If we are in the src folder of the tests, that's our root
     if (
       base === "src" &&
@@ -39,7 +43,33 @@ function findAgelumTestsDir(
         ),
       );
       if (greatGrandParent === ".agelum") {
-        return current;
+        const repoRoot = path.dirname(
+          path.dirname(
+            path.dirname(
+              path.dirname(current),
+            ),
+          ),
+        );
+        const newTestsDir = path.join(
+          repoRoot,
+          "agelum-test",
+          "tests",
+        );
+        if (
+          !fs.existsSync(newTestsDir) &&
+          fs.existsSync(current)
+        ) {
+          try {
+            fs.mkdirSync(
+              path.dirname(newTestsDir),
+              { recursive: true },
+            );
+            fs.renameSync(current, newTestsDir);
+          } catch {}
+        }
+        return fs.existsSync(newTestsDir)
+          ? newTestsDir
+          : current;
       }
     }
 
@@ -49,7 +79,29 @@ function findAgelumTestsDir(
       parent === "work" &&
       grandParent === ".agelum"
     ) {
-      return path.join(current, "src");
+      const legacySrc = path.join(current, "src");
+      const repoRoot = path.dirname(
+        path.dirname(path.dirname(current)),
+      );
+      const newTestsDir = path.join(
+        repoRoot,
+        "agelum-test",
+        "tests",
+      );
+      if (
+        !fs.existsSync(newTestsDir) &&
+        fs.existsSync(legacySrc)
+      ) {
+        try {
+          fs.mkdirSync(
+            path.dirname(newTestsDir),
+            { recursive: true },
+          );
+          fs.renameSync(legacySrc, newTestsDir);
+        } catch {}
+      }
+      if (fs.existsSync(newTestsDir)) return newTestsDir;
+      return legacySrc;
     }
     current = path.dirname(current);
   }
