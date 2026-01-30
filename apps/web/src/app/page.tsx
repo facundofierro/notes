@@ -1120,9 +1120,11 @@ Context and Instructions:
         </div>
         <div
           className={`flex overflow-hidden flex-col bg-gray-900 border-l border-gray-800 transition-all duration-300 ${
-            rightSidebarView ===
+            (rightSidebarView ===
               "terminal" &&
-            isTerminalRunning
+              isTerminalRunning) ||
+            rightSidebarView ===
+              "iframe"
               ? "w-[50%]"
               : "w-[360px]"
           }`}
@@ -1420,9 +1422,22 @@ Context and Instructions:
                       <button
                         onClick={async () => {
                           try {
+                            let apiPath =
+                              "/api/opencode";
+                            if (
+                              basePath &&
+                              selectedRepo
+                            ) {
+                              const fullPath =
+                                `${basePath}/${selectedRepo}`.replace(
+                                  /\/+/g,
+                                  "/",
+                                );
+                              apiPath += `?path=${encodeURIComponent(fullPath)}`;
+                            }
                             const res =
                               await fetch(
-                                "/api/opencode",
+                                apiPath,
                               );
                             const data =
                               await res.json();
@@ -1615,7 +1630,8 @@ Context and Instructions:
                       className={`bg-gray-800 border-b border-gray-700 min-h-0 ${
                         isSetupLogsVisible
                           ? "flex overflow-hidden flex-col flex-1"
-                          : ""}`}
+                          : ""
+                      }`}
                     >
                       <div className="flex flex-shrink-0 justify-between items-center px-3 py-2">
                         <div className="text-sm text-gray-300">

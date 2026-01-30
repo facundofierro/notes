@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { ensureServer } from "@/lib/sidecar";
 
-export async function GET() {
+export async function GET(
+  request: Request,
+) {
+  const { searchParams } = new URL(
+    request.url,
+  );
+  const projectPath =
+    searchParams.get("path");
+
   const port = Number(
     process.env.OPENCODE_PORT || 9988,
   );
@@ -33,7 +41,19 @@ export async function GET() {
           30000,
       ),
     });
-    return NextResponse.json({ url });
+
+    let finalUrl = url;
+    if (projectPath) {
+      // Base64 encode the path to match OpenCode's expected format
+      const b64Path = Buffer.from(
+        projectPath,
+      ).toString("base64");
+      finalUrl = `${url}/${b64Path}/session`;
+    }
+
+    return NextResponse.json({
+      url: finalUrl,
+    });
   } catch (error: unknown) {
     console.error(
       "OpenCode API Error:",
