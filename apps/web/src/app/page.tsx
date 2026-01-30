@@ -235,6 +235,26 @@ export default function Home() {
   const [iframeUrl, setIframeUrl] =
     React.useState<string>("");
   const [
+    isOpenCodeWebLoading,
+    setIsOpenCodeWebLoading,
+  ] = React.useState(false);
+  const [
+    openCodeWebLoadingLabel,
+    setOpenCodeWebLoadingLabel,
+  ] = React.useState("");
+  const [
+    openCodeWebError,
+    setOpenCodeWebError,
+  ] = React.useState("");
+  const [
+    pendingOpenCodeWebMessage,
+    setPendingOpenCodeWebMessage,
+  ] = React.useState<null | {
+    sessionId: string;
+    prompt: string;
+    path?: string;
+  }>(null);
+  const [
     workDocIsDraft,
     setWorkDocIsDraft,
   ] = React.useState(false);
@@ -1181,25 +1201,77 @@ Context and Instructions:
           ) : rightSidebarView ===
             "iframe" ? (
             <div className="flex overflow-hidden flex-col flex-1 h-full">
-              <div className="flex-1 min-h-0">
+              <div className="relative flex-1 min-h-0 bg-black">
                 {iframeUrl ? (
                   <iframe
                     src={iframeUrl}
                     className="w-full h-full bg-black border-0"
+                    onLoad={() => {
+                      setIsOpenCodeWebLoading(
+                        false,
+                      );
+                      const msg =
+                        pendingOpenCodeWebMessage;
+                      if (msg) {
+                        setPendingOpenCodeWebMessage(
+                          null,
+                        );
+                        void fetch(
+                          "/api/opencode/message",
+                          {
+                            method:
+                              "POST",
+                            headers: {
+                              "Content-Type":
+                                "application/json",
+                            },
+                            body: JSON.stringify(
+                              msg,
+                            ),
+                          },
+                        ).catch(
+                          () =>
+                            undefined,
+                        );
+                      }
+                    }}
                   />
                 ) : (
                   <div className="flex justify-center items-center h-full text-xs text-gray-500">
-                    No URL loaded
+                    {openCodeWebError ||
+                      "No URL loaded"}
+                  </div>
+                )}
+
+                {isOpenCodeWebLoading && (
+                  <div className="absolute inset-0 flex flex-col gap-3 justify-center items-center bg-black">
+                    <div className="w-6 h-6 rounded-full border-2 border-gray-500 border-t-transparent animate-spin" />
+                    <div className="text-xs text-gray-400">
+                      {openCodeWebLoadingLabel ||
+                        "Loading…"}
+                    </div>
                   </div>
                 )}
               </div>
               <div className="flex justify-end p-2 border-t border-gray-800">
                 <button
-                  onClick={() =>
+                  onClick={() => {
                     setRightSidebarView(
                       "prompt",
-                    )
-                  }
+                    );
+                    setIsOpenCodeWebLoading(
+                      false,
+                    );
+                    setOpenCodeWebLoadingLabel(
+                      "",
+                    );
+                    setOpenCodeWebError(
+                      "",
+                    );
+                    setPendingOpenCodeWebMessage(
+                      null,
+                    );
+                  }}
                   className="px-3 py-2 w-full text-sm text-white bg-gray-800 rounded border border-gray-700 transition-colors hover:bg-gray-700"
                 >
                   Back to Prompt
@@ -1421,31 +1493,59 @@ Context and Instructions:
                     <div className="flex overflow-hidden flex-col w-full bg-gray-800 rounded-lg border border-gray-700 shadow-sm transition-all hover:border-gray-600">
                       <button
                         onClick={async () => {
+                          setRightSidebarView(
+                            "iframe",
+                          );
+                          setIframeUrl(
+                            "",
+                          );
+                          setOpenCodeWebError(
+                            "",
+                          );
+                          setIsOpenCodeWebLoading(
+                            true,
+                          );
+                          setOpenCodeWebLoadingLabel(
+                            "Starting OpenCode…",
+                          );
+                          setPendingOpenCodeWebMessage(
+                            null,
+                          );
                           try {
                             let apiPath =
                               "/api/opencode";
                             const params =
                               new URLSearchParams();
+                            let fullPath =
+                              "";
                             if (
                               basePath &&
                               selectedRepo
                             ) {
-                              const fullPath =
+                              const nextFullPath =
                                 `${basePath}/${selectedRepo}`.replace(
                                   /\/+/g,
                                   "/",
                                 );
+                              fullPath =
+                                nextFullPath;
                               params.set(
                                 "path",
-                                fullPath,
+                                nextFullPath,
                               );
                             }
+                            const trimmedPrompt =
+                              promptText.trim();
                             if (
-                              promptText.trim()
+                              trimmedPrompt
                             ) {
                               params.set(
                                 "prompt",
-                                promptText.trim(),
+                                trimmedPrompt,
+                              );
+                              params.set(
+                                "deferPrompt",
+                                "1",
                               );
                             }
                             const queryString =
@@ -1467,21 +1567,54 @@ Context and Instructions:
                               setIframeUrl(
                                 data.url,
                               );
-                              setRightSidebarView(
-                                "iframe",
+                              setOpenCodeWebLoadingLabel(
+                                "Loading OpenCode Web…",
+                              );
+                              if (
+                                trimmedPrompt &&
+                                data?.sessionId
+                              ) {
+                                setPendingOpenCodeWebMessage(
+                                  {
+                                    sessionId:
+                                      data.sessionId,
+                                    prompt:
+                                      trimmedPrompt,
+                                    path:
+                                      fullPath ||
+                                      undefined,
+                                  },
+                                );
+                              }
+                            } else {
+                              setIsOpenCodeWebLoading(
+                                false,
+                              );
+                              setOpenCodeWebError(
+                                "Failed to open OpenCode Web",
                               );
                             }
                           } catch {
-                            // ignore
+                            setIsOpenCodeWebLoading(
+                              false,
+                            );
+                            setOpenCodeWebError(
+                              "Failed to open OpenCode Web",
+                            );
                           }
                         }}
-                        className="flex-1 px-3 py-3 text-left group"
+                        disabled={
+                          isOpenCodeWebLoading
+                        }
+                        className="flex-1 px-3 py-3 text-left group disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <div className="text-sm font-medium text-gray-100 group-hover:text-white mb-0.5">
                           OpenCode Web
                         </div>
                         <div className="text-[10px] text-gray-400">
-                          Click to open
+                          {isOpenCodeWebLoading
+                            ? "Opening…"
+                            : "Click to open"}
                         </div>
                       </button>
                       <div className="p-1 border-t bg-gray-900/50 border-gray-700/50">

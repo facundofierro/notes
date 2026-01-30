@@ -11,6 +11,11 @@ export async function GET(
     searchParams.get("path");
   const prompt =
     searchParams.get("prompt");
+  const deferPrompt =
+    searchParams.get("deferPrompt") ===
+      "1" ||
+    searchParams.get("deferPrompt") ===
+      "true";
 
   const port = Number(
     process.env.OPENCODE_PORT || 9988,
@@ -58,6 +63,7 @@ export async function GET(
       );
 
     let finalUrl = `${url}/${b64Dir}/session`;
+    let sessionId: string | undefined;
 
     if (prompt) {
       try {
@@ -73,28 +79,29 @@ export async function GET(
           },
         ).then((res) => res.json());
 
-        const sessionId = session?.id;
+        sessionId = session?.id;
         if (sessionId) {
-          await fetch(
-            `${url}/session/${sessionId}/message?directory=${encodeURIComponent(dir)}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-              body: JSON.stringify({
-                parts: [
-                  {
-                    type: "text",
-                    text: prompt,
-                  },
-                ],
-              }),
-            },
-          ).catch(() => undefined);
-
           finalUrl = `${url}/${b64Dir}/session/${sessionId}`;
+          if (!deferPrompt) {
+            await fetch(
+              `${url}/session/${sessionId}/message?directory=${encodeURIComponent(dir)}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+                body: JSON.stringify({
+                  parts: [
+                    {
+                      type: "text",
+                      text: prompt,
+                    },
+                  ],
+                }),
+              },
+            ).catch(() => undefined);
+          }
         }
       } catch {
         // ignore
@@ -103,6 +110,7 @@ export async function GET(
 
     return NextResponse.json({
       url: finalUrl,
+      sessionId,
     });
   } catch (error: unknown) {
     console.error(
