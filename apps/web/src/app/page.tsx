@@ -24,6 +24,8 @@ import {
   LogIn,
   ChevronDown,
   Play,
+  Square,
+  ScrollText,
   AtSign,
   Image as ImageIcon,
   Mic,
@@ -34,45 +36,11 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSettings } from "@/hooks/use-settings";
+import { VIEW_MODE_CONFIG } from "@/lib/view-config";
 import {
   formatTestOutputForPrompt,
   inferTestExecutionStatus,
 } from "@/lib/test-output";
-
-const VIEW_MODE_CONFIG: Record<
-  string,
-  { label: string; icon: any }
-> = {
-  ideas: {
-    label: "Ideas",
-    icon: Lightbulb,
-  },
-  docs: {
-    label: "Docs",
-    icon: BookOpen,
-  },
-  plan: { label: "Plan", icon: Map },
-  epics: {
-    label: "Epics",
-    icon: Layers,
-  },
-  kanban: {
-    label: "Tasks",
-    icon: ListTodo,
-  },
-  tests: {
-    label: "Tests",
-    icon: TestTube,
-  },
-  commands: {
-    label: "Commands",
-    icon: Terminal,
-  },
-  "cli-tools": {
-    label: "Cli tools",
-    icon: Wrench,
-  },
-};
 
 const TerminalViewer = dynamic(
   () =>
@@ -378,6 +346,10 @@ export default function Home() {
     isSettingsOpen,
     setIsSettingsOpen,
   ] = React.useState(false);
+  const [
+    isServiceRunning,
+    setIsServiceRunning,
+  ] = React.useState(false);
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
@@ -564,6 +536,10 @@ export default function Home() {
   React.useEffect(() => {
     loadFileTree();
   }, [loadFileTree]);
+
+  React.useEffect(() => {
+    setSelectedFile(null);
+  }, [viewMode, selectedRepo]);
 
   const testsSetupState =
     testsSetupStatus?.state ?? null;
@@ -1614,7 +1590,7 @@ export default function Home() {
     const filteredTools = agentTools;
 
     return (
-      <div className="flex h-full">
+      <div className="flex h-full w-full">
         <div className="flex overflow-hidden flex-1 border-r border-border">
           <FileViewer
             file={selectedFile}
@@ -2438,29 +2414,73 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex gap-2 items-center">
-          <div className="relative">
-            <select
-              value={selectedRepo || ""}
-              onChange={(e) =>
-                setSelectedRepo(
-                  e.target.value,
-                )
-              }
-              className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
-            >
-              <option
-                value=""
-                disabled
-                className="bg-secondary"
+        <div className="flex gap-4 items-center">
+          <div className="flex items-center bg-secondary/50 rounded-full border border-border px-1.5 py-1 shadow-sm">
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() =>
+                  setIsServiceRunning(
+                    !isServiceRunning,
+                  )
+                }
+                className={`p-1.5 rounded-full transition-colors ${
+                  isServiceRunning
+                    ? "text-red-400 hover:bg-red-400/10"
+                    : "text-green-400 hover:bg-green-400/10"
+                }`}
+                title={
+                  isServiceRunning
+                    ? "Stop Service"
+                    : "Start Service"
+                }
               >
-                {repositories.length ===
-                0
-                  ? "No repositories found"
-                  : "Select repository"}
-              </option>
-              {repositories.map(
-                (repo) => (
+                {isServiceRunning ? (
+                  <Square className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4 fill-current" />
+                )}
+              </button>
+
+              <button
+                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
+                title="View Logs"
+              >
+                <ScrollText className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() =>
+                  setIsSettingsOpen(true)
+                }
+                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mx-1.5 w-px h-4 bg-border" />
+
+            <div className="relative flex items-center px-1">
+              <select
+                value={selectedRepo || ""}
+                onChange={(e) =>
+                  setSelectedRepo(
+                    e.target.value,
+                  )
+                }
+                className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
+              >
+                <option
+                  value=""
+                  disabled
+                  className="bg-secondary"
+                >
+                  {repositories.length === 0
+                    ? "No repositories found"
+                    : "Select repository"}
+                </option>
+                {repositories.map((repo) => (
                   <option
                     key={repo.name}
                     value={repo.name}
@@ -2468,22 +2488,12 @@ export default function Home() {
                   >
                     {repo.name}
                   </option>
-                ),
-              )}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+            </div>
           </div>
 
-          <div className="mx-2 w-px h-6 bg-border" />
-
-          <button
-            onClick={() =>
-              setIsSettingsOpen(true)
-            }
-            className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-white hover:bg-accent"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
           <button className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-white hover:bg-accent rounded-lg text-sm transition-colors">
             <LogIn className="w-4 h-4" />
             Login
@@ -2703,86 +2713,104 @@ export default function Home() {
                     ))}
                 </div>
               ) : (
-                <FileViewer
-                  file={selectedFile}
-                  onFileSaved={
-                    loadFileTree
-                  }
-                  onRename={async (
-                    newTitle,
-                  ) => {
-                    if (!selectedFile)
-                      return;
-                    const oldPath =
-                      selectedFile.path;
-                    const dir = oldPath
-                      .split("/")
-                      .slice(0, -1)
-                      .join("/");
-                    const fileName =
-                      oldPath
-                        .split("/")
-                        .pop() || "";
-                    const ext =
-                      fileName.includes(
-                        ".",
-                      )
-                        ? fileName
-                            .split(".")
-                            .pop()
-                        : "";
-                    const newPath =
-                      ext &&
-                      newTitle
-                        .toLowerCase()
-                        .endsWith(
-                          `.${ext.toLowerCase()}`,
+                <div className="flex flex-1 bg-background overflow-hidden">
+                  {selectedFile ? (
+                    renderWorkEditor({
+                      onBack: () =>
+                        setSelectedFile(
+                          null,
+                        ),
+                      onRename: async (
+                        newTitle,
+                      ) => {
+                        if (
+                          !selectedFile
                         )
-                        ? `${dir}/${newTitle}`
-                        : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                          return;
+                        const oldPath =
+                          selectedFile.path;
+                        const dir =
+                          oldPath
+                            .split("/")
+                            .slice(
+                              0,
+                              -1,
+                            )
+                            .join("/");
+                        const fileName =
+                          oldPath
+                            .split("/")
+                            .pop() ||
+                          "";
+                        const ext =
+                          fileName.includes(
+                            ".",
+                          )
+                            ? fileName
+                                .split(
+                                  ".",
+                                )
+                                .pop()
+                            : "";
+                        const newPath =
+                          ext &&
+                          newTitle
+                            .toLowerCase()
+                            .endsWith(
+                              `.${ext.toLowerCase()}`,
+                            )
+                            ? `${dir}/${newTitle}`
+                            : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
 
-                    const res =
-                      await fetch(
-                        "/api/file",
-                        {
-                          method:
-                            "POST",
-                          headers: {
-                            "Content-Type":
-                              "application/json",
-                          },
-                          body: JSON.stringify(
+                        const res =
+                          await fetch(
+                            "/api/file",
                             {
-                              path: oldPath,
-                              newPath:
-                                newPath,
-                              action:
-                                "rename",
+                              method:
+                                "POST",
+                              headers: {
+                                "Content-Type":
+                                  "application/json",
+                              },
+                              body: JSON.stringify(
+                                {
+                                  path: oldPath,
+                                  newPath:
+                                    newPath,
+                                  action:
+                                    "rename",
+                                },
+                              ),
                             },
-                          ),
-                        },
-                      );
+                          );
 
-                    const data =
-                      await res.json();
-                    if (!res.ok)
-                      throw new Error(
-                        data.error ||
-                          "Failed to rename file",
-                      );
+                        const data =
+                          await res.json();
+                        if (!res.ok)
+                          throw new Error(
+                            data.error ||
+                              "Failed to rename file",
+                          );
 
-                    const next = {
-                      path: data.path,
-                      content:
-                        selectedFile.content,
-                    };
-                    setSelectedFile(
-                      next,
-                    );
-                    loadFileTree();
-                    return next;
-                  }}
-                />
+                        const next = {
+                          path: data.path,
+                          content:
+                            selectedFile.content,
+                        };
+                        setSelectedFile(
+                          next,
+                        );
+                        loadFileTree();
+                        return next;
+                      },
+                    })
+                  ) : (
+                    <div className="flex flex-1 justify-center items-center text-muted-foreground">
+                      Select a file to
+                      view and edit
+                    </div>
+                  )}
+                </div>
               )}
             </>
           ) : viewMode === "ideas" ? (

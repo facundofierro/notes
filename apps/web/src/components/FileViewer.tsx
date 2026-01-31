@@ -330,12 +330,12 @@ export default function FileViewer({
 
   return (
     <div className="flex flex-col flex-1 bg-background">
-      <div className="flex justify-between items-center p-3 bg-secondary border-b border-border">
+      <div className="flex justify-between items-center p-3 border-b bg-secondary border-border">
         <div className="flex gap-2 items-center">
           {onBack && (
             <button
               onClick={onBack}
-              className="p-1 mr-1 text-muted-foreground rounded transition-colors hover:text-white hover:bg-accent"
+              className="p-1 mr-1 rounded transition-colors text-muted-foreground hover:text-white hover:bg-accent"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -395,7 +395,7 @@ export default function FileViewer({
         </div>
 
         {isTestFile && (
-          <div className="flex bg-background rounded-lg p-1 border border-border">
+          <div className="flex p-1 rounded-lg border bg-background border-border">
             <button
               onClick={() =>
                 onTestViewModeChange?.(
@@ -461,7 +461,7 @@ export default function FileViewer({
             <>
               <button
                 onClick={handleCancel}
-                className="flex gap-1 items-center px-3 py-1 text-sm text-muted-foreground rounded transition-colors hover:text-white hover:bg-accent"
+                className="flex gap-1 items-center px-3 py-1 text-sm rounded transition-colors text-muted-foreground hover:text-white hover:bg-accent"
                 disabled={isSaving}
               >
                 <X className="w-4 h-4" />
@@ -483,7 +483,7 @@ export default function FileViewer({
               onClick={() =>
                 updateEditing(true)
               }
-              className="flex gap-1 items-center px-3 py-1 text-sm text-muted-foreground rounded transition-colors hover:text-white hover:bg-accent"
+              className="flex gap-1 items-center px-3 py-1 text-sm rounded transition-colors text-muted-foreground hover:text-white hover:bg-accent"
             >
               <Edit className="w-4 h-4" />
               Edit
@@ -500,14 +500,14 @@ export default function FileViewer({
         data-color-mode="dark"
       >
         {testViewMode === "steps" ? (
-          <div className="flex-1 h-full overflow-auto">
+          <div className="overflow-auto flex-1 h-full">
             <TestSteps
               code={effectiveContent}
             />
           </div>
         ) : testViewMode ===
           "results" ? (
-          <div className="flex-1 h-full overflow-hidden">
+          <div className="overflow-hidden flex-1 h-full">
             <TestResults
               testPath={file.path}
               currentOutput={testOutput}
@@ -612,7 +612,7 @@ export default function FileViewer({
           />
         )}
       </div>
-      <div className="px-3 py-1 bg-secondary border-t border-border">
+      <div className="px-3 py-1 border-t bg-secondary border-border">
         <span className="text-[10px] text-muted-foreground font-mono">
           {file.path}
         </span>

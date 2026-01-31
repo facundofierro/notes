@@ -187,7 +187,7 @@ export function SettingsDialog({
               disabled={
                 isLoading || !hasChanges
               }
-              className="gap-2 justify-start w-full text-white bg-blue-600 hover:bg-blue-700"
+              className="gap-2 justify-start w-full text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20"
             >
               <Save className="w-4 h-4" />
               Save Changes

@@ -265,7 +265,7 @@ export function SettingsProjects({
                 !isPathValid ||
                 isValidating
               }
-              className="text-white bg-blue-600 hover:bg-blue-700"
+              className="text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20"
             >
               <Plus className="mr-2 w-4 h-4" />
               Add
@@ -284,7 +284,7 @@ export function SettingsProjects({
               <div className="flex gap-3 items-center">
                 {project.type ===
                 "folder" ? (
-                  <FolderTree className="w-5 h-5 text-blue-400" />
+                  <FolderTree className="w-5 h-5 text-amber-400" />
                 ) : (
                   <Folder className="w-5 h-5 text-green-400" />
                 )}
