@@ -289,7 +289,7 @@ export function SettingsWorkflows({
         </div>
         <Button
           onClick={handleAddNew}
-          className="text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20 gap-2"
+          className="text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20 gap-2 px-4 py-2 border border-amber-500/30"
         >
           <Plus className="w-4 h-4" />
           New Workflow
@@ -319,29 +319,31 @@ export function SettingsWorkflows({
                     <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">System</span>
                   )}
                 </div>
-                {workflow.id !== "default" && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(workflow);
-                      }}
-                      className="h-8 w-8 text-gray-400 hover:text-white hover:bg-secondary"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(workflow);
+                    }}
+                    className="h-8 w-8 text-gray-400 hover:text-white hover:bg-secondary"
+                    title="Edit Workflow"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                  {workflow.id !== "default" && (
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={(e) => handleDelete(workflow.id, e)}
                       className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-secondary"
+                      title="Delete Workflow"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               
               <div className="flex justify-start">

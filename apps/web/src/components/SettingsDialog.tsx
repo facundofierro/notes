@@ -29,6 +29,7 @@ interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: () => void;
+  initialTab?: Tab;
 }
 
 type Tab =
@@ -42,6 +43,7 @@ export function SettingsDialog({
   open,
   onOpenChange,
   onSave,
+  initialTab,
 }: SettingsDialogProps) {
   const {
     settings,
@@ -60,7 +62,15 @@ export function SettingsDialog({
   const [hasChanges, setHasChanges] =
     React.useState(false);
   const [activeTab, setActiveTab] =
-    React.useState<Tab>("defaults");
+    React.useState<Tab>(
+      initialTab || "defaults",
+    );
+
+  React.useEffect(() => {
+    if (open && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
 
   React.useEffect(() => {
     setLocalSettings(settings);
@@ -138,7 +148,7 @@ export function SettingsDialog({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <DialogContent className="max-w-5xl h-[80vh] flex gap-0 p-0 overflow-hidden bg-background border-border text-foreground">
+      <DialogContent className="max-w-[1200px] w-[95vw] h-[85vh] flex gap-0 p-0 overflow-hidden bg-background border-border text-foreground">
         {/* Sidebar */}
         <div className="flex flex-col gap-2 p-4 w-64 border-r border-border bg-background">
           <div className="px-2 pt-2 mb-4">
@@ -176,7 +186,7 @@ export function SettingsDialog({
               variant="outline"
               onClick={handleReset}
               disabled={isLoading}
-              className="gap-2 justify-start w-full text-muted-foreground bg-transparent border-border hover:bg-secondary hover:text-white"
+              className="gap-2 justify-start w-full bg-transparent text-muted-foreground border-border hover:bg-secondary hover:text-white"
             >
               <RotateCcw className="w-4 h-4" />
               Reset Defaults
@@ -187,7 +197,7 @@ export function SettingsDialog({
               disabled={
                 isLoading || !hasChanges
               }
-              className="gap-2 justify-start w-full text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20"
+              className="gap-2 justify-start w-full text-white bg-amber-600 shadow-lg hover:bg-amber-700 shadow-amber-600/20"
             >
               <Save className="w-4 h-4" />
               Save Changes

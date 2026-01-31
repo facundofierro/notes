@@ -21,6 +21,7 @@ import {
   ListTodo,
   TestTube,
   Settings,
+  Settings2,
   LogIn,
   ChevronDown,
   Play,
@@ -346,6 +347,14 @@ export default function Home() {
     isSettingsOpen,
     setIsSettingsOpen,
   ] = React.useState(false);
+  const [settingsTab, setSettingsTab] =
+    React.useState<
+      | "projects"
+      | "agents"
+      | "tests"
+      | "defaults"
+      | "workflows"
+    >("defaults");
   const [
     isServiceRunning,
     setIsServiceRunning,
@@ -2449,13 +2458,14 @@ export default function Home() {
               </button>
 
               <button
-                onClick={() =>
-                  setIsSettingsOpen(true)
-                }
+                onClick={() => {
+                  setSettingsTab("projects");
+                  setIsSettingsOpen(true);
+                }}
                 className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
-                title="Settings"
+                title="Project Settings"
               >
-                <Settings className="w-4 h-4" />
+                <Settings2 className="w-4 h-4" />
               </button>
             </div>
 
@@ -2493,6 +2503,17 @@ export default function Home() {
               <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
             </div>
           </div>
+
+          <button
+            onClick={() => {
+              setSettingsTab("defaults");
+              setIsSettingsOpen(true);
+            }}
+            className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-white hover:bg-accent"
+            title="General Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
 
           <button className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-white hover:bg-accent rounded-lg text-sm transition-colors">
             <LogIn className="w-4 h-4" />
@@ -3037,6 +3058,7 @@ export default function Home() {
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
         onSave={handleSettingsSave}
+        initialTab={settingsTab}
       />
     </div>
   );
