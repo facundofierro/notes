@@ -550,6 +550,12 @@ export default function Home() {
     setSelectedFile(null);
   }, [viewMode, selectedRepo]);
 
+  React.useEffect(() => {
+    if (viewMode === "commands") {
+      setDocAiMode("modify");
+    }
+  }, [viewMode]);
+
   const testsSetupState =
     testsSetupStatus?.state ?? null;
 
@@ -831,12 +837,21 @@ export default function Home() {
             "/agelum-test/tests/",
           ) ||
           opts.viewMode === "tests";
+        const isCommandDoc =
+          normalizedPath.includes(
+            "/.agelum/ai/commands/",
+          ) ||
+          normalizedPath.includes(
+            "/ai/commands/",
+          ) ||
+          opts.viewMode === "commands";
 
         const effectiveDocMode:
           | "modify"
-          | "start" = isTestDoc
-          ? "modify"
-          : opts.docMode;
+          | "start" =
+          isTestDoc || isCommandDoc
+            ? "modify"
+            : opts.docMode;
 
         const operation =
           effectiveDocMode === "modify"
@@ -1599,7 +1614,7 @@ export default function Home() {
     const filteredTools = agentTools;
 
     return (
-      <div className="flex h-full w-full">
+      <div className="flex w-full h-full">
         <div className="flex overflow-hidden flex-1 border-r border-border">
           <FileViewer
             file={selectedFile}
@@ -1794,7 +1809,9 @@ export default function Home() {
                     : "Run test"}
                 </button>
               ) : (
-                !workDocIsDraft && (
+                !workDocIsDraft &&
+                viewMode !==
+                  "commands" && (
                   <div className="flex flex-1 p-1 rounded-lg border border-border bg-background">
                     <button
                       onClick={() =>
@@ -2401,11 +2418,19 @@ export default function Home() {
                   return (
                     <button
                       key={mode}
-                      onClick={() =>
+                      onClick={() => {
                         setViewMode(
                           mode as ViewMode,
-                        )
-                      }
+                        );
+                        if (
+                          mode ===
+                          "commands"
+                        ) {
+                          setDocAiMode(
+                            "modify",
+                          );
+                        }
+                      }}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                         viewMode ===
                         mode
@@ -2459,8 +2484,12 @@ export default function Home() {
 
               <button
                 onClick={() => {
-                  setSettingsTab("projects");
-                  setIsSettingsOpen(true);
+                  setSettingsTab(
+                    "projects",
+                  );
+                  setIsSettingsOpen(
+                    true,
+                  );
                 }}
                 className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
                 title="Project Settings"
@@ -2471,9 +2500,11 @@ export default function Home() {
 
             <div className="mx-1.5 w-px h-4 bg-border" />
 
-            <div className="relative flex items-center px-1">
+            <div className="flex relative items-center px-1">
               <select
-                value={selectedRepo || ""}
+                value={
+                  selectedRepo || ""
+                }
                 onChange={(e) =>
                   setSelectedRepo(
                     e.target.value,
@@ -2486,19 +2517,22 @@ export default function Home() {
                   disabled
                   className="bg-secondary"
                 >
-                  {repositories.length === 0
+                  {repositories.length ===
+                  0
                     ? "No repositories found"
                     : "Select repository"}
                 </option>
-                {repositories.map((repo) => (
-                  <option
-                    key={repo.name}
-                    value={repo.name}
-                    className="bg-secondary"
-                  >
-                    {repo.name}
-                  </option>
-                ))}
+                {repositories.map(
+                  (repo) => (
+                    <option
+                      key={repo.name}
+                      value={repo.name}
+                      className="bg-secondary"
+                    >
+                      {repo.name}
+                    </option>
+                  ),
+                )}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
             </div>
@@ -2506,7 +2540,9 @@ export default function Home() {
 
           <button
             onClick={() => {
-              setSettingsTab("defaults");
+              setSettingsTab(
+                "defaults",
+              );
               setIsSettingsOpen(true);
             }}
             className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-white hover:bg-accent"
@@ -2734,7 +2770,7 @@ export default function Home() {
                     ))}
                 </div>
               ) : (
-                <div className="flex flex-1 bg-background overflow-hidden">
+                <div className="flex overflow-hidden flex-1 bg-background">
                   {selectedFile ? (
                     renderWorkEditor({
                       onBack: () =>
