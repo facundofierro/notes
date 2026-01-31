@@ -7,6 +7,7 @@ import {
   TestTube,
   Terminal,
   Wrench,
+  Minus,
 } from "lucide-react";
 
 export const VIEW_MODE_CONFIG: Record<
@@ -41,6 +42,10 @@ export const VIEW_MODE_CONFIG: Record<
   "cli-tools": {
     label: "Cli tools",
     icon: Wrench,
+  },
+  separator: {
+    label: "Separator",
+    icon: Minus,
   },
 };
 

@@ -13,8 +13,27 @@ import {
   Trash2,
   X,
   Edit2,
+  GripVertical,
 } from "lucide-react";
 import { VIEW_MODE_CONFIG } from "@/lib/view-config";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
 
 interface SettingsWorkflowsProps {
   settings: UserSettings;
@@ -24,6 +43,63 @@ interface SettingsWorkflowsProps {
   ) => void;
 }
 
+interface SortableItemProps {
+  id: string;
+  type: string;
+  onRemove: (id: string) => void;
+}
+
+function SortableItem({ id, type, onRemove }: SortableItemProps) {
+  const config = VIEW_MODE_CONFIG[type] || { label: type, icon: X };
+  const Icon = config.icon;
+  const isSeparator = type === "separator";
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group w-full flex items-center justify-between px-3 py-2 text-sm rounded-md border transition-all ${
+        isDragging
+          ? "bg-secondary border-amber-500/50 shadow-lg ring-1 ring-amber-500/20"
+          : "text-gray-200 bg-secondary/50 border-transparent hover:border-border"
+      }`}
+    >
+      <div className="flex items-center gap-2 flex-1">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-white/5 rounded"
+        >
+          <GripVertical className="w-3.5 h-3.5 text-gray-500" />
+        </div>
+        <Icon className={`w-4 h-4 ${isSeparator ? "text-gray-500" : "text-gray-400"}`} />
+        <span className={isSeparator ? "text-gray-500 italic" : ""}>{config.label}</span>
+      </div>
+      <button
+        onClick={() => onRemove(id)}
+        className="p-1 hover:bg-red-500/10 rounded-md transition-colors"
+      >
+        <X className="w-3 h-3 text-gray-500 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+    </div>
+  );
+}
+
 export function SettingsWorkflows({
   settings,
   onChange,
@@ -31,12 +107,25 @@ export function SettingsWorkflows({
   const [viewMode, setViewMode] = React.useState<"list" | "edit">("list");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [newName, setNewName] = React.useState("");
-  const [selectedItems, setSelectedItems] = React.useState<string[]>([]);
+  const [selectedItems, setSelectedItems] = React.useState<{ id: string, type: string }[]>([]);
 
-  const availableItems = Object.keys(VIEW_MODE_CONFIG);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const availableItems = Object.keys(VIEW_MODE_CONFIG).filter(k => k !== "separator");
 
   const handleAddOrUpdate = () => {
     if (!newName) return;
+
+    const itemsToSave = selectedItems.map(i => i.type);
 
     if (editingId) {
       const updatedWorkflows = (settings.workflows || []).map((w) =>
@@ -44,7 +133,7 @@ export function SettingsWorkflows({
           ? {
               ...w,
               name: newName,
-              items: selectedItems,
+              items: itemsToSave,
             }
           : w,
       );
@@ -53,7 +142,7 @@ export function SettingsWorkflows({
       const newWorkflow: WorkflowConfig = {
         id: crypto.randomUUID(),
         name: newName,
-        items: selectedItems,
+        items: itemsToSave,
       };
       onChange("workflows", [...(settings.workflows || []), newWorkflow]);
     }
@@ -64,7 +153,7 @@ export function SettingsWorkflows({
   const handleEdit = (workflow: WorkflowConfig) => {
     setEditingId(workflow.id);
     setNewName(workflow.name);
-    setSelectedItems(workflow.items);
+    setSelectedItems(workflow.items.map(type => ({ id: `${type}-${crypto.randomUUID()}`, type })));
     setViewMode("edit");
   };
 
@@ -97,32 +186,48 @@ export function SettingsWorkflows({
     onChange("defaultWorkflowId", id === "default" ? undefined : id);
   };
 
-  const addItem = (item: string) => {
-    if (!selectedItems.includes(item)) {
-      setSelectedItems([...selectedItems, item]);
+  const addItem = (type: string) => {
+    if (type === "separator" || !selectedItems.some(i => i.type === type)) {
+      setSelectedItems([...selectedItems, { id: `${type}-${crypto.randomUUID()}`, type }]);
     }
   };
 
-  const removeItem = (item: string) => {
-    setSelectedItems(selectedItems.filter((i) => i !== item));
+  const removeItem = (id: string) => {
+    setSelectedItems(selectedItems.filter((i) => i.id !== id));
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setSelectedItems((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   const itemsNotInBar = availableItems.filter(
-    (item) => !selectedItems.includes(item),
+    (type) => !selectedItems.some(i => i.type === type),
   );
 
   const WorkflowPreview = ({ items, isActive = false }: { items: string[], isActive?: boolean }) => (
-    <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border">
+    <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border flex-wrap">
       {items.length > 0 ? (
         items.map((mode, index) => {
+          if (mode === "separator") {
+            return (
+              <div key={`sep-${index}`} className="w-px h-6 bg-border mx-1 my-1" />
+            );
+          }
           const config = VIEW_MODE_CONFIG[mode];
           if (!config) return null;
           const Icon = config.icon;
-          // In the actual top bar, the first item is usually active by default or based on current view
           const isItemActive = index === 0 && isActive; 
           return (
             <div
-              key={mode}
+              key={`${mode}-${index}`}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
                 isItemActive
                   ? "bg-amber-500/15 text-amber-500 border border-amber-500/20"
@@ -154,14 +259,6 @@ export function SettingsWorkflows({
               Configure your top bar items and layout.
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCancelEdit}
-            className="text-gray-400 hover:text-white"
-          >
-            <X className="w-5 h-5" />
-          </Button>
         </div>
 
         {/* Workflow Preview */}
@@ -170,7 +267,7 @@ export function SettingsWorkflows({
             Preview
           </Label>
           <div className="flex justify-center items-center p-4 bg-background border border-border rounded-xl">
-            <WorkflowPreview items={selectedItems} isActive={true} />
+            <WorkflowPreview items={selectedItems.map(i => i.type)} isActive={true} />
           </div>
         </div>
 
@@ -192,26 +289,29 @@ export function SettingsWorkflows({
               <Label className="text-gray-400 text-xs font-semibold">
                 ITEMS IN BAR (LEFT TO RIGHT)
               </Label>
-              <div className="min-h-[200px] p-2 bg-background rounded-lg border border-border space-y-1">
-                {selectedItems.map((item) => {
-                  const config = VIEW_MODE_CONFIG[item];
-                  const Icon = config.icon;
-                  return (
-                    <button
-                      key={item}
-                      onClick={() => removeItem(item)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-200 bg-secondary/50 hover:bg-secondary rounded-md border border-transparent hover:border-border transition-all group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-gray-400" />
-                        {config.label}
-                      </div>
-                      <X className="w-3 h-3 text-gray-500 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  );
-                })}
+              <div className="h-[350px] overflow-y-auto p-2 bg-background rounded-lg border border-border space-y-1">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                  modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+                >
+                  <SortableContext
+                    items={selectedItems.map(i => i.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {selectedItems.map((item) => (
+                      <SortableItem
+                        key={item.id}
+                        id={item.id}
+                        type={item.type}
+                        onRemove={removeItem}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
                 {selectedItems.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-[180px] text-gray-600 text-xs italic">
+                  <div className="flex flex-col items-center justify-center h-full text-gray-600 text-xs italic">
                     Click items on the right to add
                   </div>
                 )}
@@ -223,14 +323,26 @@ export function SettingsWorkflows({
               <Label className="text-gray-400 text-xs font-semibold">
                 AVAILABLE ITEMS
               </Label>
-              <div className="min-h-[200px] p-2 bg-background rounded-lg border border-border space-y-1">
-                {itemsNotInBar.map((item) => {
-                  const config = VIEW_MODE_CONFIG[item];
+              <div className="h-[350px] overflow-y-auto p-2 bg-background rounded-lg border border-border space-y-1">
+                {/* Special Separator Item */}
+                <button
+                  onClick={() => addItem("separator")}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-white bg-transparent hover:bg-secondary/50 rounded-md border border-transparent hover:border-border transition-all group"
+                >
+                  <div className="flex items-center gap-2">
+                    <VIEW_MODE_CONFIG.separator.icon className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
+                    {VIEW_MODE_CONFIG.separator.label}
+                  </div>
+                  <Plus className="w-3 h-3 text-gray-600 group-hover:text-amber-400" />
+                </button>
+
+                {itemsNotInBar.map((type) => {
+                  const config = VIEW_MODE_CONFIG[type];
                   const Icon = config.icon;
                   return (
                     <button
-                      key={item}
-                      onClick={() => addItem(item)}
+                      key={type}
+                      onClick={() => addItem(type)}
                       className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-white bg-transparent hover:bg-secondary/50 rounded-md border border-transparent hover:border-border transition-all group"
                     >
                       <div className="flex items-center gap-2">
@@ -242,7 +354,7 @@ export function SettingsWorkflows({
                   );
                 })}
                 {itemsNotInBar.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-[180px] text-gray-600 text-xs italic">
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-600 text-xs italic">
                     All items added
                   </div>
                 )}
