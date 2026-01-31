@@ -37,7 +37,7 @@ const columns: KanbanColumnType[] = [
   },
   {
     id: "priority",
-    title: "Priority",
+    title: "Bugs",
     color: "red",
     order: 1,
   },
@@ -50,13 +50,13 @@ const columns: KanbanColumnType[] = [
   {
     id: "doing",
     title: "Doing",
-    color: "blue",
+    color: "green",
     order: 3,
   },
   {
     id: "done",
     title: "Done",
-    color: "green",
+    color: "gray",
     order: 4,
   },
 ];
