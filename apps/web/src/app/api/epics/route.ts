@@ -18,15 +18,15 @@ interface Epic {
   path: string;
 }
 
-function resolveRepoDirs(
+async function resolveRepoDirs(
   repo: string,
-): {
+): Promise<{
   repoDir: string;
   primaryAgelumDir: string;
   legacyAgelumDir: string;
-} {
+}> {
   const repoDir =
-    resolveProjectPath(repo);
+    await resolveProjectPath(repo);
 
   if (!repoDir) {
     throw new Error(
@@ -47,16 +47,16 @@ function resolveRepoDirs(
   };
 }
 
-function resolveEpicsRoots(
+async function resolveEpicsRoots(
   repo: string,
-): {
+): Promise<{
   primaryEpicsRoot: string;
   legacyEpicsRoot: string;
-} {
+}> {
   const {
     primaryAgelumDir,
     legacyAgelumDir,
-  } = resolveRepoDirs(repo);
+  } = await resolveRepoDirs(repo);
   return {
     primaryEpicsRoot: path.join(
       primaryAgelumDir,
@@ -182,16 +182,16 @@ function parseEpicFile(
   }
 }
 
-function readEpics(
+async function readEpics(
   repo: string,
-): Epic[] {
+): Promise<Epic[]> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureEpicStructure(primaryAgelumDir);
   const {
     primaryEpicsRoot,
     legacyEpicsRoot,
-  } = resolveEpicsRoots(repo);
+  } = await resolveEpicsRoots(repo);
 
   const epicsByPath = new Map<
     string,
@@ -240,19 +240,19 @@ function readEpics(
   );
 }
 
-function createEpic(
+async function createEpic(
   repo: string,
   data: {
     title: string;
     description?: string;
     state?: string;
   },
-): Epic {
+): Promise<Epic> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureEpicStructure(primaryAgelumDir);
   const { primaryEpicsRoot } =
-    resolveEpicsRoots(repo);
+    await resolveEpicsRoots(repo);
   const state =
     (data.state as
       | "backlog"
@@ -326,19 +326,19 @@ function findEpicFile(
   return null;
 }
 
-function moveEpic(
+async function moveEpic(
   repo: string,
   epicId: string,
   fromState: string,
   toState: string,
-): void {
+): Promise<void> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureEpicStructure(primaryAgelumDir);
   const {
     primaryEpicsRoot,
     legacyEpicsRoot,
-  } = resolveEpicsRoots(repo);
+  } = await resolveEpicsRoots(repo);
 
   const roots = [
     primaryEpicsRoot,
@@ -565,7 +565,7 @@ export async function GET(
   }
 
   try {
-    const epics = readEpics(repo);
+    const epics = await readEpics(repo);
     return NextResponse.json({ epics });
   } catch (error) {
     console.error(error);
@@ -650,14 +650,14 @@ export async function POST(
               | "doing"
               | "done") || "backlog";
           const { primaryAgelumDir } =
-            resolveRepoDirs(repo);
+            await resolveRepoDirs(repo);
           ensureEpicStructure(
             primaryAgelumDir,
           );
           const {
             primaryEpicsRoot,
             legacyEpicsRoot,
-          } = resolveEpicsRoots(repo);
+          } = await resolveEpicsRoots(repo);
           const roots = [
             primaryEpicsRoot,
             legacyEpicsRoot,
@@ -720,7 +720,7 @@ export async function POST(
             }
           }
 
-          const epic = createEpic(
+          const epic = await createEpic(
             repo,
             data || {},
           );
@@ -735,7 +735,7 @@ export async function POST(
             "Agent execution error:",
             error,
           );
-          const epic = createEpic(
+          const epic = await createEpic(
             repo,
             data || {},
           );
@@ -748,7 +748,7 @@ export async function POST(
           });
         }
       } else {
-        const epic = createEpic(
+        const epic = await createEpic(
           repo,
           data || {},
         );
@@ -764,7 +764,7 @@ export async function POST(
       fromState &&
       toState
     ) {
-      moveEpic(
+      await moveEpic(
         repo,
         epicId,
         fromState,

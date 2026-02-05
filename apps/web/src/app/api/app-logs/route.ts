@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { processOutputBuffers, processStdinStreams } from "@/lib/process-store";
+import { processOutputBuffers, processInputHandlers } from "@/lib/process-store";
 
 const execAsync = promisify(exec);
 
@@ -36,8 +36,15 @@ export async function GET(request: NextRequest) {
       try {
         process.kill(pid, 0);
       } catch (error) {
-        const msg = JSON.stringify({ 
-          output: `Error: Process ${pid} not found\n` 
+        const buffer = processOutputBuffers.get(pid);
+        if (buffer && buffer.length > 0) {
+          const msg = JSON.stringify({ output: buffer }) + "\n";
+          controller.enqueue(encoder.encode(msg));
+          controller.close();
+          return;
+        }
+        const msg = JSON.stringify({
+          output: `Error: Process ${pid} not found (or exited without output)\n`,
         }) + "\n";
         controller.enqueue(encoder.encode(msg));
         controller.close();
@@ -66,6 +73,13 @@ export async function GET(request: NextRequest) {
         } catch (error) {
           // Process died
           clearInterval(pollInterval);
+          const buffer = processOutputBuffers.get(pid);
+          if (buffer && buffer.length > position) {
+            const newContent = buffer.slice(position);
+            position = buffer.length;
+            const msg = JSON.stringify({ output: newContent }) + "\n";
+            controller.enqueue(encoder.encode(msg));
+          }
           const msg = JSON.stringify({ 
             output: "\n[Process exited]\n" 
           }) + "\n";
@@ -105,21 +119,20 @@ export async function POST(request: NextRequest) {
   }
 
   // Send input to the process via its stdin stream
-  const stdin = processStdinStreams.get(pid);
-  if (stdin && stdin.writable) {
+  const writeInput = processInputHandlers.get(pid);
+  if (writeInput) {
     try {
-      stdin.write(input);
+      writeInput(input);
       return NextResponse.json({ success: true });
     } catch (error: any) {
       return NextResponse.json(
-        { error: `Failed to write to stdin: ${error.message}` },
+        { error: `Failed to write to input: ${error.message}` },
         { status: 500 }
       );
     }
-  } else {
-    return NextResponse.json(
-      { error: "Process stdin not available" },
-      { status: 404 }
-    );
   }
+  return NextResponse.json(
+    { error: "Process input not available" },
+    { status: 404 }
+  );
 }

@@ -17,15 +17,15 @@ interface Idea {
   path: string;
 }
 
-function resolveRepoDirs(
+async function resolveRepoDirs(
   repo: string,
-): {
+): Promise<{
   repoDir: string;
   primaryAgelumDir: string;
   legacyAgelumDir: string;
-} {
+}> {
   const repoDir =
-    resolveProjectPath(repo);
+    await resolveProjectPath(repo);
 
   if (!repoDir) {
     throw new Error(
@@ -46,16 +46,16 @@ function resolveRepoDirs(
   };
 }
 
-function resolveIdeasRoots(
+async function resolveIdeasRoots(
   repo: string,
-): {
+): Promise<{
   primaryIdeasRoot: string;
   legacyIdeasRoot: string;
-} {
+}> {
   const {
     primaryAgelumDir,
     legacyAgelumDir,
-  } = resolveRepoDirs(repo);
+  } = await resolveRepoDirs(repo);
   return {
     primaryIdeasRoot: path.join(
       primaryAgelumDir,
@@ -168,18 +168,18 @@ function parseIdeaFile(
   }
 }
 
-function readIdeas(
+async function readIdeas(
   repo: string,
-): Idea[] {
+): Promise<Idea[]> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureIdeasStructure(
     primaryAgelumDir,
   );
   const {
     primaryIdeasRoot,
     legacyIdeasRoot,
-  } = resolveIdeasRoots(repo);
+  } = await resolveIdeasRoots(repo);
 
   const ideasByPath = new Map<
     string,
@@ -229,21 +229,21 @@ function readIdeas(
   );
 }
 
-function createIdea(
+async function createIdea(
   repo: string,
   data: {
     title: string;
     description?: string;
     state?: string;
   },
-): Idea {
+): Promise<Idea> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureIdeasStructure(
     primaryAgelumDir,
   );
   const { primaryIdeasRoot } =
-    resolveIdeasRoots(repo);
+    await resolveIdeasRoots(repo);
   const state =
     (data.state as
       | "thinking"
@@ -317,21 +317,21 @@ function findIdeaFile(
   return null;
 }
 
-function moveIdea(
+async function moveIdea(
   repo: string,
   ideaId: string,
   fromState: string,
   toState: string,
-): void {
+): Promise<void> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureIdeasStructure(
     primaryAgelumDir,
   );
   const {
     primaryIdeasRoot,
     legacyIdeasRoot,
-  } = resolveIdeasRoots(repo);
+  } = await resolveIdeasRoots(repo);
 
   const roots = [
     primaryIdeasRoot,
@@ -574,7 +574,7 @@ export async function GET(
   }
 
   try {
-    const ideas = readIdeas(repo);
+    const ideas = await readIdeas(repo);
     return NextResponse.json({ ideas });
   } catch (error) {
     console.error(error);
@@ -623,7 +623,7 @@ export async function POST(
     }
 
     if (action === "create") {
-      const idea = createIdea(
+      const idea = await createIdea(
         repo,
         data || {},
       );
@@ -638,7 +638,7 @@ export async function POST(
       fromState &&
       toState
     ) {
-      moveIdea(
+      await moveIdea(
         repo,
         ideaId,
         fromState,

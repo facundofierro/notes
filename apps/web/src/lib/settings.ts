@@ -7,6 +7,7 @@ export interface ProjectConfig {
   name: string;
   path: string;
   type: "project" | "folder";
+  folderConfigId?: string; // Reference to parent folder config (for projects from containers)
   workflowId?: string;
   commands?: {
     build?: string;
@@ -107,7 +108,7 @@ function ensureSettingsDir(): void {
   }
 }
 
-function readProjectConfig(projectPath: string): Partial<ProjectConfig> {
+export async function readProjectConfig(projectPath: string): Promise<Partial<ProjectConfig>> {
   const config: Partial<ProjectConfig> = {};
   
   try {
@@ -152,7 +153,7 @@ function readProjectConfig(projectPath: string): Partial<ProjectConfig> {
   return config;
 }
 
-function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>): void {
+async function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>): Promise<void> {
   try {
     const agelumDir = path.join(projectPath, ".agelum");
     if (!fs.existsSync(agelumDir)) {
@@ -174,7 +175,7 @@ function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>):
   }
 }
 
-export function readSettings(): UserSettings {
+export async function readSettings(): Promise<UserSettings> {
   try {
     ensureSettingsDir();
     const file = getSettingsFile();
@@ -201,13 +202,15 @@ export function readSettings(): UserSettings {
 
     // Load project-specific configurations
     if (settings.projects) {
-      settings.projects = settings.projects.map((project) => {
-        if (project.type === "project" && project.path) {
-          const projectConfig = readProjectConfig(project.path);
-          return { ...project, ...projectConfig };
-        }
-        return project;
-      });
+      settings.projects = await Promise.all(
+        settings.projects.map(async (project) => {
+          if (project.type === "project" && project.path) {
+            const projectConfig = await readProjectConfig(project.path);
+            return { ...project, ...projectConfig };
+          }
+          return project;
+        })
+      );
     }
 
     return settings;
@@ -217,7 +220,7 @@ export function readSettings(): UserSettings {
   }
 }
 
-export function saveSettings(settings: UserSettings): void {
+export async function saveSettings(settings: UserSettings): Promise<void> {
   try {
     ensureSettingsDir();
 
@@ -225,7 +228,7 @@ export function saveSettings(settings: UserSettings): void {
     if (settings.projects) {
       for (const project of settings.projects) {
         if (project.type === "project" && project.path) {
-          saveProjectConfig(project.path, project);
+          await saveProjectConfig(project.path, project);
         }
       }
     }
@@ -256,10 +259,10 @@ export function saveSettings(settings: UserSettings): void {
   }
 }
 
-export function resolveProjectPath(
+export async function resolveProjectPath(
   repoName: string,
-): string | null {
-  const settings = readSettings();
+): Promise<string | null> {
+  const settings = await readSettings();
 
   // 1. Check configured projects
   if (

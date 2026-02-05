@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { readSettings, saveSettings, UserSettings } from "@/lib/settings";
 
 export async function GET() {
-  const settings = readSettings();
+  const settings = await readSettings();
   return NextResponse.json({ settings });
 }
 
 export async function POST(request: Request) {
   try {
     const newSettings = (await request.json()) as UserSettings;
-    saveSettings(newSettings);
+    await saveSettings(newSettings);
     return NextResponse.json({ settings: newSettings });
   } catch (error) {
     return NextResponse.json(
@@ -27,12 +27,12 @@ export async function PATCH(request: Request) {
     const partial =
       "settings" in body && body.settings ? body.settings : body;
 
-    const current = readSettings();
+    const current = await readSettings();
     const merged: UserSettings = {
       ...current,
       ...partial,
     };
-    saveSettings(merged);
+    await saveSettings(merged);
 
     return NextResponse.json({ settings: merged });
   } catch {
@@ -47,6 +47,6 @@ export async function DELETE() {
   // Reset logic is now handled by overwriting with defaults or deleting file
   // For simplicity, let's just write defaults
   const { defaultSettings } = await import("@/lib/settings");
-  saveSettings(defaultSettings);
+  await saveSettings(defaultSettings);
   return NextResponse.json({ settings: defaultSettings });
 }

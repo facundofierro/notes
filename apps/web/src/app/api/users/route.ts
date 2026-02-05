@@ -7,8 +7,8 @@ interface UsersConfig {
   users: string[]
 }
 
-function ensureUsersConfig(repo: string): { filePath: string; data: UsersConfig } {
-  const repoPath = resolveProjectPath(repo);
+async function ensureUsersConfig(repo: string): Promise<{ filePath: string; data: UsersConfig }> {
+  const repoPath = await resolveProjectPath(repo);
   
   if (!repoPath) {
     // If repo not found, return empty users
@@ -49,6 +49,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ users: [] })
   }
 
-  const { data } = ensureUsersConfig(repo)
+  const { data } = await ensureUsersConfig(repo)
   return NextResponse.json({ users: data.users })
 }

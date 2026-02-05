@@ -584,7 +584,7 @@ export async function POST(
       );
     }
 
-    const settings = readSettings();
+    const settings = await readSettings();
 
     const chunkLooksErrorLike = (
       text: string,

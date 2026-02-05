@@ -21,15 +21,15 @@ interface Task {
   path: string;
 }
 
-function resolveRepoDirs(
+async function resolveRepoDirs(
   repo: string,
-): {
+): Promise<{
   repoDir: string;
   primaryAgelumDir: string;
   legacyAgelumDir: string;
-} {
+}> {
   const repoDir =
-    resolveProjectPath(repo);
+    await resolveProjectPath(repo);
 
   if (!repoDir) {
     throw new Error(
@@ -50,16 +50,16 @@ function resolveRepoDirs(
   };
 }
 
-function resolveTasksRoots(
+async function resolveTasksRoots(
   repo: string,
-): {
+): Promise<{
   primaryTasksRoot: string;
   legacyTasksRoot: string;
-} {
+}> {
   const {
     primaryAgelumDir,
     legacyAgelumDir,
-  } = resolveRepoDirs(repo);
+  } = await resolveRepoDirs(repo);
   return {
     primaryTasksRoot: path.join(
       primaryAgelumDir,
@@ -373,18 +373,18 @@ function readTasksRecursively(
   return tasks;
 }
 
-function readTasks(
+async function readTasks(
   repo: string,
-): Task[] {
+): Promise<Task[]> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureAgelumStructure(
     primaryAgelumDir,
   );
   const {
     primaryTasksRoot,
     legacyTasksRoot,
-  } = resolveTasksRoots(repo);
+  } = await resolveTasksRoots(repo);
 
   const tasksByPath = new Map<
     string,
@@ -428,7 +428,7 @@ function readTasks(
   );
 }
 
-function createTask(
+async function createTask(
   repo: string,
   data: {
     title: string;
@@ -436,14 +436,14 @@ function createTask(
     state?: string;
     assignee?: string;
   },
-): Task {
+): Promise<Task> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureAgelumStructure(
     primaryAgelumDir,
   );
   const { primaryTasksRoot } =
-    resolveTasksRoots(repo);
+    await resolveTasksRoots(repo);
   const state =
     (data.state as
       | "backlog"
@@ -536,21 +536,21 @@ function buildNewTaskMarkdown(opts: {
   return `${frontmatterLines.join("\n")}\n\n${bodyWithHeading}\n`;
 }
 
-function createTaskFromContent(
+async function createTaskFromContent(
   repo: string,
   data: {
     state?: string;
     fileBase?: string;
     content: string;
   },
-): { path: string; content: string } {
+): Promise<{ path: string; content: string }> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureAgelumStructure(
     primaryAgelumDir,
   );
   const { primaryTasksRoot } =
-    resolveTasksRoots(repo);
+    await resolveTasksRoots(repo);
   const state =
     (data.state as
       | "backlog"
@@ -595,10 +595,10 @@ function createTaskFromContent(
   );
 
   try {
-    const settings = readSettings();
+    const settings = await readSettings();
     if (settings.createBranchPerTask) {
       const { repoDir } =
-        resolveRepoDirs(repo);
+        await resolveRepoDirs(repo);
       const branchName = `task/${finalBase}`;
       try {
         execSync(
@@ -661,21 +661,21 @@ function findTaskFile(
   return null;
 }
 
-function moveTask(
+async function moveTask(
   repo: string,
   taskId: string,
   fromState: string,
   toState: string,
-): void {
+): Promise<void> {
   const { primaryAgelumDir } =
-    resolveRepoDirs(repo);
+    await resolveRepoDirs(repo);
   ensureAgelumStructure(
     primaryAgelumDir,
   );
   const {
     primaryTasksRoot,
     legacyTasksRoot,
-  } = resolveTasksRoots(repo);
+  } = await resolveTasksRoots(repo);
 
   const roots = [
     primaryTasksRoot,
@@ -758,20 +758,20 @@ function moveTask(
   fs.renameSync(fromPath, toPath);
 }
 
-function renameTask(
+async function renameTask(
   repo: string,
   filePath: string,
   newTitle: string,
-): {
+): Promise<{
   path: string;
   content: string;
   id: string;
   title: string;
-} {
+}> {
   const {
     primaryTasksRoot,
     legacyTasksRoot,
-  } = resolveTasksRoots(repo);
+  } = await resolveTasksRoots(repo);
   const resolvedPrimaryRoot =
     path.resolve(primaryTasksRoot);
   const resolvedLegacyRoot =
@@ -873,7 +873,7 @@ export async function GET(
   }
 
   try {
-    const tasks = readTasks(repo);
+    const tasks = await readTasks(repo);
     return NextResponse.json({ tasks });
   } catch (error) {
     console.error(error);
@@ -928,7 +928,7 @@ export async function POST(
         );
       }
       const result =
-        createTaskFromContent(
+        await createTaskFromContent(
           repo,
           data,
         );
@@ -968,7 +968,7 @@ export async function POST(
 
           // Try to read the task that should have been created
           const { primaryTasksRoot } =
-            resolveTasksRoots(repo);
+            await resolveTasksRoots(repo);
           const state =
             (data?.state as
               | "backlog"
@@ -1066,7 +1066,7 @@ export async function POST(
           }
 
           // Fallback: create the task directly if agent didn't create it
-          const task = createTask(
+          const task = await createTask(
             repo,
             data || {},
           );
@@ -1082,7 +1082,7 @@ export async function POST(
             error,
           );
           // Fallback to direct creation
-          const task = createTask(
+          const task = await createTask(
             repo,
             data || {},
           );
@@ -1096,7 +1096,7 @@ export async function POST(
         }
       } else {
         // Direct mode: create file directly
-        const task = createTask(
+        const task = await createTask(
           repo,
           data || {},
         );
@@ -1112,7 +1112,7 @@ export async function POST(
       fromState &&
       toState
     ) {
-      moveTask(
+      await moveTask(
         repo,
         taskId,
         fromState,
@@ -1128,7 +1128,7 @@ export async function POST(
       typeof taskPath === "string" &&
       typeof newTitle === "string"
     ) {
-      const result = renameTask(
+      const result = await renameTask(
         repo,
         taskPath,
         newTitle,

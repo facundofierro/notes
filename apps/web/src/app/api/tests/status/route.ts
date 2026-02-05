@@ -38,7 +38,7 @@ export async function GET(
 
   try {
     const repoPath =
-      resolveProjectPath(repo);
+      await resolveProjectPath(repo);
 
     if (!repoPath) {
       return NextResponse.json({

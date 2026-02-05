@@ -11,6 +11,7 @@ export interface ProjectConfig {
   name: string;
   path: string;
   type: "project" | "folder";
+  folderConfigId?: string; // Reference to parent folder config (for projects from containers)
   workflowId?: string;
   commands?: {
     build?: string;

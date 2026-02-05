@@ -19,8 +19,8 @@ export async function GET() {
     }
 
     // 1. Try to read from settings
-    const settings = readSettings();
-    let repositories: { name: string; path: string }[] = [];
+    const settings = await readSettings();
+    let repositories: { name: string; path: string; folderConfigId?: string }[] = [];
     
     if (settings.projects && settings.projects.length > 0) {
       for (const p of settings.projects) {
@@ -34,7 +34,8 @@ export async function GET() {
                  if (entry.isDirectory() && !entry.name.startsWith('.')) {
                     repositories.push({ 
                       name: entry.name, 
-                      path: path.join(p.path, entry.name) 
+                      path: path.join(p.path, entry.name),
+                      folderConfigId: p.id // Add reference to parent folder config
                     });
                  }
                }

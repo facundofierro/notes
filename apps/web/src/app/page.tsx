@@ -8,6 +8,7 @@ import EpicsKanban from "@/components/EpicsKanban";
 import IdeasKanban from "@/components/IdeasKanban";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { BrowserRightPanel } from "@/components/BrowserRightPanel";
+import { ProjectSelector } from "@/components/ProjectSelector";
 import { AgelumNotesLogo } from "@agelum/shadcn";
 import {
   Kanban,
@@ -136,7 +137,7 @@ export default function Home() {
     repositories,
     setRepositories,
   ] = React.useState<
-    { name: string; path: string }[]
+    { name: string; path: string; folderConfigId?: string }[]
   >([]);
   const [
     selectedRepo,
@@ -215,6 +216,14 @@ export default function Home() {
   >("prompt");
   const [iframeUrl, setIframeUrl] =
     React.useState<string>("");
+  const [
+    projectConfig,
+    setProjectConfig,
+  ] = React.useState<{
+    url?: string;
+    commands?: Record<string, string>;
+    workflowId?: string;
+  } | null>(null);
   const [isRecording, setIsRecording] =
     React.useState(false);
   const [
@@ -468,6 +477,10 @@ export default function Home() {
     React.useRef<AbortController | null>(
       null,
     );
+  const [
+    logStreamPid,
+    setLogStreamPid,
+  ] = React.useState<number | null>(null);
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
@@ -660,6 +673,12 @@ export default function Home() {
     setSelectedFile(null);
   }, [viewMode, selectedRepo]);
 
+  // Clear log streaming when repo changes
+  React.useEffect(() => {
+    setLogStreamPid(null);
+    setAppLogs("");
+  }, [selectedRepo]);
+
   React.useEffect(() => {
     if (viewMode === "ai") {
       setDocAiMode("modify");
@@ -671,25 +690,79 @@ export default function Home() {
     return settings.projects.find((p) => p.name === selectedRepo);
   }, [selectedRepo, settings]);
 
+  const currentProjectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)
+        ?.path || currentProject?.path || null
+    );
+  }, [currentProject?.path, repositories, selectedRepo]);
+
+  const currentProjectConfig = React.useMemo(() => {
+    // Project config is merged in the useSettings hook via API
+    // But also check the fetched projectConfig from the filesystem
+    return currentProject || projectConfig || null;
+  }, [currentProject, projectConfig]);
+
   const testsSetupState =
     testsSetupStatus?.state ?? null;
+
+  // Fetch project configuration from filesystem when repo or project path changes
+  React.useEffect(() => {
+    if (!currentProjectPath) {
+      setProjectConfig(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(
+          `/api/project/config?path=${encodeURIComponent(currentProjectPath)}`
+        );
+        if (!res.ok) {
+          console.error("Failed to fetch project config");
+          return;
+        }
+        const data = (await res.json()) as {
+          config: {
+            url?: string;
+            commands?: Record<string, string>;
+            workflowId?: string;
+          };
+        };
+        if (!cancelled) {
+          setProjectConfig(data.config || null);
+        }
+      } catch (error) {
+        console.error("Error fetching project config:", error);
+      }
+    };
+
+    fetchConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProjectPath]);
 
   // Sync iframeUrl with project url (only for browser view, not OpenCode)
   React.useEffect(() => {
     // Only set iframe URL to project URL when on browser tab
     // Don't overwrite if it's an OpenCode URL (port 9988)
     if (viewMode === "browser") {
-      if (currentProject?.url) {
-        setIframeUrl(currentProject.url);
-      } else if (typeof window !== "undefined") {
-        setIframeUrl(window.location.origin);
+      if (currentProjectConfig?.url) {
+        setIframeUrl(currentProjectConfig.url);
+      } else {
+        setIframeUrl("");
       }
     }
-  }, [currentProject?.url, viewMode]);
+  }, [currentProjectConfig?.url, viewMode]);
 
   // Poll app status
   React.useEffect(() => {
-    if (!selectedRepo || !currentProject?.url) {
+    if (!selectedRepo || !currentProjectConfig?.url) {
       setIsAppRunning(false);
       setIsAppManaged(false);
       setAppPid(null);
@@ -712,9 +785,15 @@ export default function Home() {
 
         if (cancelled) return;
 
-        setIsAppRunning(data.isRunning);
-        setIsAppManaged(data.isManaged);
-        setAppPid(data.pid || null);
+    if (
+      data.isRunning !== isAppRunning ||
+      data.isManaged !== isAppManaged ||
+      (data.pid || null) !== appPid
+    ) {
+      setIsAppRunning(data.isRunning);
+      setIsAppManaged(data.isManaged);
+      setAppPid(data.pid || null);
+    }
       } catch (error) {
         if (cancelled) return;
         setIsAppRunning(false);
@@ -725,6 +804,9 @@ export default function Home() {
 
     // Check immediately
     checkStatus();
+
+    // Poll regularly to keep status fresh
+    intervalId = window.setInterval(checkStatus, 2000);
     
     // Check when window gets focus
     const handleFocus = () => checkStatus();
@@ -737,30 +819,30 @@ export default function Home() {
         window.clearInterval(intervalId);
       }
     };
-  }, [selectedRepo, currentProject?.url]);
+  }, [selectedRepo, currentProjectConfig?.url, appPid, isAppManaged, isAppRunning]);
 
   // Stream app logs and detect when app is ready
   React.useEffect(() => {
-    if (!isAppManaged || !isAppRunning || !appPid) {
-      setIsAppStarting(false);
+    if (!logStreamPid) {
       return;
     }
 
     let cancelled = false;
     let lastLogTime = Date.now();
     let hasLoggedRecently = false;
+    let startTimeoutId: number | null = null;
 
     const streamLogs = async () => {
       appLogsAbortControllerRef.current = new AbortController();
       const ac = appLogsAbortControllerRef.current;
 
       try {
-        const res = await fetch(`/api/app-logs?pid=${appPid}`, {
+        const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, {
           signal: ac.signal,
         });
 
         if (!res.ok || !res.body) {
-          setAppLogs((prev) => prev + "\nError: Failed to stream logs\n");
+          setAppLogs((prev) => prev + "\x1b[31mError: Failed to stream logs\x1b[0m\n");
           setIsAppStarting(false);
           return;
         }
@@ -768,6 +850,15 @@ export default function Home() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+
+        if (startTimeoutId !== null) {
+          window.clearTimeout(startTimeoutId);
+        }
+        startTimeoutId = window.setTimeout(() => {
+          if (!hasLoggedRecently) {
+            setIsAppStarting(false);
+          }
+        }, 2000);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -785,20 +876,27 @@ export default function Home() {
                   setAppLogs((prev) => prev + data.output);
                   lastLogTime = Date.now();
                   hasLoggedRecently = true;
+                  setIsAppStarting(false);
                 }
               } catch {
                 // Not JSON, append as plain text
                 setAppLogs((prev) => prev + line + "\n");
                 lastLogTime = Date.now();
                 hasLoggedRecently = true;
+                setIsAppStarting(false);
               }
             }
           }
         }
+        
+        // Stream ended naturally (process exited) - mark starting as done
+        setIsAppStarting(false);
       } catch (error: any) {
         if (error.name !== "AbortError" && !cancelled) {
           console.error("Log streaming error:", error);
+          setAppLogs((prev) => prev + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`);
         }
+        setIsAppStarting(false);
       }
     };
 
@@ -812,7 +910,7 @@ export default function Home() {
       const timeSinceLastLog = Date.now() - lastLogTime;
       
       // If we've had logs and then 3 seconds of silence, check if app is ready
-      if (hasLoggedRecently && timeSinceLastLog > 3000 && currentProject?.url) {
+      if (hasLoggedRecently && timeSinceLastLog > 3000 && currentProjectConfig?.url) {
         // Check if URL is responding
         try {
           const checkRes = await fetch(`/api/app-status?repo=${selectedRepo}`);
@@ -821,7 +919,7 @@ export default function Home() {
           if (status.isRunning) {
             // App is ready, switch to browser view
             setIsAppStarting(false);
-            setIframeUrl(currentProject.url);
+            setIframeUrl(currentProjectConfig.url);
             setViewMode("browser");
           }
         } catch (error) {
@@ -833,12 +931,15 @@ export default function Home() {
     return () => {
       cancelled = true;
       window.clearInterval(readinessInterval);
+      if (startTimeoutId !== null) {
+        window.clearTimeout(startTimeoutId);
+      }
       if (appLogsAbortControllerRef.current) {
         appLogsAbortControllerRef.current.abort();
         appLogsAbortControllerRef.current = null;
       }
     };
-  }, [isAppManaged, isAppRunning, appPid, selectedRepo, currentProject?.url]);
+  }, [logStreamPid, selectedRepo, currentProjectConfig?.url]);
 
   React.useEffect(() => {
     if (viewMode !== "tests") return;
@@ -994,8 +1095,21 @@ export default function Home() {
   const handleStartApp = React.useCallback(async () => {
     if (!selectedRepo) return;
     
-    // Clear previous logs and switch to logs view
-    setAppLogs("");
+    const devCommand =
+      currentProjectConfig?.commands?.dev ||
+      "pnpm dev";
+    const repoPath = currentProjectPath || "unknown";
+    
+    // Show rich banner with project context
+    const banner = [
+      `\x1b[36m━━━ Starting: ${selectedRepo} ━━━\x1b[0m`,
+      `\x1b[90m  Directory: ${repoPath}\x1b[0m`,
+      `\x1b[90m  Command:   ${devCommand}\x1b[0m`,
+      `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
+      "",
+    ].join("\n");
+    
+    setAppLogs(banner);
     setIsAppStarting(true);
     setViewMode("logs");
     
@@ -1003,6 +1117,7 @@ export default function Home() {
     if (appLogsAbortControllerRef.current) {
       appLogsAbortControllerRef.current.abort();
     }
+    setLogStreamPid(null);
     
     try {
       const res = await fetch("/api/app-status", {
@@ -1012,16 +1127,25 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.success) {
-        console.error("Failed to start app:", data.error);
-        setAppLogs(`Error: ${data.error || "Failed to start app"}\n`);
+        setAppLogs((prev) => prev + `\x1b[31mError: ${data.error || "Failed to start app"}\x1b[0m\n`);
+        setIsAppStarting(false);
+        return;
+      }
+      
+      if (data.pid) {
+        setAppPid(data.pid);
+        setIsAppRunning(true);
+        setIsAppManaged(true);
+        setLogStreamPid(data.pid);
+      } else {
+        setAppLogs((prev) => prev + "\x1b[31mError: Missing process id from start response\x1b[0m\n");
         setIsAppStarting(false);
       }
     } catch (error) {
-      console.error("Error starting app:", error);
-      setAppLogs(`Error: ${error}\n`);
+      setAppLogs((prev) => prev + `\x1b[31mError: ${error}\x1b[0m\n`);
       setIsAppStarting(false);
     }
-  }, [selectedRepo]);
+  }, [selectedRepo, currentProject?.commands?.dev, currentProjectPath]);
 
   const handleStopApp = React.useCallback(async () => {
     if (!selectedRepo) return;
@@ -1031,6 +1155,7 @@ export default function Home() {
       appLogsAbortControllerRef.current.abort();
       appLogsAbortControllerRef.current = null;
     }
+    setLogStreamPid(null);
     
     try {
       const res = await fetch("/api/app-status", {
@@ -1040,15 +1165,41 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.success) {
-        console.error("Failed to stop app:", data.error);
+        setAppLogs((prev) => prev + `\x1b[31mError stopping: ${data.error}\x1b[0m\n`);
+      } else {
+        setAppLogs((prev) => prev + "\x1b[33m[Stopped]\x1b[0m\n");
       }
     } catch (error) {
-      console.error("Error stopping app:", error);
+      setAppLogs((prev) => prev + `\x1b[31mError stopping: ${error}\x1b[0m\n`);
     }
   }, [selectedRepo]);
 
   const handleRestartApp = React.useCallback(async () => {
     if (!selectedRepo) return;
+    
+    const devCommand =
+      currentProjectConfig?.commands?.dev ||
+      "pnpm dev";
+    const repoPath = currentProjectPath || "unknown";
+    
+    // Abort existing stream
+    if (appLogsAbortControllerRef.current) {
+      appLogsAbortControllerRef.current.abort();
+    }
+    setLogStreamPid(null);
+    
+    const banner = [
+      `\x1b[36m━━━ Restarting: ${selectedRepo} ━━━\x1b[0m`,
+      `\x1b[90m  Directory: ${repoPath}\x1b[0m`,
+      `\x1b[90m  Command:   ${devCommand}\x1b[0m`,
+      `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
+      "",
+    ].join("\n");
+    
+    setAppLogs(banner);
+    setIsAppStarting(true);
+    setViewMode("logs");
+    
     try {
       const res = await fetch("/api/app-status", {
         method: "POST",
@@ -1057,12 +1208,19 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.success) {
-        console.error("Failed to restart app:", data.error);
+        setAppLogs((prev) => prev + `\x1b[31mError: ${data.error || "Failed to restart app"}\x1b[0m\n`);
+        setIsAppStarting(false);
+      } else if (data.pid) {
+        setAppPid(data.pid);
+        setIsAppRunning(true);
+        setIsAppManaged(true);
+        setLogStreamPid(data.pid);
       }
     } catch (error) {
-      console.error("Error restarting app:", error);
+      setAppLogs((prev) => prev + `\x1b[31mError: ${error}\x1b[0m\n`);
+      setIsAppStarting(false);
     }
-  }, [selectedRepo]);
+  }, [selectedRepo, currentProject?.commands?.dev, currentProjectPath]);
 
   const handleInstallDeps = React.useCallback(async () => {
     if (!selectedRepo || !currentProject) return;
@@ -2958,43 +3116,13 @@ export default function Home() {
         </div>
 
         <div className="flex gap-4 items-center">
-          <div className="flex items-center bg-secondary/50 rounded-full border border-border px-1.5 py-1 shadow-sm">
-            <div className="flex relative items-center px-1">
-              <select
-                value={
-                  selectedRepo || ""
-                }
-                onChange={(e) =>
-                  setSelectedRepo(
-                    e.target.value,
-                  )
-                }
-                className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 appearance-none cursor-pointer hover:text-white font-medium text-right"
-              >
-                <option
-                  value=""
-                  disabled
-                  className="bg-secondary"
-                >
-                  {repositories.length ===
-                  0
-                    ? "No repositories found"
-                    : "Select repository"}
-                </option>
-                {repositories.map(
-                  (repo) => (
-                    <option
-                      key={repo.name}
-                      value={repo.name}
-                      className="bg-secondary"
-                    >
-                      {repo.name}
-                    </option>
-                  ),
-                )}
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-            </div>
+          <div className="flex items-center rounded-full px-1.5 py-1 shadow-sm">
+            <ProjectSelector
+              repositories={repositories}
+              selectedRepo={selectedRepo}
+              onSelect={(repoName) => setSelectedRepo(repoName)}
+              className="w-[220px]"
+            />
 
             <div className="mx-1.5 w-px h-4 bg-border" />
 

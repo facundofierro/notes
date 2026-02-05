@@ -182,10 +182,10 @@ function shouldStartInstall(
   return true;
 }
 
-function ensureStagehandSetup(
+async function ensureStagehandSetup(
   projectDir: string,
   testsDir: string,
-): TestsSetupStatus {
+): Promise<TestsSetupStatus> {
   if (!fs.existsSync(projectDir)) {
     fs.mkdirSync(projectDir, {
       recursive: true,
@@ -195,7 +195,7 @@ function ensureStagehandSetup(
     fs.mkdirSync(testsDir, { recursive: true });
   }
 
-  const settings = readSettings();
+  const settings = await readSettings();
   ensureAgelumTestEnvFiles(projectDir, {
     BROWSERBASE_API_KEY:
       settings.stagehandApiKey ||
@@ -912,7 +912,7 @@ export async function GET(
 
   try {
     const repoPath =
-      resolveProjectPath(repo);
+      await resolveProjectPath(repo);
 
     if (!repoPath) {
       console.error(
@@ -946,7 +946,7 @@ export async function GET(
         migrateAgelumTestsStructure(repoPath);
       const projectDir = path.dirname(testsDir);
       const status =
-        ensureStagehandSetup(projectDir, testsDir);
+        await ensureStagehandSetup(projectDir, testsDir);
       const tree = buildFileTree(
         testsDir,
         basePath,
