@@ -34,6 +34,7 @@ import {
   Paperclip,
   Search,
   X,
+  Globe,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSettings } from "@/hooks/use-settings";
@@ -558,6 +559,15 @@ export default function Home() {
 
   const testsSetupState =
     testsSetupStatus?.state ?? null;
+
+  // Sync iframeUrl with project url
+  React.useEffect(() => {
+    if (currentProject?.url) {
+      setIframeUrl(currentProject.url);
+    } else if (typeof window !== "undefined") {
+      setIframeUrl(window.location.origin);
+    }
+  }, [currentProject?.url]);
 
   // Auto-run logic
   React.useEffect(() => {
@@ -3096,15 +3106,37 @@ export default function Home() {
             <div className="flex flex-1 bg-background overflow-hidden relative">
               <div className="absolute inset-0 flex flex-col">
                 <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
-                  <div className="flex items-center gap-1 flex-1 bg-background border border-border rounded px-3 py-1 text-xs text-muted-foreground overflow-hidden whitespace-nowrap">
-                    {currentProject?.url || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")}
+                  <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
+                    <Globe className="w-3 h-3 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={iframeUrl}
+                      onChange={(e) => setIframeUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          // Force reload or something if needed
+                          const target = e.currentTarget;
+                          const val = target.value;
+                          setIframeUrl("");
+                          setTimeout(() => setIframeUrl(val), 0);
+                        }
+                      }}
+                      className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"
+                      placeholder="Enter URL..."
+                    />
                   </div>
                 </div>
-                <iframe 
-                  src={currentProject?.url || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")} 
-                  className="flex-1 w-full border-none bg-white"
-                  title="App Browser"
-                />
+                {iframeUrl ? (
+                  <iframe 
+                    src={iframeUrl} 
+                    className="flex-1 w-full border-none bg-white"
+                    title="App Browser"
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                    Enter a URL to preview the application
+                  </div>
+                )}
               </div>
             </div>
           ) : (

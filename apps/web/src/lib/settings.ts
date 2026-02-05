@@ -108,16 +108,40 @@ function ensureSettingsDir(): void {
 }
 
 function readProjectConfig(projectPath: string): Partial<ProjectConfig> {
+  const config: Partial<ProjectConfig> = {};
+  
   try {
     const configPath = path.join(projectPath, ".agelum", "config.json");
     if (fs.existsSync(configPath)) {
       const content = fs.readFileSync(configPath, "utf-8");
-      return JSON.parse(content) as Partial<ProjectConfig>;
+      Object.assign(config, JSON.parse(content));
+    }
+
+    // Auto-detect URL from package.json if not specified
+    if (!config.url) {
+      const pkgPath = path.join(projectPath, "package.json");
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+        const scripts = pkg.scripts || {};
+        const devScript = scripts.dev || scripts.start || "";
+        
+        // Try to find -p or --port followed by a number
+        const portMatch = devScript.match(/(?:-p|--port)\s+(\d+)/);
+        if (portMatch) {
+          config.url = `http://localhost:${portMatch[1]}/`;
+        } else if (devScript.includes("next dev") || devScript.includes("next start")) {
+          // Next.js default port is 3000
+          config.url = "http://localhost:3000/";
+        } else if (devScript.includes("vite")) {
+          // Vite default port is 5173
+          config.url = "http://localhost:5173/";
+        }
+      }
     }
   } catch (error) {
     console.error(`Error reading project config at ${projectPath}:`, error);
   }
-  return {};
+  return config;
 }
 
 function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>): void {
