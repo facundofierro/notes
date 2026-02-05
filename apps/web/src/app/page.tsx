@@ -870,14 +870,18 @@ export default function Home() {
                   setAppLogs((prev) => prev + data.output);
                   lastLogTime = Date.now();
                   hasLoggedRecently = true;
-                  setIsAppStarting(false);
+                  if (!currentProjectConfig?.url) {
+                    setIsAppStarting(false);
+                  }
                 }
               } catch {
                 // Not JSON, append as plain text
                 setAppLogs((prev) => prev + line + "\n");
                 lastLogTime = Date.now();
                 hasLoggedRecently = true;
-                setIsAppStarting(false);
+                if (!currentProjectConfig?.url) {
+                  setIsAppStarting(false);
+                }
               }
             }
           }
@@ -897,21 +901,18 @@ export default function Home() {
     // Start streaming logs
     streamLogs();
 
-    // Check for app readiness: if no new logs for 3 seconds and URL is alive
+    // Check for app readiness: if URL is alive, switch to browser view
     const readinessInterval = window.setInterval(async () => {
       if (cancelled) return;
 
-      const timeSinceLastLog = Date.now() - lastLogTime;
-      
-      // If we've had logs and then 3 seconds of silence, check if app is ready
-      if (hasLoggedRecently && timeSinceLastLog > 3000 && currentProjectConfig?.url) {
-        // Check if URL is responding
+      // Only check if we are actually starting an app that has a URL
+      if (isAppStarting && currentProjectConfig?.url) {
         try {
           const checkRes = await fetch(`/api/app-status?repo=${selectedRepo}`);
           const status = await checkRes.json();
           
-          if (status.isRunning) {
-            // App is ready, switch to browser view
+          if (status.isUrlReady) {
+            // App is officially ready and responding at the URL
             setIsAppStarting(false);
             setIframeUrl(currentProjectConfig.url);
             setViewMode("browser");
@@ -920,7 +921,7 @@ export default function Home() {
           console.error("Readiness check error:", error);
         }
       }
-    }, 1000);
+    }, 2000); // Increased interval to 2 seconds
 
     return () => {
       cancelled = true;
@@ -1117,7 +1118,7 @@ export default function Home() {
       const res = await fetch("/api/app-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo: selectedRepo, action: "start" }),
+        body: JSON.stringify({ repo: selectedRepo, action: "shell" }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -1140,6 +1141,49 @@ export default function Home() {
       setIsAppStarting(false);
     }
   }, [selectedRepo, currentProject?.commands?.dev, currentProjectPath]);
+
+  const handleOpenShell = React.useCallback(async () => {
+    if (!selectedRepo) return;
+    
+    const repoPath = currentProjectPath || "unknown";
+    
+    setAppLogs(`\x1b[36m━━━ Opening Terminal: ${selectedRepo} ━━━\x1b[0m\n\x1b[90m  Cwd: ${repoPath}\x1b[0m\n\n`);
+    setIsAppStarting(true);
+    setViewMode("logs");
+    
+    // Abort any existing log streaming
+    if (appLogsAbortControllerRef.current) {
+      appLogsAbortControllerRef.current.abort();
+    }
+    setLogStreamPid(null);
+    
+    try {
+      const res = await fetch("/api/app-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo: selectedRepo, action: "shell" }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setAppLogs((prev) => prev + `\x1b[31mError: ${data.error || "Failed to open terminal"}\x1b[0m\n`);
+        setIsAppStarting(false);
+        return;
+      }
+      
+      if (data.pid) {
+        setAppPid(data.pid);
+        setIsAppRunning(true);
+        setIsAppManaged(true);
+        setLogStreamPid(data.pid);
+      } else {
+        setAppLogs((prev) => prev + "\x1b[31mError: Missing process id from shell response\x1b[0m\n");
+        setIsAppStarting(false);
+      }
+    } catch (error) {
+      setAppLogs((prev) => prev + `\x1b[31mError: ${error}\x1b[0m\n`);
+      setIsAppStarting(false);
+    }
+  }, [selectedRepo, currentProjectPath]);
 
   const handleStopApp = React.useCallback(async () => {
     if (!selectedRepo) return;
@@ -3139,6 +3183,16 @@ export default function Home() {
                   title="Stop App"
                 >
                   <Square className="w-4 h-4" />
+                </button>
+              )}
+
+              {!isAppRunning && (
+                <button
+                  onClick={handleOpenShell}
+                  className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                  title="Open Terminal"
+                >
+                  <Terminal className="w-4 h-4" />
                 </button>
               )}
 

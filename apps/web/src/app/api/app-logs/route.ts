@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid pid" }, { status: 400 });
   }
 
-  // Generate a unique client ID
+  console.log(`[LogStream] Client connected for PID: ${pid}. Buffers: ${processOutputBuffers.size}, Handlers: ${processInputHandlers.size}`);
+  
   const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   
   // Create a readable stream for streaming logs

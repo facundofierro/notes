@@ -7,7 +7,7 @@ import { readSettings, ProjectConfig } from "@/lib/settings";
 import net from "node:net";
 import { Agent } from "undici";
 import { processStore, processOutputBuffers, processInputHandlers, cleanupProcess, cleanupProcessBuffer } from "@/lib/process-store";
-import { spawn as spawnPty, IPty } from "node-pty";
+import { spawn, ChildProcess } from "node:child_process";
 
 const execAsync = promisify(exec);
 const insecureAgent = new Agent({
@@ -67,7 +67,7 @@ async function tryFetch(
   }
 }
 
-async function checkUrlAlive(url: string): Promise<boolean> {
+async function checkUrlAlive(url: string, strict = false): Promise<boolean> {
   const parsed = new URL(url);
 
   if (await tryFetch(url)) return true;
@@ -75,6 +75,8 @@ async function checkUrlAlive(url: string): Promise<boolean> {
   if (isLocalLikeHost(parsed.hostname)) {
     if (await tryFetch(url, { insecure: true })) return true;
   }
+
+  if (strict) return false;
 
   const port = parseInt(
     parsed.port ||
@@ -159,6 +161,8 @@ export async function GET(request: NextRequest) {
     let isRunning = false;
     let pid: number | null = null;
 
+    let isUrlReady = false;
+
     // Check if we have a managed process
     if (managedProcess) {
       const alive = await checkPidAlive(managedProcess.pid);
@@ -172,16 +176,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // If not managed, check if running externally
-    if (!isRunning && project.url) {
-      const urlAlive = await checkUrlAlive(project.url);
-      if (urlAlive) {
+    // Check if URL is responding
+    if (project.url) {
+      isUrlReady = await checkUrlAlive(project.url, true); // Strict check for readiness
+      const isAliveAtAll = isUrlReady || await checkUrlAlive(project.url, false);
+      
+      if (isAliveAtAll) {
         isRunning = true;
-        // Try to find the PID by port
-        const urlObj = new URL(project.url);
-        const port = parseInt(urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80'), 10);
-        if (port && port !== 80 && port !== 443) {
-          pid = await findProcessByPort(port);
+        // If not managed but URL is alive, try to find the PID
+        if (!isManaged) {
+          const urlObj = new URL(project.url);
+          const port = parseInt(urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80'), 10);
+          if (port && port !== 80 && port !== 443) {
+            pid = await findProcessByPort(port);
+          }
         }
       }
     }
@@ -189,6 +197,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       isRunning,
       isManaged,
+      isUrlReady,
       pid,
       startedAt: managedProcess?.startedAt,
       command: managedProcess?.command,
@@ -271,6 +280,7 @@ export async function POST(request: NextRequest) {
     }
 
     switch (action) {
+      case "shell":
       case "start": {
         // Check if already running
         const managedProcess = processStore.get(repo);
@@ -282,93 +292,117 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if running externally
-        if (project.url && (await checkUrlAlive(project.url))) {
+        if (action === "start" && project.url && (await checkUrlAlive(project.url))) {
           return NextResponse.json({
             success: false,
             error: "Already running externally",
           });
         }
 
-        const devCommand = project.commands?.dev || "pnpm dev";
-        const shell =
-          process.env.SHELL || "/bin/zsh";
-        const cmd = shell;
-        const args = ["-lc", devCommand];
+        const isShellAction = action === "shell";
+        const devCommand = isShellAction ? "shell" : (project.commands?.dev || "pnpm dev");
+        
+        // Robust environment for macOS
+        const cleanEnv: Record<string, string> = {
+          HOME: process.env.HOME || "",
+          USER: process.env.USER || "",
+          TERM: "xterm-256color",
+          LANG: "en_US.UTF-8",
+          FORCE_COLOR: "1",
+          BROWSER: "none",
+          CI: "1"
+        };
+        
+        // Merge with existing path but ensure homebrew is first
+        const systemPath = process.env.PATH || "";
+        cleanEnv.PATH = `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${systemPath}`;
 
-        let ptyProcess: IPty;
+        let cmd: string;
+        let args: string[];
+
+        if (isShellAction || action === "start") {
+          cmd = "/bin/zsh";
+          args = isShellAction ? ["-l"] : ["-l", "-c", devCommand || "pnpm dev"];
+        } else {
+          cmd = "/bin/zsh";
+          args = ["-l", "-c", devCommand];
+        }
+
+        let childProcess: ChildProcess;
         try {
-          ptyProcess = spawnPty(cmd, args, {
-          cwd: repoPath,
-          env: {
-            ...process.env,
-            PATH: process.env.PATH,
-            COLUMNS: "200",
-            LINES: "50",
-            FORCE_COLOR: "1",
-            TERM: "xterm-256color",
-          },
-          cols: 200,
-          rows: 50,
+          console.log(`[Spawn] Executing: ${cmd} ${args.join(" ")} in ${repoPath}`);
+          childProcess = spawn(cmd, args, {
+            cwd: repoPath,
+            env: {
+              ...process.env,
+              ...cleanEnv,
+              FORCE_COLOR: "1",
+            },
+            stdio: ["pipe", "pipe", "pipe"],
           });
         } catch (error: any) {
+          console.error(`[Spawn] Failed:`, error);
           return NextResponse.json({
             success: false,
-            error: `Failed to start PTY: ${error.message || error} (cwd: ${repoPath}, shell: ${cmd}, args: ${args.join(" ")})`,
+            error: `Failed to spawn process: ${error.message || error} (cwd: ${repoPath}, cmd: ${cmd})`,
           });
         }
 
-        if (!ptyProcess.pid) {
+        if (!childProcess.pid) {
           return NextResponse.json({
             success: false,
-            error: "Failed to start process",
+            error: "Failed to start process (no PID)",
           });
         }
+
+        const pid = childProcess.pid;
 
         // Initialize output buffer for this process
         const startBanner = [
-          `[app-start] cwd: ${repoPath}`,
-          `[app-start] shell: ${cmd} ${args.join(" ")}`,
-          `[app-start] command: ${devCommand}`,
+          `\x1b[36m━━━ ${isShellAction ? 'Terminal' : 'Starting App'}: ${repo} ━━━\x1b[0m`,
+          `\x1b[90m  Cwd:     ${repoPath}\x1b[0m`,
+          `\x1b[90m  Command: ${cmd} ${args.join(" ")}\x1b[0m`,
+          `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
           "",
         ].join("\n");
-        processOutputBuffers.set(ptyProcess.pid, startBanner);
-        processInputHandlers.set(ptyProcess.pid, (data: string) => {
-          ptyProcess.write(data);
+        processOutputBuffers.set(pid, startBanner);
+        processInputHandlers.set(pid, (data: string) => {
+          childProcess.stdin?.write(data);
         });
 
         // Capture output
-        ptyProcess.onData((data) => {
-          const existing = processOutputBuffers.get(ptyProcess.pid!) || "";
-          processOutputBuffers.set(ptyProcess.pid!, existing + data);
+        childProcess.stdout?.on("data", (data) => {
+          const existing = processOutputBuffers.get(pid) || "";
+          processOutputBuffers.set(pid, existing + data.toString());
+        });
+
+        childProcess.stderr?.on("data", (data) => {
+          const existing = processOutputBuffers.get(pid) || "";
+          processOutputBuffers.set(pid, existing + `\x1b[31m${data.toString()}\x1b[m`);
         });
 
         // Capture exit
-        ptyProcess.onExit((event) => {
-          if (ptyProcess.pid) {
-            const existing = processOutputBuffers.get(ptyProcess.pid) || "";
-            const exitLine = `\n[Process exited] code=${event?.exitCode ?? "unknown"} signal=${event?.signal ?? "unknown"}\n`;
-            processOutputBuffers.set(ptyProcess.pid, existing + exitLine);
-            
-            // Clean up process tracking immediately, but keep buffer for a while
-            // so the frontend can fetch the last logs
-            const pid = ptyProcess.pid;
-            cleanupProcess(repo, pid);
-            setTimeout(() => {
-              cleanupProcessBuffer(pid);
-            }, 10000);
-          }
+        childProcess.on("exit", (code, signal) => {
+          const existing = processOutputBuffers.get(pid) || "";
+          const exitLine = `\n[Process exited] code=${code ?? "unknown"} signal=${signal ?? "unknown"}\n`;
+          processOutputBuffers.set(pid, existing + exitLine);
+          
+          cleanupProcess(repo, pid);
+          setTimeout(() => {
+            cleanupProcessBuffer(pid);
+          }, 10000);
         });
 
         processStore.set(repo, {
-          pid: ptyProcess.pid,
+          pid: pid,
           startedAt: new Date().toISOString(),
-          command: devCommand,
-          ptyProcess,
+          command: isShellAction ? "shell" : (devCommand || "pnpm dev"),
+          childProcess,
         });
 
         return NextResponse.json({
           success: true,
-          pid: ptyProcess.pid,
+          pid: pid,
         });
       }
 
@@ -378,13 +412,11 @@ export async function POST(request: NextRequest) {
         if (managedProcess) {
           // Stop managed process
           try {
-        if (managedProcess.ptyProcess) {
-          managedProcess.ptyProcess.kill();
-        } else if (managedProcess.childProcess) {
-          managedProcess.childProcess.kill("SIGTERM");
-        } else {
-          process.kill(managedProcess.pid, "SIGTERM");
-        }
+            if (managedProcess.childProcess) {
+              managedProcess.childProcess.kill("SIGTERM");
+            } else {
+              process.kill(managedProcess.pid, "SIGTERM");
+            }
             cleanupProcess(repo, managedProcess.pid);
             setTimeout(() => cleanupProcessBuffer(managedProcess.pid), 10000);
             return NextResponse.json({ success: true, managed: true });
@@ -433,9 +465,7 @@ export async function POST(request: NextRequest) {
         const managedProcess = processStore.get(repo);
         if (managedProcess) {
           try {
-            if (managedProcess.ptyProcess) {
-              managedProcess.ptyProcess.kill();
-            } else if (managedProcess.childProcess) {
+            if (managedProcess.childProcess) {
               managedProcess.childProcess.kill("SIGTERM");
             } else {
               process.kill(managedProcess.pid, "SIGTERM");
@@ -451,85 +481,96 @@ export async function POST(request: NextRequest) {
 
         // Then start
         const devCommand = project.commands?.dev || "pnpm dev";
-        const shell =
-          process.env.SHELL || "/bin/zsh";
-        const cmd = shell;
-        const args = ["-lc", devCommand];
+        const cmd = "/bin/zsh";
+        const args = ["-l", "-c", devCommand];
 
-        let ptyProcess: IPty;
+        // Robust environment for macOS
+        const cleanEnv: Record<string, string> = {
+          HOME: process.env.HOME || "",
+          USER: process.env.USER || "",
+          TERM: "xterm-256color",
+          LANG: "en_US.UTF-8",
+          FORCE_COLOR: "1",
+          BROWSER: "none",
+          CI: "1"
+        };
+        const systemPath = process.env.PATH || "";
+        cleanEnv.PATH = `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${systemPath}`;
+
+        let childProcess: ChildProcess;
         try {
-          ptyProcess = spawnPty(cmd, args, {
-          cwd: repoPath,
-          env: {
-            ...process.env,
-            PATH: process.env.PATH,
-            COLUMNS: "200",
-            LINES: "50",
-            FORCE_COLOR: "1",
-            TERM: "xterm-256color",
-          },
-          cols: 200,
-          rows: 50,
+          console.log(`[Spawn] Restarting: ${cmd} ${args.join(" ")} in ${repoPath}`);
+          childProcess = spawn(cmd, args, {
+            cwd: repoPath,
+            env: {
+              ...process.env,
+              ...cleanEnv,
+            },
+            stdio: ["pipe", "pipe", "pipe"],
           });
         } catch (error: any) {
+          console.error(`[Spawn] Restart failed:`, error);
           return NextResponse.json({
             success: false,
-            error: `Failed to start PTY: ${error.message || error} (cwd: ${repoPath}, shell: ${cmd}, args: ${args.join(" ")})`,
+            error: `Failed to restart process: ${error.message || error} (cwd: ${repoPath}, cmd: ${cmd}, args: ${args.join(" ")})`,
           });
         }
 
-        if (!ptyProcess.pid) {
+        if (!childProcess.pid) {
           return NextResponse.json({
             success: false,
-            error: "Failed to restart process",
+            error: "Failed to restart process (no PID)",
           });
         }
+
+        const pid = childProcess.pid;
 
         // Initialize output buffer for this process
         const startBanner = [
-          `[app-start] cwd: ${repoPath}`,
-          `[app-start] shell: ${cmd} ${args.join(" ")}`,
-          `[app-start] command: ${devCommand}`,
+          `\x1b[36m━━━ Restarting App: ${repo} ━━━\x1b[0m`,
+          `\x1b[90m  Cwd:     ${repoPath}\x1b[0m`,
+          `\x1b[90m  Command: ${cmd} ${args.join(" ")}\x1b[0m`,
+          `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
           "",
         ].join("\n");
-        processOutputBuffers.set(ptyProcess.pid, startBanner);
-        processInputHandlers.set(ptyProcess.pid, (data: string) => {
-          ptyProcess.write(data);
+        processOutputBuffers.set(pid, startBanner);
+        processInputHandlers.set(pid, (data: string) => {
+          childProcess.stdin?.write(data);
         });
 
         // Capture output
-        ptyProcess.onData((data) => {
-          const existing = processOutputBuffers.get(ptyProcess.pid!) || "";
-          processOutputBuffers.set(ptyProcess.pid!, existing + data);
+        childProcess.stdout?.on("data", (data) => {
+          const existing = processOutputBuffers.get(pid) || "";
+          processOutputBuffers.set(pid, existing + data.toString());
+        });
+
+        childProcess.stderr?.on("data", (data) => {
+          const existing = processOutputBuffers.get(pid) || "";
+          processOutputBuffers.set(pid, existing + `\x1b[31m${data.toString()}\x1b[m`);
         });
 
         // Capture exit
-        ptyProcess.onExit((event) => {
-          if (ptyProcess.pid) {
-            const existing = processOutputBuffers.get(ptyProcess.pid) || "";
-            const exitLine = `\n[Process exited] code=${event?.exitCode ?? "unknown"} signal=${event?.signal ?? "unknown"}\n`;
-            processOutputBuffers.set(ptyProcess.pid, existing + exitLine);
-            
-            // Clean up process tracking immediately, but keep buffer for a while
-            // so the frontend can fetch the last logs
-            const pid = ptyProcess.pid;
-            cleanupProcess(repo, pid);
-            setTimeout(() => {
-              cleanupProcessBuffer(pid);
-            }, 10000);
-          }
+        childProcess.on("exit", (code, signal) => {
+          const existing = processOutputBuffers.get(pid) || "";
+          const exitLine = `\n[Process exited] code=${code ?? "unknown"} signal=${signal ?? "unknown"}\n`;
+          processOutputBuffers.set(pid, existing + exitLine);
+          
+          cleanupProcess(repo, pid);
+          setTimeout(() => {
+            cleanupProcessBuffer(pid);
+          }, 10000);
         });
 
         processStore.set(repo, {
-          pid: ptyProcess.pid,
+          pid: pid,
           startedAt: new Date().toISOString(),
           command: devCommand,
-          ptyProcess,
+          childProcess,
         });
 
         return NextResponse.json({
           success: true,
-          pid: ptyProcess.pid,
+          pid: pid,
         });
       }
 
