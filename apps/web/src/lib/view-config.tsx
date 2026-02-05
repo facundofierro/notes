@@ -5,6 +5,8 @@ import {
   Layers,
   ListTodo,
   TestTube,
+  Eye,
+  Globe,
   Terminal,
   Wrench,
   Minus,
@@ -34,9 +36,17 @@ export const VIEW_MODE_CONFIG: Record<
     label: "Tests",
     icon: TestTube,
   },
+  review: {
+    label: "Review",
+    icon: Eye,
+  },
   ai: {
     label: "AI",
     icon: Wrench,
+  },
+  browser: {
+    label: "Browser",
+    icon: Globe,
   },
   separator: {
     label: "Separator",

@@ -539,9 +539,10 @@ function ensureAgelumStructure(
   agelumDir: string,
 ) {
   const directories = [
-    path.join("doc", "plan"),
-    path.join("doc", "research"),
     path.join("doc", "docs"),
+    path.join("doc", "docs", "plan"),
+    path.join("doc", "docs", "research"),
+    path.join("doc", "docs", "specs"),
     path.join("ai", "commands"),
     path.join("ai", "cli-tools"),
     path.join("ai", "skills"),
@@ -668,15 +669,34 @@ function migrateAgelumStructure(
       );
     }
   }
-
   if (fs.existsSync(newAgelumDir)) {
+    // Create parent dirs
+    ["doc", "work", "ai", path.join("doc", "docs")].forEach(
+      (d) => {
+        const p = path.join(
+          newAgelumDir,
+          d,
+        );
+        if (!fs.existsSync(p))
+          fs.mkdirSync(p, {
+            recursive: true,
+          });
+      },
+    );
+
     const moves = [
       { from: "docs", to: "doc/docs" },
-      { from: "plan", to: "doc/plan" },
-      { from: "plans", to: "doc/plan" },
+      { from: "plan", to: "doc/docs/plan" },
+      { from: "plans", to: "doc/docs/plan" },
+      { from: path.join("doc", "plan"), to: path.join("doc", "docs", "plan") },
+      { from: path.join("doc", "plans"), to: path.join("doc", "docs", "plan") },
       {
         from: "research",
-        to: "doc/research",
+        to: "doc/docs/research",
+      },
+      {
+        from: path.join("doc", "research"),
+        to: path.join("doc", "docs", "research"),
       },
       {
         from: "ideas",
@@ -712,20 +732,6 @@ function migrateAgelumStructure(
       },
     ];
 
-    // Create parent dirs
-    ["doc", "work", "ai"].forEach(
-      (d) => {
-        const p = path.join(
-          newAgelumDir,
-          d,
-        );
-        if (!fs.existsSync(p))
-          fs.mkdirSync(p, {
-            recursive: true,
-          });
-      },
-    );
-
     for (const move of moves) {
       const fromPath = path.join(
         newAgelumDir,
@@ -748,6 +754,24 @@ function migrateAgelumStructure(
               `Failed to move ${move.from} to ${move.to}`,
               e,
             );
+          }
+        } else if (fromPath !== toPath) {
+          // If destination exists, try to move contents
+          try {
+            const files = fs.readdirSync(fromPath);
+            for (const file of files) {
+              const fPath = path.join(fromPath, file);
+              const tPath = path.join(toPath, file);
+              if (!fs.existsSync(tPath)) {
+                fs.renameSync(fPath, tPath);
+              }
+            }
+            // If empty, remove old
+            if (fs.readdirSync(fromPath).length === 0) {
+              fs.rmdirSync(fromPath);
+            }
+          } catch (e) {
+             console.error(`Failed to merge ${move.from} into ${move.to}`, e);
           }
         }
       }

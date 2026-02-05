@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSettings } from "@/hooks/use-settings";
-import { VIEW_MODE_CONFIG } from "@/lib/view-config";
+import { VIEW_MODE_CONFIG, ViewMode } from "@/lib/view-config";
 import {
   formatTestOutputForPrompt,
   inferTestExecutionStatus,
@@ -75,15 +75,6 @@ interface TestsSetupStatus {
   error?: string;
 }
 
-type ViewMode =
-  | "ideas"
-  | "docs"
-  | "epics"
-  | "tasks"
-  | "browser"
-  | "kanban"
-  | "tests"
-  | "ai";
 
 interface Task {
   id: string;
@@ -421,13 +412,17 @@ export default function Home() {
 
   const visibleItems =
     React.useMemo(() => {
-      const defaultItems = [
+      const defaultItems: ViewMode[] = [
         "ideas",
         "docs",
+        "separator",
         "epics",
         "kanban",
         "tests",
+        "review",
         "ai",
+        "separator",
+        "browser",
       ];
 
       if (
@@ -507,6 +502,8 @@ export default function Home() {
           url += "&path=ai";
         if (viewMode === "tests")
           url += "&path=work/tests";
+        if (viewMode === "review")
+          url += "&path=work/review";
 
         fetch(url)
           .then((res) => res.json())
@@ -2453,10 +2450,10 @@ export default function Home() {
                         setDocAiMode("modify");
                       }
                     }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
                       viewMode === mode
-                        ? "bg-amber-500/15 text-amber-500 border border-amber-500/20"
-                        : "text-muted-foreground hover:bg-accent border border-transparent"
+                        ? "text-amber-500 bg-amber-500/10"
+                        : "text-muted-foreground hover:bg-accent"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -3029,6 +3026,72 @@ export default function Home() {
                   }
                 />
               ) : null}
+            </div>
+          ) : viewMode === "review" ? (
+            <div className="flex flex-1 overflow-hidden bg-background">
+              <FileBrowser
+                fileTree={fileTree}
+                onFileSelect={(node) =>
+                  setSelectedFile({
+                    path: node.path,
+                    content: node.content || "",
+                  })
+                }
+                currentPath={currentPath}
+                basePath={basePath}
+                onRefresh={loadFileTree}
+              />
+              {selectedFile ? (
+                <div className="flex relative flex-1 min-w-0">
+                  <FileViewer
+                    file={selectedFile}
+                    onSave={async ({ content }) => {
+                      const res = await fetch(
+                        "/api/files",
+                        {
+                          method: "POST",
+                          headers: {
+                            "Content-Type":
+                              "application/json",
+                          },
+                          body: JSON.stringify({
+                            repo: selectedRepo,
+                            path: selectedFile.path,
+                            content,
+                          }),
+                        },
+                      );
+                      if (!res.ok)
+                        throw new Error(
+                          "Failed to save file",
+                        );
+                      setSelectedFile({
+                        ...selectedFile,
+                        content,
+                      });
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-1 justify-center items-center text-muted-foreground">
+                  Select a file to view and edit
+                </div>
+              )}
+            </div>
+          ) : viewMode === "browser" ? (
+            <div className="flex flex-1 bg-background overflow-hidden relative">
+              <div className="absolute inset-0 flex flex-col">
+                <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
+                  <div className="flex items-center gap-1 flex-1 bg-background border border-border rounded px-3 py-1 text-xs text-muted-foreground overflow-hidden whitespace-nowrap">
+                    {typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}
+                  </div>
+                </div>
+                <iframe 
+                  src={typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"} 
+                  className="flex-1 w-full border-none"
+                  title="App Browser"
+                />
+              </div>
             </div>
           ) : (
             <div className="flex-1 bg-background">
