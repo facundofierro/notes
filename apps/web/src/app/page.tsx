@@ -298,6 +298,12 @@ export default function Home() {
     path?: string;
   }>(null);
   const [
+    openCodeSessionId,
+    setOpenCodeSessionId,
+  ] = React.useState<string | null>(
+    null,
+  );
+  const [
     workDocIsDraft,
     setWorkDocIsDraft,
   ] = React.useState(false);
@@ -2480,6 +2486,45 @@ export default function Home() {
 
         <div className="flex gap-4 items-center">
           <div className="flex items-center bg-secondary/50 rounded-full border border-border px-1.5 py-1 shadow-sm">
+            <div className="flex relative items-center px-1">
+              <select
+                value={
+                  selectedRepo || ""
+                }
+                onChange={(e) =>
+                  setSelectedRepo(
+                    e.target.value,
+                  )
+                }
+                className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 appearance-none cursor-pointer hover:text-white font-medium text-right"
+              >
+                <option
+                  value=""
+                  disabled
+                  className="bg-secondary"
+                >
+                  {repositories.length ===
+                  0
+                    ? "No repositories found"
+                    : "Select repository"}
+                </option>
+                {repositories.map(
+                  (repo) => (
+                    <option
+                      key={repo.name}
+                      value={repo.name}
+                      className="bg-secondary"
+                    >
+                      {repo.name}
+                    </option>
+                  ),
+                )}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+            </div>
+
+            <div className="mx-1.5 w-px h-4 bg-border" />
+
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() =>
@@ -2526,45 +2571,6 @@ export default function Home() {
               >
                 <Settings2 className="w-4 h-4" />
               </button>
-            </div>
-
-            <div className="mx-1.5 w-px h-4 bg-border" />
-
-            <div className="flex relative items-center px-1">
-              <select
-                value={
-                  selectedRepo || ""
-                }
-                onChange={(e) =>
-                  setSelectedRepo(
-                    e.target.value,
-                  )
-                }
-                className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 appearance-none cursor-pointer hover:text-white font-medium"
-              >
-                <option
-                  value=""
-                  disabled
-                  className="bg-secondary"
-                >
-                  {repositories.length ===
-                  0
-                    ? "No repositories found"
-                    : "Select repository"}
-                </option>
-                {repositories.map(
-                  (repo) => (
-                    <option
-                      key={repo.name}
-                      value={repo.name}
-                      className="bg-secondary"
-                    >
-                      {repo.name}
-                    </option>
-                  ),
-                )}
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
             </div>
           </div>
 
