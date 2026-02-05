@@ -35,6 +35,11 @@ import {
   Search,
   X,
   Globe,
+  MoreVertical,
+  RotateCw,
+  Download,
+  Hammer,
+  FileText,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSettings } from "@/hooks/use-settings";
@@ -358,6 +363,20 @@ export default function Home() {
     isServiceRunning,
     setIsServiceRunning,
   ] = React.useState(false);
+  const [
+    isAppRunning,
+    setIsAppRunning,
+  ] = React.useState(false);
+  const [
+    isAppManaged,
+    setIsAppManaged,
+  ] = React.useState(false);
+  const [appPid, setAppPid] =
+    React.useState<number | null>(null);
+  const [
+    isAppActionsMenuOpen,
+    setIsAppActionsMenuOpen,
+  ] = React.useState(false);
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
@@ -576,14 +595,55 @@ export default function Home() {
     }
   }, [currentProject?.url, viewMode]);
 
-  // Auto-run logic
+  // Poll app status
   React.useEffect(() => {
-    if (selectedRepo && currentProject?.autoRun && !isServiceRunning) {
-      // In a real app we might trigger the dev command here
-      // For now, we just indicate it's running
-      setIsServiceRunning(true);
+    if (!selectedRepo || !currentProject?.url) {
+      setIsAppRunning(false);
+      setIsAppManaged(false);
+      setAppPid(null);
+      return;
     }
-  }, [selectedRepo, currentProject, isServiceRunning]);
+
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/app-status?repo=${selectedRepo}`);
+        const data = (await res.json()) as {
+          isRunning: boolean;
+          isManaged: boolean;
+          pid?: number | null;
+          startedAt?: string;
+          command?: string;
+        };
+
+        if (cancelled) return;
+
+        setIsAppRunning(data.isRunning);
+        setIsAppManaged(data.isManaged);
+        setAppPid(data.pid || null);
+      } catch (error) {
+        if (cancelled) return;
+        setIsAppRunning(false);
+        setIsAppManaged(false);
+        setAppPid(null);
+      }
+    };
+
+    // Check immediately
+    checkStatus();
+    
+    // Poll every 3 seconds
+    intervalId = window.setInterval(checkStatus, 3000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [selectedRepo, currentProject?.url]);
 
   React.useEffect(() => {
     if (viewMode !== "tests") return;
@@ -728,6 +788,183 @@ export default function Home() {
         selectedRepo,
       ],
     );
+
+  const handleStartApp = React.useCallback(async () => {
+    if (!selectedRepo) return;
+    try {
+      const res = await fetch("/api/app-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo: selectedRepo, action: "start" }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.error("Failed to start app:", data.error);
+      }
+    } catch (error) {
+      console.error("Error starting app:", error);
+    }
+  }, [selectedRepo]);
+
+  const handleStopApp = React.useCallback(async () => {
+    if (!selectedRepo) return;
+    try {
+      const res = await fetch("/api/app-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo: selectedRepo, action: "stop" }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.error("Failed to stop app:", data.error);
+      }
+    } catch (error) {
+      console.error("Error stopping app:", error);
+    }
+  }, [selectedRepo]);
+
+  const handleRestartApp = React.useCallback(async () => {
+    if (!selectedRepo) return;
+    try {
+      const res = await fetch("/api/app-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo: selectedRepo, action: "restart" }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.error("Failed to restart app:", data.error);
+      }
+    } catch (error) {
+      console.error("Error restarting app:", error);
+    }
+  }, [selectedRepo]);
+
+  const handleInstallDeps = React.useCallback(async () => {
+    if (!selectedRepo || !currentProject) return;
+    const installCmd = "pnpm install";
+    setTerminalToolName("Install Dependencies");
+    setTerminalOutput(`Running: ${installCmd}\n`);
+    setRightSidebarView("terminal");
+    setIsTerminalRunning(true);
+
+    terminalAbortControllerRef.current = new AbortController();
+    const ac = terminalAbortControllerRef.current;
+
+    try {
+      const res = await fetch("/api/system/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repo: selectedRepo,
+          command: installCmd,
+        }),
+        signal: ac.signal,
+      });
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        setTerminalOutput((prev) => `${prev}\nError: No response body`);
+        setIsTerminalRunning(false);
+        return;
+      }
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (data.output) {
+                setTerminalOutput((prev) => prev + data.output);
+              }
+            } catch {
+              setTerminalOutput((prev) => prev + line + "\n");
+            }
+          }
+        }
+      }
+
+      setIsTerminalRunning(false);
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        setTerminalOutput((prev) => `${prev}\nError: ${error.message}`);
+      }
+      setIsTerminalRunning(false);
+    }
+  }, [selectedRepo, currentProject]);
+
+  const handleBuildApp = React.useCallback(async () => {
+    if (!selectedRepo || !currentProject) return;
+    const buildCmd = currentProject.commands?.build || "pnpm build";
+    setTerminalToolName("Build App");
+    setTerminalOutput(`Running: ${buildCmd}\n`);
+    setRightSidebarView("terminal");
+    setIsTerminalRunning(true);
+
+    terminalAbortControllerRef.current = new AbortController();
+    const ac = terminalAbortControllerRef.current;
+
+    try {
+      const res = await fetch("/api/system/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repo: selectedRepo,
+          command: buildCmd,
+        }),
+        signal: ac.signal,
+      });
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        setTerminalOutput((prev) => `${prev}\nError: No response body`);
+        setIsTerminalRunning(false);
+        return;
+      }
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (data.output) {
+                setTerminalOutput((prev) => prev + data.output);
+              }
+            } catch {
+              setTerminalOutput((prev) => prev + line + "\n");
+            }
+          }
+        }
+      }
+
+      setIsTerminalRunning(false);
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        setTerminalOutput((prev) => `${prev}\nError: ${error.message}`);
+      }
+      setIsTerminalRunning(false);
+    }
+  }, [selectedRepo, currentProject]);
 
   const terminalAbortControllerRef =
     React.useRef<AbortController | null>(
@@ -2538,45 +2775,105 @@ export default function Home() {
             <div className="mx-1.5 w-px h-4 bg-border" />
 
             <div className="flex items-center gap-0.5">
-              <button
-                onClick={() =>
-                  setIsServiceRunning(
-                    !isServiceRunning,
-                  )
-                }
-                className={`p-1.5 rounded-full transition-colors ${
-                  isServiceRunning
-                    ? "text-red-400 hover:bg-red-400/10"
-                    : "text-green-400 hover:bg-green-400/10"
-                }`}
-                title={
-                  isServiceRunning
-                    ? "Stop Service"
-                    : "Start Service"
-                }
-              >
-                {isServiceRunning ? (
-                  <Square className="w-4 h-4" />
-                ) : (
+              {!isAppRunning ? (
+                <button
+                  onClick={handleStartApp}
+                  className="p-1.5 rounded-full text-green-400 hover:bg-green-400/10 transition-colors"
+                  title="Start App"
+                >
                   <Play className="w-4 h-4 fill-current" />
-                )}
-              </button>
+                </button>
+              ) : (
+                <button
+                  onClick={handleStopApp}
+                  className="p-1.5 rounded-full text-red-400 hover:bg-red-400/10 transition-colors"
+                  title="Stop App"
+                >
+                  <Square className="w-4 h-4" />
+                </button>
+              )}
 
-              <button
-                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
-                title="View Logs"
-              >
-                <ScrollText className="w-4 h-4" />
-              </button>
+              {isAppRunning && isAppManaged && (
+                <button
+                  onClick={() => {
+                    setRightSidebarView("terminal");
+                    setTerminalToolName("App Logs");
+                  }}
+                  className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
+                  title="View Logs"
+                >
+                  <ScrollText className="w-4 h-4" />
+                </button>
+              )}
+
+              <div className="relative">
+                <button
+                  onClick={() =>
+                    setIsAppActionsMenuOpen(!isAppActionsMenuOpen)
+                  }
+                  className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
+                  title="More Actions"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {isAppActionsMenuOpen && (
+                  <div
+                    className="absolute top-full right-0 mt-1 py-1 bg-secondary border border-border rounded-lg shadow-lg min-w-[160px] z-50"
+                    onMouseLeave={() => setIsAppActionsMenuOpen(false)}
+                  >
+                    {isAppRunning && (
+                      <button
+                        onClick={() => {
+                          handleRestartApp();
+                          setIsAppActionsMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
+                      >
+                        <RotateCw className="w-4 h-4" />
+                        Restart
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleInstallDeps();
+                        setIsAppActionsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
+                    >
+                      <Download className="w-4 h-4" />
+                      Install
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleBuildApp();
+                        setIsAppActionsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
+                    >
+                      <Hammer className="w-4 h-4" />
+                      Build
+                    </button>
+                    <div className="my-1 mx-2 h-px bg-border" />
+                    <button
+                      onClick={() => {
+                        setSettingsTab("project-config");
+                        setIsSettingsOpen(true);
+                        setIsAppActionsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={() => {
-                  setSettingsTab(
-                    "project-config",
-                  );
-                  setIsSettingsOpen(
-                    true,
-                  );
+                  setSettingsTab("project-config");
+                  setIsSettingsOpen(true);
                 }}
                 className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
                 title="Project Settings"
