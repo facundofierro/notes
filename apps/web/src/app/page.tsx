@@ -805,9 +805,6 @@ export default function Home() {
     // Check immediately
     checkStatus();
 
-    // Poll regularly to keep status fresh
-    intervalId = window.setInterval(checkStatus, 2000);
-    
     // Check when window gets focus
     const handleFocus = () => checkStatus();
     window.addEventListener('focus', handleFocus);
@@ -815,11 +812,8 @@ export default function Home() {
     return () => {
       cancelled = true;
       window.removeEventListener('focus', handleFocus);
-      if (intervalId !== null) {
-        window.clearInterval(intervalId);
-      }
     };
-  }, [selectedRepo, currentProjectConfig?.url, appPid, isAppManaged, isAppRunning]);
+  }, [selectedRepo, currentProjectConfig?.url]);
 
   // Stream app logs and detect when app is ready
   React.useEffect(() => {
@@ -1168,6 +1162,9 @@ export default function Home() {
         setAppLogs((prev) => prev + `\x1b[31mError stopping: ${data.error}\x1b[0m\n`);
       } else {
         setAppLogs((prev) => prev + "\x1b[33m[Stopped]\x1b[0m\n");
+        setIsAppRunning(false);
+        setIsAppManaged(false);
+        setAppPid(null);
       }
     } catch (error) {
       setAppLogs((prev) => prev + `\x1b[31mError stopping: ${error}\x1b[0m\n`);
@@ -3121,7 +3118,7 @@ export default function Home() {
               repositories={repositories}
               selectedRepo={selectedRepo}
               onSelect={(repoName) => setSelectedRepo(repoName)}
-              className="w-[220px]"
+              className=""
             />
 
             <div className="mx-1.5 w-px h-4 bg-border" />

@@ -34,6 +34,15 @@ export {
 } from './ui/toast'
 export type { ToastProps, ToastActionElement } from './ui/toast'
 export { Toaster } from './ui/toaster'
+export { Popover, PopoverTrigger, PopoverContent } from './ui/popover'
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from './ui/card'
 
 // Logo components
 export { PrimaryLogo } from './logo/PrimaryLogo'
