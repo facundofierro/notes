@@ -544,6 +544,8 @@ function ensureAgelumStructure(
     path.join("doc", "docs"),
     path.join("ai", "commands"),
     path.join("ai", "cli-tools"),
+    path.join("ai", "skills"),
+    path.join("ai", "designs"),
     path.join("doc", "ideas"),
     path.join("work", "epics"),
     path.join("work", "tests"),
@@ -703,6 +705,10 @@ function migrateAgelumStructure(
       {
         from: "context",
         to: "doc/context",
+      },
+      {
+        from: "designs",
+        to: "ai/designs",
       },
     ];
 

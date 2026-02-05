@@ -22,7 +22,6 @@ export const VIEW_MODE_CONFIG: Record<
     label: "Docs",
     icon: BookOpen,
   },
-  plan: { label: "Plan", icon: Map },
   epics: {
     label: "Epics",
     icon: Layers,
@@ -35,12 +34,8 @@ export const VIEW_MODE_CONFIG: Record<
     label: "Tests",
     icon: TestTube,
   },
-  commands: {
-    label: "Commands",
-    icon: Terminal,
-  },
-  "cli-tools": {
-    label: "Tools",
+  ai: {
+    label: "AI",
     icon: Wrench,
   },
   separator: {

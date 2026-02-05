@@ -22,12 +22,10 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
   const viewModeOptions: { value: ViewMode; label: string }[] = [
     { value: "ideas", label: "Ideas" },
     { value: "docs", label: "Docs" },
-    { value: "plan", label: "Plan" },
     { value: "epics", label: "Epics" },
     { value: "kanban", label: "Tasks" },
     { value: "tests", label: "Tests" },
-    { value: "commands", label: "Commands" },
-    { value: "cli-tools", label: "CLI Tools" },
+    { value: "ai", label: "AI" },
   ];
 
   return (

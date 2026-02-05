@@ -78,14 +78,12 @@ interface TestsSetupStatus {
 type ViewMode =
   | "ideas"
   | "docs"
-  | "plan"
   | "epics"
   | "tasks"
-  | "commands"
-  | "cli-tools"
   | "browser"
   | "kanban"
-  | "tests";
+  | "tests"
+  | "ai";
 
 interface Task {
   id: string;
@@ -426,12 +424,10 @@ export default function Home() {
       const defaultItems = [
         "ideas",
         "docs",
-        "plan",
         "epics",
         "kanban",
         "tests",
-        "commands",
-        "cli-tools",
+        "ai",
       ];
 
       if (
@@ -507,12 +503,8 @@ export default function Home() {
           url += "&path=doc/ideas";
         if (viewMode === "docs")
           url += "&path=doc/docs";
-        if (viewMode === "plan")
-          url += "&path=doc/plan";
-        if (viewMode === "commands")
-          url += "&path=ai/commands";
-        if (viewMode === "cli-tools")
-          url += "&path=ai/cli-tools";
+        if (viewMode === "ai")
+          url += "&path=ai";
         if (viewMode === "tests")
           url += "&path=work/tests";
 
@@ -557,7 +549,7 @@ export default function Home() {
   }, [viewMode, selectedRepo]);
 
   React.useEffect(() => {
-    if (viewMode === "commands") {
+    if (viewMode === "ai") {
       setDocAiMode("modify");
     }
   }, [viewMode]);
@@ -843,19 +835,17 @@ export default function Home() {
             "/agelum-test/tests/",
           ) ||
           opts.viewMode === "tests";
-        const isCommandDoc =
+        const isAiDoc =
           normalizedPath.includes(
-            "/.agelum/ai/commands/",
+            "/.agelum/ai/",
           ) ||
-          normalizedPath.includes(
-            "/ai/commands/",
-          ) ||
-          opts.viewMode === "commands";
+          normalizedPath.includes("/ai/") ||
+          opts.viewMode === "ai";
 
         const effectiveDocMode:
           | "modify"
           | "start" =
-          isTestDoc || isCommandDoc
+          isTestDoc || isAiDoc
             ? "modify"
             : opts.docMode;
 
@@ -1855,8 +1845,7 @@ export default function Home() {
                 </button>
               ) : (
                 !workDocIsDraft &&
-                viewMode !==
-                  "commands" && (
+                viewMode !== "ai" && (
                   <div className="flex flex-1 p-1 rounded-lg border border-border bg-background">
                     <button
                       onClick={() =>
@@ -2460,13 +2449,8 @@ export default function Home() {
                       setViewMode(
                         mode as ViewMode,
                       );
-                      if (
-                        mode ===
-                        "commands"
-                      ) {
-                        setDocAiMode(
-                          "modify",
-                        );
+                      if (mode === "ai") {
+                        setDocAiMode("modify");
                       }
                     }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
@@ -2598,9 +2582,7 @@ export default function Home() {
         <div className="flex overflow-hidden flex-1">
           {[
             "docs",
-            "plan",
-            "commands",
-            "cli-tools",
+            "ai",
             "tests",
           ].includes(viewMode) ? (
             <>

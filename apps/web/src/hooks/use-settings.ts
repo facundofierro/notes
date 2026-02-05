@@ -32,8 +32,7 @@ export interface UserSettings {
     | "epics"
     | "kanban"
     | "tests"
-    | "commands"
-    | "cli-tools";
+    | "ai";
   sidebarCollapsed: boolean;
   editorFontSize: number;
   editorFontFamily: string;
