@@ -4,6 +4,8 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import { readSettings, ProjectConfig } from "@/lib/settings";
+import net from "node:net";
+import { Agent } from "undici";
 
 const execAsync = promisify(exec);
 
@@ -14,22 +16,82 @@ interface AppProcess {
 }
 
 const processStore = new Map<string, AppProcess>();
+const insecureAgent = new Agent({
+  connect: { rejectUnauthorized: false },
+});
 
-async function checkUrlAlive(url: string): Promise<boolean> {
+function isLocalLikeHost(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+  return (
+    lower === "localhost" ||
+    lower === "127.0.0.1" ||
+    lower === "::1" ||
+    lower.endsWith(".local") ||
+    lower.startsWith("127.")
+  );
+}
+
+function checkPortOpen(
+  hostname: string,
+  port: number,
+  timeoutMs = 800,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+
+    const done = (result: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(result);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once("error", () => done(false));
+    socket.once("timeout", () => done(false));
+    socket.connect(port, hostname, () => done(true));
+  });
+}
+
+async function tryFetch(
+  url: string,
+  opts?: { insecure?: boolean },
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-    
-    const response = await fetch(url, { 
+    const init: RequestInit & { dispatcher?: Agent } = {
       signal: controller.signal,
-      method: 'HEAD',
-    });
-    clearTimeout(timeoutId);
-    
+      method: "HEAD",
+      dispatcher: opts?.insecure ? insecureAgent : undefined,
+    };
+    const response = await fetch(url, init);
     return response.ok || response.status < 500;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+async function checkUrlAlive(url: string): Promise<boolean> {
+  const parsed = new URL(url);
+
+  if (await tryFetch(url)) return true;
+
+  if (isLocalLikeHost(parsed.hostname)) {
+    if (await tryFetch(url, { insecure: true })) return true;
+  }
+
+  const port = parseInt(
+    parsed.port ||
+      (parsed.protocol === "https:" ? "443" : "80"),
+    10,
+  );
+  if (port && port !== 80 && port !== 443) {
+    return checkPortOpen(parsed.hostname, port);
+  }
+
+  return false;
 }
 
 async function checkPidAlive(pid: number): Promise<boolean> {

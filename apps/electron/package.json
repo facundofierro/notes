@@ -1,0 +1,14 @@
+{
+  "name": "@agelum/electron",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "electron ./src/main.js",
+    "build": "echo 'Use apps/web build first; add bundling later if needed.'",
+    "start": "electron ./src/main.js"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5"
+  }
+}

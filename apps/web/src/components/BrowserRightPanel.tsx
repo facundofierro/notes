@@ -1,22 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   Camera,
-  X,
   Move,
   Square,
-  Type,
   Trash2,
   MousePointer2,
   Settings,
-  Edit3,
   CheckCircle2,
-  Code
+  Code,
+  History,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import type { EditorProps } from "@monaco-editor/react";
 
 interface BrowserRightPanelProps {
   repo: string;
   onTaskCreated?: () => void;
   onRequestCapture?: () => Promise<string | null>;
+  projectPath?: string;
+  iframeRef?: React.RefObject<HTMLIFrameElement>;
 }
 
 type Mode = "screen" | "properties" | "prompt";
@@ -32,7 +34,103 @@ interface Annotation {
   prompt: string;
 }
 
-export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: BrowserRightPanelProps) {
+interface ChangeEntry {
+  id: string;
+  timestamp: string;
+  selector: string;
+  property: string;
+  previousValue: string;
+  nextValue: string;
+  source: "props" | "css";
+}
+
+interface ElementSelectionInfo {
+  selector: string;
+  tagName: string;
+  textSnippet: string;
+}
+
+const MonacoEditor =
+  dynamic<EditorProps>(
+    () =>
+      import("@monaco-editor/react").then(
+        (mod) => mod.default,
+      ),
+    { ssr: false },
+  );
+
+const joinFsPath = (...parts: string[]) =>
+  parts
+    .filter(Boolean)
+    .join("/")
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/");
+
+const rgbToHex = (value: string) => {
+  const match = value
+    .replace(/\s+/g, "")
+    .match(/^rgba?\((\d+),(\d+),(\d+)/i);
+  if (!match) return null;
+  const toHex = (num: number) =>
+    Math.max(0, Math.min(255, num))
+      .toString(16)
+      .padStart(2, "0");
+  const r = Number(match[1]);
+  const g = Number(match[2]);
+  const b = Number(match[3]);
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+const getElementSelector = (element: Element) => {
+  const testId =
+    element.getAttribute("data-testid") ||
+    element.getAttribute("data-test") ||
+    element.getAttribute("data-qa");
+  if (testId) return `[data-testid="${testId}"]`;
+
+  if (element.id) return `#${element.id}`;
+
+  const classList = Array.from(element.classList || []);
+  if (classList.length > 0) {
+    return `.${classList
+      .slice(0, 2)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .join(".")}`;
+  }
+
+  const tag = element.tagName.toLowerCase();
+  const parent = element.parentElement;
+  if (!parent) return tag;
+
+  const siblings = Array.from(parent.children).filter(
+    (child) => child.tagName === element.tagName,
+  );
+  if (siblings.length <= 1) return tag;
+
+  const index = siblings.indexOf(element) + 1;
+  return `${tag}:nth-of-type(${index})`;
+};
+
+const asHTMLElement = (element: Element | null) => {
+  if (!element) return null;
+  const view = element.ownerDocument?.defaultView;
+  if (view?.HTMLElement && element instanceof view.HTMLElement) {
+    return element as HTMLElement;
+  }
+  if (element instanceof HTMLElement) {
+    return element;
+  }
+  return null;
+};
+
+export function BrowserRightPanel({
+  repo,
+  onTaskCreated,
+  onRequestCapture,
+  projectPath,
+  iframeRef,
+}: BrowserRightPanelProps) {
   const [mode, setMode] = useState<Mode>("screen");
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -44,12 +142,258 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
   
   // Ref for the image container to calculate relative coordinates
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const screenshotImageRef = useRef<HTMLImageElement>(null);
   
   // Prompt mode state
   const [promptText, setPromptText] = useState("");
+  const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Element selection / properties mode state
+  const [elementPickerMode, setElementPickerMode] = useState<"properties" | "prompt" | null>(null);
+  const [iframeAccessError, setIframeAccessError] = useState<string | null>(null);
+  const [selectedElementInfo, setSelectedElementInfo] = useState<ElementSelectionInfo | null>(null);
+  const selectedElementRef = useRef<Element | null>(null);
+  const [propertiesTab, setPropertiesTab] = useState<"props" | "css" | "changes">("props");
+  const [propsDraft, setPropsDraft] = useState({
+    color: "",
+    backgroundColor: "",
+    padding: "",
+    fontSize: "",
+    visibility: "visible",
+  });
+  const [cssDraft, setCssDraft] = useState("");
+  const lastCssTextRef = useRef<string>("");
+  const cssChangeTimeoutRef = useRef<number | null>(null);
+  const [changes, setChanges] = useState<ChangeEntry[]>([]);
+  const highlightRefs = useRef<{
+    hover?: HTMLDivElement | null;
+    selected?: HTMLDivElement | null;
+  }>({});
   
   // Task creation state
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  const resetScreenState = () => {
+    setScreenshot(null);
+    setAnnotations([]);
+    setSelectedTool(null);
+    setSelectedAnnotationId(null);
+    setNextId(1);
+    setIsDrawing(false);
+    setStartPos({ x: 0, y: 0 });
+  };
+
+  const recordChange = (entry: Omit<ChangeEntry, "id" | "timestamp">) => {
+    const timestamp = new Date().toISOString();
+    setChanges((prev) => [
+      ...prev,
+      {
+        ...entry,
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        timestamp,
+      },
+    ]);
+  };
+
+  const tryGetIframeDocument = () => {
+    if (!iframeRef?.current) {
+      setIframeAccessError(
+        "Open a URL in the browser panel to enable element selection.",
+      );
+      return null;
+    }
+    try {
+      const doc =
+        iframeRef.current.contentDocument ||
+        iframeRef.current.contentWindow?.document ||
+        null;
+      if (!doc) {
+        setIframeAccessError(
+          "The preview is still loading. Try again in a moment.",
+        );
+        return null;
+      }
+      setIframeAccessError(null);
+      return doc;
+    } catch (error) {
+      setIframeAccessError(
+        "Element selection is unavailable for cross-origin pages. Use a same-origin preview.",
+      );
+      return null;
+    }
+  };
+
+  const ensureOverlay = (
+    doc: Document,
+    kind: "hover" | "selected",
+  ) => {
+    const id =
+      kind === "hover"
+        ? "agelum-hover-overlay"
+        : "agelum-selected-overlay";
+    const existing = doc.getElementById(id) as
+      | HTMLDivElement
+      | null;
+    if (existing) return existing;
+
+    const overlay = doc.createElement("div");
+    overlay.id = id;
+    overlay.setAttribute("data-agelum-overlay", "true");
+    overlay.style.position = "fixed";
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "2147483647";
+    overlay.style.border =
+      kind === "hover"
+        ? "2px dashed rgba(59, 130, 246, 0.9)"
+        : "2px solid rgba(16, 185, 129, 0.9)";
+    overlay.style.backgroundColor =
+      kind === "hover"
+        ? "rgba(59, 130, 246, 0.1)"
+        : "rgba(16, 185, 129, 0.08)";
+    overlay.style.boxSizing = "border-box";
+    overlay.style.display = "none";
+    const mountPoint =
+      doc.body || doc.documentElement;
+    if (mountPoint) {
+      mountPoint.appendChild(overlay);
+    }
+    return overlay;
+  };
+
+  const updateOverlayForElement = (
+    overlay: HTMLDivElement | null | undefined,
+    element: Element | null,
+  ) => {
+    if (!overlay) return;
+    if (
+      !element ||
+      typeof (element as Element).getBoundingClientRect !==
+        "function"
+    ) {
+      overlay.style.display = "none";
+      return;
+    }
+    const rect = (
+      element as Element
+    ).getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      overlay.style.display = "none";
+      return;
+    }
+    overlay.style.display = "block";
+    overlay.style.top = `${rect.top}px`;
+    overlay.style.left = `${rect.left}px`;
+    overlay.style.width = `${rect.width}px`;
+    overlay.style.height = `${rect.height}px`;
+  };
+
+  const syncElementState = (element: Element, doc: Document) => {
+    const selector = getElementSelector(element);
+    const textSnippet = (element.textContent || "")
+      .trim()
+      .slice(0, 80);
+    setSelectedElementInfo({
+      selector,
+      tagName: element.tagName.toLowerCase(),
+      textSnippet,
+    });
+    selectedElementRef.current = element;
+
+    const htmlElement = asHTMLElement(element);
+    if (htmlElement) {
+      const computed =
+        doc.defaultView?.getComputedStyle(
+          htmlElement,
+        );
+      setPropsDraft({
+        color: computed?.color || "",
+        backgroundColor: computed?.backgroundColor || "",
+        padding: computed?.padding || "",
+        fontSize: computed?.fontSize || "",
+        visibility: computed?.visibility || "visible",
+      });
+      const styleText =
+        htmlElement.getAttribute("style") ||
+        htmlElement.style.cssText ||
+        "";
+      setCssDraft(styleText);
+      lastCssTextRef.current = styleText;
+    }
+  };
+
+  const applyStyleChange = (
+    property: string,
+    nextValue: string,
+  ) => {
+    const element = asHTMLElement(
+      selectedElementRef.current,
+    );
+    if (!element) return;
+
+    const prevValue = element.style.getPropertyValue(property);
+    const trimmed = nextValue.trim();
+    if (!trimmed) {
+      element.style.removeProperty(property);
+    } else {
+      element.style.setProperty(property, trimmed);
+    }
+    const updatedValue =
+      element.style.getPropertyValue(property);
+
+    if (prevValue !== updatedValue) {
+      recordChange({
+        selector:
+          selectedElementInfo?.selector ||
+          getElementSelector(element),
+        property,
+        previousValue: prevValue || "(not set)",
+        nextValue: updatedValue || "(cleared)",
+        source: "props",
+      });
+    }
+
+    const styleText =
+      element.getAttribute("style") ||
+      element.style.cssText ||
+      "";
+    setCssDraft(styleText);
+    lastCssTextRef.current = styleText;
+  };
+
+  const insertPromptReference = (reference: string) => {
+    const textarea = promptTextareaRef.current;
+    const start = textarea?.selectionStart ?? null;
+    const end = textarea?.selectionEnd ?? start;
+    setPromptText((prev) => {
+      const resolvedStart = start ?? prev.length;
+      const resolvedEnd = end ?? resolvedStart;
+      return (
+        prev.slice(0, resolvedStart) +
+        reference +
+        prev.slice(resolvedEnd)
+      );
+    });
+    if (textarea) {
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const cursor = (start ?? textarea.value.length) + reference.length;
+        textarea.selectionStart = cursor;
+        textarea.selectionEnd = cursor;
+      });
+    }
+  };
+
+  const toggleElementPicker = (
+    target: "properties" | "prompt",
+  ) => {
+    if (elementPickerMode === target) {
+      setElementPickerMode(null);
+      return;
+    }
+    const doc = tryGetIframeDocument();
+    if (!doc) return;
+    setElementPickerMode(target);
+  };
 
   const handleCaptureScreen = async () => {
     try {
@@ -95,6 +439,93 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
     }
   };
 
+  useEffect(() => {
+    if (!elementPickerMode) return;
+    const doc = tryGetIframeDocument();
+    if (!doc) {
+      setElementPickerMode(null);
+      return;
+    }
+
+    const hoverOverlay = ensureOverlay(doc, "hover");
+    const selectedOverlay = ensureOverlay(doc, "selected");
+    highlightRefs.current.hover = hoverOverlay;
+    highlightRefs.current.selected = selectedOverlay;
+    const previousCursor = doc.body?.style.cursor || "";
+    if (doc.body) doc.body.style.cursor = "crosshair";
+
+    const handleMouseMove = (event: Event) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+      if (target.getAttribute?.("data-agelum-overlay")) return;
+      updateOverlayForElement(hoverOverlay, target);
+    };
+
+    const handleClick = (event: Event) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+      if (target.getAttribute?.("data-agelum-overlay")) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      syncElementState(target, doc);
+      updateOverlayForElement(selectedOverlay, target);
+
+      if (elementPickerMode === "prompt") {
+        const selector = getElementSelector(target);
+        insertPromptReference(selector);
+      }
+
+      setElementPickerMode(null);
+    };
+
+    doc.addEventListener("mousemove", handleMouseMove, true);
+    doc.addEventListener("click", handleClick, true);
+
+    return () => {
+      doc.removeEventListener(
+        "mousemove",
+        handleMouseMove,
+        true,
+      );
+      doc.removeEventListener("click", handleClick, true);
+      updateOverlayForElement(hoverOverlay, null);
+      if (doc.body) doc.body.style.cursor = previousCursor;
+    };
+  }, [elementPickerMode]);
+
+  useEffect(() => {
+    if (!selectedElementInfo) {
+      updateOverlayForElement(
+        highlightRefs.current.selected,
+        null,
+      );
+      return;
+    }
+    const doc = tryGetIframeDocument();
+    if (!doc) return;
+    updateOverlayForElement(
+      ensureOverlay(doc, "selected"),
+      selectedElementRef.current,
+    );
+  }, [selectedElementInfo]);
+
+  useEffect(() => {
+    return () => {
+      if (cssChangeTimeoutRef.current) {
+        window.clearTimeout(
+          cssChangeTimeoutRef.current,
+        );
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode === "screen") {
+      setElementPickerMode(null);
+    }
+  }, [mode]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!selectedTool || !imageContainerRef.current) return;
     
@@ -120,8 +551,9 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
     
     // Only add if it has some size or is a move (point)
     if (selectedTool === 'move' || (width > 5 && height > 5)) {
+      const annotationId = nextId;
       const newAnnotation: Annotation = {
-        id: nextId,
+        id: annotationId,
         type: selectedTool,
         x: selectedTool === 'move' ? currentX : x,
         y: selectedTool === 'move' ? currentY : y,
@@ -130,9 +562,9 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
         prompt: ""
       };
       
-      setAnnotations([...annotations, newAnnotation]);
-      setNextId(nextId + 1);
-      setSelectedAnnotationId(nextId);
+      setAnnotations((prev) => [...prev, newAnnotation]);
+      setNextId((prev) => prev + 1);
+      setSelectedAnnotationId(annotationId);
     }
     
     setIsDrawing(false);
@@ -140,8 +572,72 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
     // Usually better to reset tool or keep it? Let's keep it for multiple annotations.
   };
 
+  const handlePropValueChange = (
+    property: keyof typeof propsDraft,
+    value: string,
+  ) => {
+    setPropsDraft((prev) => ({
+      ...prev,
+      [property]: value,
+    }));
+
+    if (property === "fontSize") {
+      const normalized = /^\d+(\.\d+)?$/.test(
+        value.trim(),
+      )
+        ? `${value.trim()}px`
+        : value;
+      applyStyleChange("font-size", normalized);
+      return;
+    }
+
+    if (property === "backgroundColor") {
+      applyStyleChange("background-color", value);
+      return;
+    }
+
+    applyStyleChange(property, value);
+  };
+
+  const handleCssDraftChange = (nextValue: string) => {
+    setCssDraft(nextValue);
+    const element = asHTMLElement(
+      selectedElementRef.current,
+    );
+    if (!element) return;
+
+    const previous = lastCssTextRef.current;
+    element.style.cssText = nextValue;
+
+    if (cssChangeTimeoutRef.current) {
+      window.clearTimeout(
+        cssChangeTimeoutRef.current,
+      );
+    }
+
+    const selector =
+      selectedElementInfo?.selector ||
+      getElementSelector(element);
+    cssChangeTimeoutRef.current = window.setTimeout(
+      () => {
+        if (previous === nextValue) return;
+        recordChange({
+          selector,
+          property: "style",
+          previousValue: previous || "(empty)",
+          nextValue: nextValue || "(empty)",
+          source: "css",
+        });
+        lastCssTextRef.current = nextValue;
+      },
+      700,
+    );
+  };
+
   const handleDeleteAnnotation = (id: number) => {
-    setAnnotations(annotations.filter(a => a.id !== id));
+    setAnnotations((prev) =>
+      prev.filter((a) => a.id !== id),
+    );
     if (selectedAnnotationId === id) setSelectedAnnotationId(null);
   };
 
@@ -150,107 +646,288 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
     setIsCreatingTask(true);
     
     try {
-      // 1. If screen mode, save image
-      let imagePath = "";
+      let imageRelativePath = "";
       if (mode === "screen" && screenshot) {
-        // Create a composite image with annotations for the task? 
-        // Or just save the original screenshot? 
-        // User said: "draw in the screenshot... draw a number... keep the original screenshot still visible"
-        // It's technically complex to merge the HTML overlay onto the image without canvas manipulation.
-        // For now, let's save the RAW screenshot, and we can describe the annotations in text.
-        // Ideally we would draw on canvas and save that. Let's try to draw on a temp canvas.
-        
-        const canvas = document.createElement('canvas');
-        const img = new Image();
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.src = screenshot;
-        });
-        
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          
-          // We need to scale the annotations from the UI coordinates to the actual image coordinates
-          // Assuming the UI image is displaying "contain" or similar.
-          // This is tricky without knowing exact rendered dimensions vs natural dimensions.
-          // For MVP, let's just save the raw screenshot. The LLM might assume standard web page structure.
-          // Or we can save the screenshot and text description of "At 70% width, 20% height..."
-          
-          // Let's just save the base screenshot for now as requested: "add the screenshot of the page"
-          // "we need a propmt for each drawing so for the selected drawing we show in the right bar a prompt area"
+        if (!projectPath) {
+          throw new Error(
+            "Project path is required to save screenshots.",
+          );
         }
 
-        const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, "");
+        const canvas = document.createElement("canvas");
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () =>
+            reject(
+              new Error("Failed to load screenshot"),
+            );
+          img.src = screenshot;
+        });
+
+        const naturalWidth =
+          img.naturalWidth || img.width;
+        const naturalHeight =
+          img.naturalHeight || img.height;
+        canvas.width = naturalWidth;
+        canvas.height = naturalHeight;
+
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+
+          const displayWidth =
+            screenshotImageRef.current
+              ?.clientWidth || naturalWidth;
+          const displayHeight =
+            screenshotImageRef.current
+              ?.clientHeight || naturalHeight;
+
+          const scaleX =
+            naturalWidth / displayWidth;
+          const scaleY =
+            naturalHeight / displayHeight;
+          const scale =
+            Math.min(scaleX, scaleY) || 1;
+
+          annotations.forEach((ann) => {
+            const mappedX = ann.x * scaleX;
+            const mappedY = ann.y * scaleY;
+            const mappedWidth =
+              (ann.width || 0) * scaleX;
+            const mappedHeight =
+              (ann.height || 0) * scaleY;
+
+            const badgeRadius = Math.max(
+              10,
+              10 * scale,
+            );
+            const strokeWidth = Math.max(
+              2,
+              2 * scale,
+            );
+            const fontSize = Math.max(
+              12,
+              12 * scale,
+            );
+
+            if (ann.type === "move") {
+              const pointX = mappedX;
+              const pointY = mappedY;
+              ctx.strokeStyle = "#3b82f6";
+              ctx.lineWidth = strokeWidth;
+              ctx.beginPath();
+              ctx.arc(
+                pointX,
+                pointY,
+                12 * scale,
+                0,
+                Math.PI * 2,
+              );
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(pointX - 12 * scale, pointY);
+              ctx.lineTo(pointX + 12 * scale, pointY);
+              ctx.moveTo(pointX, pointY - 12 * scale);
+              ctx.lineTo(pointX, pointY + 12 * scale);
+              ctx.stroke();
+
+              ctx.fillStyle = "#111827";
+              ctx.beginPath();
+              ctx.arc(
+                pointX + badgeRadius,
+                pointY - badgeRadius,
+                badgeRadius,
+                0,
+                Math.PI * 2,
+              );
+              ctx.fill();
+              ctx.fillStyle = "#ffffff";
+              ctx.font = `${fontSize}px sans-serif`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(
+                String(ann.id),
+                pointX + badgeRadius,
+                pointY - badgeRadius,
+              );
+              return;
+            }
+
+            const color =
+              ann.type === "remove"
+                ? "#dc2626"
+                : "#f59e0b";
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = color;
+            ctx.fillStyle =
+              ann.type === "remove"
+                ? "rgba(220, 38, 38, 0.12)"
+                : "rgba(245, 158, 11, 0.12)";
+            ctx.strokeRect(
+              mappedX,
+              mappedY,
+              mappedWidth,
+              mappedHeight,
+            );
+            ctx.fillRect(
+              mappedX,
+              mappedY,
+              mappedWidth,
+              mappedHeight,
+            );
+
+            if (ann.type === "remove") {
+              const label = "REMOVE THIS";
+              ctx.font = `${fontSize}px sans-serif`;
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              const labelPadding = 6 * scale;
+              const labelWidth =
+                ctx.measureText(label).width +
+                labelPadding * 2;
+              const labelHeight = fontSize + 6 * scale;
+              const labelX = mappedX;
+              const labelY = Math.max(
+                0,
+                mappedY - labelHeight - 4 * scale,
+              );
+              ctx.fillStyle = "#dc2626";
+              ctx.fillRect(
+                labelX,
+                labelY,
+                labelWidth,
+                labelHeight,
+              );
+              ctx.fillStyle = "#ffffff";
+              ctx.fillText(
+                label,
+                labelX + labelPadding,
+                labelY + labelHeight / 2,
+              );
+            }
+
+            const badgeX =
+              mappedX + mappedWidth + badgeRadius;
+            const badgeY =
+              mappedY - badgeRadius;
+            ctx.fillStyle = "#111827";
+            ctx.beginPath();
+            ctx.arc(
+              badgeX,
+              badgeY,
+              badgeRadius,
+              0,
+              Math.PI * 2,
+            );
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.font = `${fontSize}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(
+              String(ann.id),
+              badgeX,
+              badgeY,
+            );
+          });
+        }
+
+        const compositeDataUrl = canvas.toDataURL(
+          "image/png",
+        );
+        const base64Data =
+          compositeDataUrl.replace(
+            /^data:image\/\w+;base64,/,
+            "",
+          );
         const timestamp = Date.now();
         const fileName = `screenshot-${timestamp}.png`;
-        const taskImagesDir = `.agelum/work/tasks/images`;
-        const fullPath = `${taskImagesDir}/${fileName}`;
-        
-        // Ensure dir exists (api handles recursive mkdir on file write if we structured it right, 
-        // but currently our api expects us to handle dirs? api/file post handles parent dir creation)
-        
-        // Save image
-        await fetch("/api/file", {
+        const absolutePath = joinFsPath(
+          projectPath,
+          ".agelum",
+          "work",
+          "tasks",
+          "images",
+          fileName,
+        );
+
+        const saveRes = await fetch("/api/file", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            path: `${repo}/${fullPath}`.replace(/\/+/g, "/"), // This is absolute path on server? No, we need full path.
-             // We need to know where the repo is. 
-             // Wait, the API takes absolute path. We need to construct absolute path from repo.
-             // But we only have 'repo' name here usually, or repo path? 
-             // In page.tsx: repositories state has path. We need to pass full path or use relative if supported?
-             // api/file takes absolute path.
-             // We need to ask parent for base path? 
-             // Actually, `repo` prop passed to components is usually just the name.
-             // We need the full path to write to.
-             // Let's assume we can use a relative path helper or we need to request the path.
-             // Quick fix: The api/file should arguably take a repo + relative path, but it takes absolute.
-             // However, `api/tasks` creates tasks relative to repo.
-             // Let's use `api/files` (plural) or similar? 
-             // Let's try to use the `createTask` API for the task itself, but for image we need to write file.
-             // We can fetch the repo path first? Or pass it in.
-          })
+            path: absolutePath,
+            content: base64Data,
+            encoding: "base64",
+          }),
         });
-        
-        // Wait, we don't have the repo absolute path here easily without fetching it.
-        // BUT, `BrowserRightPanel` is child of `Home`. `Home` has `repositories` and `selectedRepo`.
-        // We should pass the full path of the repo to this component or a "saveFile" callback.
-        // Let's look at `page.tsx` again. `FileViewer` uses `onSave`.
-        // We should probably expose a `saveImage` prop or similar.
-        // Or we can use `api/file` if we can resolve the path.
-        // Actually, `api/file` needs absolute path.
-        // `api/tasks` creates task in repo.
-        // Let's assume for now we can't easily save the image without the repo path.
-        // I will add a prop `repoPath` to `BrowserRightPanel`.
+        if (!saveRes.ok) {
+          const result = await saveRes.json();
+          throw new Error(
+            result?.error ||
+              "Failed to save screenshot",
+          );
+        }
+        imageRelativePath = `../images/${fileName}`;
       }
 
-      // Create Task Content
       let taskTitle = "";
       let taskBody = "";
       
       if (mode === "screen") {
         taskTitle = `UI Fixes - ${new Date().toLocaleString()}`;
         taskBody = `Source: Browser Screenshot\n\n`;
-        // if (imagePath) taskBody += `![Screenshot](/${imagePath})\n\n`; // We need to serve this image? 
-        // Agelum serves from where? Local params? 
-        // Note: The user said "store in a folder... so then we can reference the image in the task file".
-        
-        taskBody += `## Requested Changes\n\n`;
-        annotations.forEach(a => {
-            let action = "";
-            if (a.type === "remove") action = "REMOVE";
-            if (a.type === "move") action = "MOVE";
-            if (a.type === "modify") action = "MODIFY";
-            
-            taskBody += `### ${a.id}. ${action}\n`;
-            taskBody += `${a.prompt}\n\n`;
-        });
+        if (imageRelativePath) {
+          taskBody += `![Screenshot](${imageRelativePath})\n\n`;
+        }
+        taskBody += `## Annotations\n\n`;
+        if (annotations.length === 0) {
+          taskBody += `No annotations were added.\n\n`;
+        } else {
+          taskBody += `| # | Action | Prompt |\n| - | - | - |\n`;
+          annotations.forEach((ann) => {
+            const action =
+              ann.type === "remove"
+                ? "REMOVE"
+                : ann.type === "move"
+                  ? "MOVE"
+                  : "MODIFY";
+            const safePrompt = (ann.prompt || "")
+              .replace(/\n/g, " ")
+              .replace(/\|/g, "\\|")
+              .trim() || "No details provided.";
+            taskBody += `| ${ann.id} | ${action} | ${safePrompt} |\n`;
+          });
+          taskBody += `\n`;
+        }
       } else if (mode === "prompt") {
         taskTitle = `Browser Task - ${new Date().toLocaleString()}`;
         taskBody = promptText;
+      } else if (mode === "properties") {
+        taskTitle = `Style Tweaks - ${new Date().toLocaleString()}`;
+        taskBody = `Source: Browser Properties Editor\n\n`;
+        if (selectedElementInfo) {
+          taskBody += `Selected Element: \`${selectedElementInfo.selector}\`\n\n`;
+        }
+        taskBody += `## Changes\n\n`;
+        if (changes.length === 0) {
+          taskBody += `No changes were recorded.\n\n`;
+        } else {
+          taskBody += `| # | Selector | Property | From | To |\n| - | - | - | - | - |\n`;
+          changes.forEach((change, index) => {
+            const safeSelector = change.selector
+              .replace(/\n/g, " ")
+              .replace(/\|/g, "\\|");
+            const safePrev = change.previousValue
+              .replace(/\n/g, " ")
+              .replace(/\|/g, "\\|");
+            const safeNext = change.nextValue
+              .replace(/\n/g, " ")
+              .replace(/\|/g, "\\|");
+            taskBody += `| ${index + 1} | ${safeSelector} | ${change.property} | ${safePrev} | ${safeNext} |\n`;
+          });
+          taskBody += `\n`;
+        }
       }
       
       // Call API to create task
@@ -266,9 +943,21 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
       });
       
       if (res.ok) {
-        setScreenshot(null);
-        setAnnotations([]);
+        resetScreenState();
         setPromptText("");
+        setChanges([]);
+        setSelectedElementInfo(null);
+        selectedElementRef.current = null;
+        setCssDraft("");
+        setPropsDraft({
+          color: "",
+          backgroundColor: "",
+          padding: "",
+          fontSize: "",
+          visibility: "visible",
+        });
+        setElementPickerMode(null);
+        setIframeAccessError(null);
         onTaskCreated?.();
       }
 
@@ -278,12 +967,16 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
       setIsCreatingTask(false);
     }
   };
-  
-  // Need to get repo path to save image.
-  // For now, I will emit an event or use a prop for checking repo path?
-  // Let's check how we can get the repo path.
-  // In `page.tsx`, `repositories` has `{ name, path }`.
-  // I will add `projectPath` prop to `BrowserRightPanel`.
+
+  const isModeLocked =
+    Boolean(screenshot) || elementPickerMode !== null;
+  const lockMessage = screenshot
+    ? "Finish or cancel the screenshot to switch modes."
+    : elementPickerMode
+      ? "Exit element selection to switch modes."
+      : null;
+  const isTabDisabled = (nextMode: Mode) =>
+    nextMode !== mode && isModeLocked;
 
   return (
     <div className="flex flex-col h-full bg-background border-l border-border w-[300px]">
@@ -291,23 +984,31 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
       <div className="flex border-b border-border">
         <button
           onClick={() => setMode("screen")}
-          className={`flex-1 py-2 text-xs font-medium ${mode === "screen" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
+          disabled={isTabDisabled("screen")}
+          className={`flex-1 py-2 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${mode === "screen" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
         >
           Screen
         </button>
         <button
           onClick={() => setMode("properties")}
-          className={`flex-1 py-2 text-xs font-medium ${mode === "properties" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
+          disabled={isTabDisabled("properties")}
+          className={`flex-1 py-2 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${mode === "properties" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
         >
           Properties
         </button>
         <button
           onClick={() => setMode("prompt")}
-          className={`flex-1 py-2 text-xs font-medium ${mode === "prompt" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
+          disabled={isTabDisabled("prompt")}
+          className={`flex-1 py-2 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${mode === "prompt" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
         >
           Prompt
         </button>
       </div>
+      {lockMessage && (
+        <div className="px-4 py-2 text-[11px] text-muted-foreground border-b border-border bg-secondary/20">
+          {lockMessage}
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {mode === "screen" && (
@@ -331,7 +1032,13 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
                     onMouseDown={handleMouseDown}
                     onMouseUp={handleMouseUp}
                 >
-                  <img src={screenshot} alt="Screenshot" className="w-full h-auto block" draggable={false} />
+                  <img
+                    ref={screenshotImageRef}
+                    src={screenshot}
+                    alt="Screenshot"
+                    className="w-full h-auto block"
+                    draggable={false}
+                  />
                   
                   {/* Annotations Overlay */}
                   {annotations.map((ann) => (
@@ -420,10 +1127,10 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
                 )}
                 
                 <button
-                  onClick={() => setScreenshot(null)}
-                   className="w-full py-2 text-xs text-red-500 border border-red-200 hover:bg-red-50 rounded"
+                  onClick={resetScreenState}
+                  className="w-full py-2 text-xs text-red-500 border border-red-200 hover:bg-red-50 rounded"
                 >
-                    Cancel / Retake
+                  Cancel / Retake
                 </button>
               </div>
             )}
@@ -432,32 +1139,338 @@ export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: Bro
 
         {mode === "properties" && (
             <div className="space-y-4">
-               {/* Mock UI for now */}
-               <div className="flex border-b border-border">
-                   <button className="flex-1 text-xs py-1 border-b-2 border-primary font-bold">Props</button>
-                   <button className="flex-1 text-xs py-1 text-muted-foreground">CSS</button>
-                   <button className="flex-1 text-xs py-1 text-muted-foreground">Changes</button>
-               </div>
-               
-               <div className="p-4 text-center text-muted-foreground text-xs space-y-2">
-                   <Settings className="w-8 h-8 mx-auto opacity-50" />
-                   <p>Element selection is in development.</p>
-               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleElementPicker("properties")}
+                  className={`flex items-center gap-2 px-3 py-2 text-xs rounded border ${
+                    elementPickerMode === "properties"
+                      ? "bg-blue-100 border-blue-500 text-blue-700"
+                      : "bg-background border-border text-muted-foreground"
+                  }`}
+                >
+                  <MousePointer2 className="w-3 h-3" />
+                  {elementPickerMode === "properties"
+                    ? "Click an element..."
+                    : "Pick Element"}
+                </button>
+                {selectedElementInfo && (
+                  <button
+                    onClick={() => {
+                      setSelectedElementInfo(null);
+                      selectedElementRef.current = null;
+                      updateOverlayForElement(
+                        highlightRefs.current.selected,
+                        null,
+                      );
+                      setPropsDraft({
+                        color: "",
+                        backgroundColor: "",
+                        padding: "",
+                        fontSize: "",
+                        visibility: "visible",
+                      });
+                      setCssDraft("");
+                      lastCssTextRef.current = "";
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {iframeAccessError && (
+                <div className="text-xs text-red-500">
+                  {iframeAccessError}
+                </div>
+              )}
+
+              {selectedElementInfo ? (
+                <div className="rounded border border-border bg-secondary/20 p-2 text-xs space-y-1">
+                  <div className="font-medium text-foreground">
+                    {selectedElementInfo.selector}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {selectedElementInfo.tagName}
+                    {selectedElementInfo.textSnippet
+                      ? ` · ${selectedElementInfo.textSnippet}`
+                      : ""}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded border border-border bg-secondary/10 p-3 text-xs text-muted-foreground">
+                  Pick an element in the preview to start editing styles.
+                </div>
+              )}
+
+              <div className="flex border-b border-border">
+                <button
+                  onClick={() => setPropertiesTab("props")}
+                  className={`flex-1 text-xs py-1 border-b-2 ${
+                    propertiesTab === "props"
+                      ? "border-primary font-bold"
+                      : "border-transparent text-muted-foreground"
+                  }`}
+                >
+                  <Settings className="inline w-3 h-3 mr-1" />
+                  Props
+                </button>
+                <button
+                  onClick={() => setPropertiesTab("css")}
+                  className={`flex-1 text-xs py-1 border-b-2 ${
+                    propertiesTab === "css"
+                      ? "border-primary font-bold"
+                      : "border-transparent text-muted-foreground"
+                  }`}
+                >
+                  <Code className="inline w-3 h-3 mr-1" />
+                  CSS
+                </button>
+                <button
+                  onClick={() => setPropertiesTab("changes")}
+                  className={`flex-1 text-xs py-1 border-b-2 ${
+                    propertiesTab === "changes"
+                      ? "border-primary font-bold"
+                      : "border-transparent text-muted-foreground"
+                  }`}
+                >
+                  <History className="inline w-3 h-3 mr-1" />
+                  Changes
+                </button>
+              </div>
+
+              {propertiesTab === "props" && (
+                <div className="space-y-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground">
+                      Text Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={
+                          rgbToHex(propsDraft.color) ||
+                          "#000000"
+                        }
+                        onChange={(e) =>
+                          handlePropValueChange(
+                            "color",
+                            e.target.value,
+                          )
+                        }
+                        disabled={!selectedElementInfo}
+                        className="h-8 w-12 border border-border rounded"
+                      />
+                      <input
+                        type="text"
+                        value={propsDraft.color}
+                        onChange={(e) =>
+                          handlePropValueChange(
+                            "color",
+                            e.target.value,
+                          )
+                        }
+                        disabled={!selectedElementInfo}
+                        className="flex-1 px-2 py-1 border border-border rounded bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground">
+                      Background Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={
+                          rgbToHex(
+                            propsDraft.backgroundColor,
+                          ) || "#ffffff"
+                        }
+                        onChange={(e) =>
+                          handlePropValueChange(
+                            "backgroundColor",
+                            e.target.value,
+                          )
+                        }
+                        disabled={!selectedElementInfo}
+                        className="h-8 w-12 border border-border rounded"
+                      />
+                      <input
+                        type="text"
+                        value={propsDraft.backgroundColor}
+                        onChange={(e) =>
+                          handlePropValueChange(
+                            "backgroundColor",
+                            e.target.value,
+                          )
+                        }
+                        disabled={!selectedElementInfo}
+                        className="flex-1 px-2 py-1 border border-border rounded bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground">
+                      Padding
+                    </label>
+                    <input
+                      type="text"
+                      value={propsDraft.padding}
+                      onChange={(e) =>
+                        handlePropValueChange(
+                          "padding",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!selectedElementInfo}
+                      className="w-full px-2 py-1 border border-border rounded bg-background"
+                      placeholder="e.g. 12px 16px"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground">
+                      Font Size
+                    </label>
+                    <input
+                      type="text"
+                      value={propsDraft.fontSize}
+                      onChange={(e) =>
+                        handlePropValueChange(
+                          "fontSize",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!selectedElementInfo}
+                      className="w-full px-2 py-1 border border-border rounded bg-background"
+                      placeholder="e.g. 16px"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground">
+                      Visibility
+                    </label>
+                    <select
+                      value={propsDraft.visibility}
+                      onChange={(e) =>
+                        handlePropValueChange(
+                          "visibility",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!selectedElementInfo}
+                      className="w-full px-2 py-1 border border-border rounded bg-background"
+                    >
+                      <option value="visible">visible</option>
+                      <option value="hidden">hidden</option>
+                      <option value="collapse">collapse</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {propertiesTab === "css" && (
+                <div className="space-y-2">
+                  {selectedElementInfo ? (
+                    <MonacoEditor
+                      height="180px"
+                      language="css"
+                      theme="vs-dark"
+                      value={cssDraft}
+                      onChange={(value) =>
+                        handleCssDraftChange(value || "")
+                      }
+                      options={{
+                        minimap: { enabled: false },
+                        lineNumbers: "off",
+                        fontSize: 12,
+                        wordWrap: "on",
+                        scrollBeyondLastLine: false,
+                      }}
+                    />
+                  ) : (
+                    <div className="text-xs text-muted-foreground">
+                      Select an element to edit its inline styles.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {propertiesTab === "changes" && (
+                <div className="space-y-2">
+                  {changes.length === 0 ? (
+                    <div className="text-xs text-muted-foreground">
+                      Changes will appear here as you tweak styles.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-auto pr-1">
+                      {changes.map((change) => (
+                        <div
+                          key={change.id}
+                          className="rounded border border-border bg-secondary/10 p-2 text-xs space-y-1"
+                        >
+                          <div className="font-medium text-foreground">
+                            {change.property}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {change.selector}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              {change.previousValue} →{" "}
+                            </span>
+                            <span>{change.nextValue}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
         )}
 
         {mode === "prompt" && (
             <div className="space-y-4 h-full flex flex-col">
-                <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded border border-border">
-                    <MousePointer2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Select Elements tool (Coming Soon)</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleElementPicker("prompt")}
+                  className={`flex items-center gap-2 px-3 py-2 text-xs rounded border ${
+                    elementPickerMode === "prompt"
+                      ? "bg-blue-100 border-blue-500 text-blue-700"
+                      : "bg-background border-border text-muted-foreground"
+                  }`}
+                >
+                  <MousePointer2 className="w-3 h-3" />
+                  {elementPickerMode === "prompt"
+                    ? "Click an element..."
+                    : "Insert Element Ref"}
+                </button>
+                {selectedElementInfo && (
+                  <div className="text-[11px] text-muted-foreground">
+                    Last:{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedElementInfo.selector}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {iframeAccessError && (
+                <div className="text-xs text-red-500">
+                  {iframeAccessError}
                 </div>
-                <textarea 
-                    className="flex-1 w-full text-sm p-3 rounded border border-border bg-background resize-none focus:outline-none focus:ring-1"
-                    placeholder="Describe the task referencing elements..."
-                    value={promptText}
-                    onChange={(e) => setPromptText(e.target.value)}
-                />
+              )}
+              <textarea 
+                ref={promptTextareaRef}
+                className="flex-1 w-full text-sm p-3 rounded border border-border bg-background resize-none focus:outline-none focus:ring-1"
+                placeholder="Describe the task referencing elements..."
+                value={promptText}
+                onChange={(e) => setPromptText(e.target.value)}
+              />
             </div>
         )}
       </div>

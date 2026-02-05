@@ -10,7 +10,13 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "web:dev": "pnpm --filter @agelum/web dev",
+    "web:build": "pnpm --filter @agelum/web build",
+    "web:start": "pnpm --filter @agelum/web start",
+    "electron:dev": "pnpm --filter @agelum/electron dev",
+    "electron:start": "pnpm --filter @agelum/electron start",
+    "electron:build": "pnpm --filter @agelum/electron build"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

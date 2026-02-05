@@ -3539,6 +3539,15 @@ export default function Home() {
                 onRequestCapture={
                   requestEmbeddedCapture
                 }
+                projectPath={
+                  selectedRepo
+                    ? repositories.find(
+                        (r) =>
+                          r.name === selectedRepo,
+                      )?.path
+                    : undefined
+                }
+                iframeRef={browserIframeRef}
                 onTaskCreated={() => {
                    // Optional: toast or feedback could be added here
                 }}
