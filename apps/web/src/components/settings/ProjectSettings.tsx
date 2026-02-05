@@ -27,7 +27,7 @@ export function ProjectSettings({
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        Project "{projectName}" not found.
+        Project &quot;{projectName}&quot; not found.
       </div>
     );
   }

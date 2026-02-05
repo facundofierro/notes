@@ -1600,6 +1600,44 @@ export default function Home() {
     }
   };
 
+  const handleSaveFile = React.useCallback(
+    async (opts: {
+      path: string;
+      content: string;
+    }) => {
+      const res = await fetch(
+        "/api/file",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            path: opts.path,
+            content: opts.content,
+          }),
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error(
+          "Failed to save file",
+        );
+      }
+
+      setSelectedFile((prev) =>
+        prev
+          ? {
+              ...prev,
+              content: opts.content,
+            }
+          : null,
+      );
+    },
+    [],
+  );
+
   const renderWorkEditor = (opts: {
     onBack: () => void;
     onRename?: (
@@ -1618,6 +1656,7 @@ export default function Home() {
         <div className="flex overflow-hidden flex-1 border-r border-border">
           <FileViewer
             file={selectedFile}
+            onSave={handleSaveFile}
             onFileSaved={loadFileTree}
             editing={workEditorEditing}
             onEditingChange={
@@ -2476,7 +2515,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   setSettingsTab(
-                    "project-config",
+                    "projects",
                   );
                   setIsSettingsOpen(
                     true,
@@ -3088,7 +3127,7 @@ export default function Home() {
         initialTab={settingsTab}
         projectName={
           settingsTab ===
-          "project-config"
+          "projects"
             ? selectedRepo || undefined
             : undefined
         }
