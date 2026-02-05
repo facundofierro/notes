@@ -189,7 +189,7 @@ export function SettingsDialog({
     },
     {
       id: "projects",
-      label: "All Projects",
+      label: "Projects",
       icon: Folder,
       hidden: !!projectName,
     },

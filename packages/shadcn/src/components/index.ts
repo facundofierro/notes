@@ -22,6 +22,7 @@ export { Switch } from './ui/switch'
 export { Badge, badgeVariants } from './ui/badge'
 export type { BadgeProps } from './ui/badge'
 export { Progress } from './ui/progress'
+export { ScrollArea, ScrollBar } from './ui/scroll-area'
 export {
   ToastProvider,
   ToastViewport,
