@@ -635,11 +635,13 @@ export default function Home() {
     // Check immediately
     checkStatus();
     
-    // Poll every 3 seconds
-    intervalId = window.setInterval(checkStatus, 3000);
+    // Check when window gets focus
+    const handleFocus = () => checkStatus();
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       cancelled = true;
+      window.removeEventListener('focus', handleFocus);
       if (intervalId !== null) {
         window.clearInterval(intervalId);
       }
@@ -736,7 +738,16 @@ export default function Home() {
         state: string;
       }) => {
         if (!selectedRepo) return;
-        if (!basePath) return;
+        
+        // Find the repo path directly from repositories list
+        const repo = repositories.find(r => r.name === selectedRepo);
+        const repoPath = repo?.path || (basePath ? joinFsPath(basePath, selectedRepo) : null);
+        
+        if (!repoPath) {
+          console.error("Could not determine repository path");
+          return;
+        }
+
         const createdAt =
           new Date().toISOString();
         const id = `${opts.kind}-${Date.now()}`;
@@ -744,8 +755,7 @@ export default function Home() {
         const baseDir =
           opts.kind === "epic"
             ? joinFsPath(
-                basePath,
-                selectedRepo,
+                repoPath,
                 ".agelum",
                 "work",
                 "epics",
@@ -753,16 +763,14 @@ export default function Home() {
               )
             : opts.kind === "task"
               ? joinFsPath(
-                  basePath,
-                  selectedRepo,
+                  repoPath,
                   ".agelum",
                   "work",
                   "tasks",
                   opts.state,
                 )
               : joinFsPath(
-                  basePath,
-                  selectedRepo,
+                  repoPath,
                   ".agelum",
                   "doc",
                   "ideas",
@@ -787,6 +795,7 @@ export default function Home() {
         basePath,
         joinFsPath,
         selectedRepo,
+        repositories
       ],
     );
 
