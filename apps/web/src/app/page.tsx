@@ -7,6 +7,7 @@ import TaskKanban from "@/components/TaskKanban";
 import EpicsKanban from "@/components/EpicsKanban";
 import IdeasKanban from "@/components/IdeasKanban";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { BrowserRightPanel } from "@/components/BrowserRightPanel";
 import { AgelumNotesLogo } from "@agelum/shadcn";
 import {
   Kanban,
@@ -3407,8 +3408,8 @@ export default function Home() {
               )}
             </div>
           ) : viewMode === "browser" ? (
-            <div className="flex flex-1 bg-background overflow-hidden relative">
-              <div className="absolute inset-0 flex flex-col">
+            <div className="flex flex-1 overflow-hidden">
+              <div className="flex flex-1 bg-background overflow-hidden relative flex-col border-r border-border">
                 <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
                   <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
                     <Globe className="w-3 h-3 text-muted-foreground" />
@@ -3435,6 +3436,7 @@ export default function Home() {
                     src={iframeUrl} 
                     className="flex-1 w-full border-none bg-white"
                     title="App Browser"
+                    allow="camera; microphone; display-capture" // Enable display-capture for getDisplayMedia if supported in iframe
                   />
                 ) : (
                   <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -3442,6 +3444,12 @@ export default function Home() {
                   </div>
                 )}
               </div>
+              <BrowserRightPanel 
+                repo={selectedRepo || ""} 
+                onTaskCreated={() => {
+                   // Optional: toast or feedback could be added here
+                }}
+              />
             </div>
           ) : (
             <div className="flex-1 bg-background">

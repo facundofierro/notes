@@ -150,10 +150,16 @@ export async function POST(
       );
     }
 
-    fs.writeFileSync(
-      filePath,
-      content || "",
-    );
+    const encoding = body.encoding;
+    if (encoding === "base64") {
+      const buffer = Buffer.from(content, "base64");
+      fs.writeFileSync(filePath, buffer);
+    } else {
+      fs.writeFileSync(
+        filePath,
+        content || "",
+      );
+    }
     return NextResponse.json({
       success: true,
       path: filePath,
