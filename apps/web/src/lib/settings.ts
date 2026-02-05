@@ -117,12 +117,20 @@ function readProjectConfig(projectPath: string): Partial<ProjectConfig> {
       Object.assign(config, JSON.parse(content));
     }
 
-    // Auto-detect URL from package.json if not specified
-    if (!config.url) {
-      const pkgPath = path.join(projectPath, "package.json");
-      if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-        const scripts = pkg.scripts || {};
+    const pkgPath = path.join(projectPath, "package.json");
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+      const scripts = pkg.scripts || {};
+      
+      // Default commands
+      if (!config.commands) config.commands = {};
+      if (!config.commands.dev) config.commands.dev = "pnpm dev";
+      if (!config.commands.build) config.commands.build = "pnpm build";
+      if (!config.commands.run) config.commands.run = "pnpm test";
+      if (!config.commands.start) config.commands.start = "pnpm start";
+
+      // Auto-detect URL from package.json if not specified
+      if (!config.url) {
         const devScript = scripts.dev || scripts.start || "";
         
         // Try to find -p or --port followed by a number

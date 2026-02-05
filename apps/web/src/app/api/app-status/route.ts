@@ -248,6 +248,13 @@ export async function POST(request: NextRequest) {
           processOutputBuffers.set(child.pid!, existing + text);
         });
 
+        // Capture spawn errors
+        child.on("error", (err: Error) => {
+          const text = `Error: ${err.message}\n`;
+          const existing = processOutputBuffers.get(child.pid!) || "";
+          processOutputBuffers.set(child.pid!, existing + text);
+        });
+
         // Clean up on process exit
         child.on("exit", () => {
           if (child.pid) {
@@ -374,6 +381,13 @@ export async function POST(request: NextRequest) {
         // Capture stderr
         child.stderr?.on("data", (data: Buffer) => {
           const text = data.toString();
+          const existing = processOutputBuffers.get(child.pid!) || "";
+          processOutputBuffers.set(child.pid!, existing + text);
+        });
+
+        // Capture spawn errors
+        child.on("error", (err: Error) => {
+          const text = `Error: ${err.message}\n`;
           const existing = processOutputBuffers.get(child.pid!) || "";
           processOutputBuffers.set(child.pid!, existing + text);
         });

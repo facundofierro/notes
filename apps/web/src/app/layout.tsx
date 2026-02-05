@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${caveat.variable}`}>
+    <html lang="en" className={`dark ${caveat.variable}`} suppressHydrationWarning>
       <body className="flex h-screen bg-background text-foreground">
         {children}
         <Toaster />

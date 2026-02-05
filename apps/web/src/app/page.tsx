@@ -3634,7 +3634,7 @@ export default function Home() {
             <div className="flex flex-1 overflow-hidden flex-col bg-background">
               <div className="flex-1 min-h-0 bg-black">
                 <TerminalViewer
-                  output={appLogs || (isAppStarting ? "Starting application...\n" : "No logs available")}
+                  output={appLogs || (isAppStarting ? "Starting application...\n" : "")}
                   className="w-full h-full"
                   onInput={(data) => {
                     // Send input to the app process if needed
