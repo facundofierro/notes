@@ -10,6 +10,7 @@ import {
   Terminal,
   Wrench,
   Minus,
+  ScrollText,
 } from "lucide-react";
 
 export const VIEW_MODE_CONFIG: Record<
@@ -47,6 +48,10 @@ export const VIEW_MODE_CONFIG: Record<
   browser: {
     label: "Browser",
     icon: Globe,
+  },
+  logs: {
+    label: "Logs",
+    icon: ScrollText,
   },
   separator: {
     label: "Separator",

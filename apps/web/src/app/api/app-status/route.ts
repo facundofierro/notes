@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec, spawn } from "child_process";
+import { exec, spawn, ChildProcess } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import { readSettings, ProjectConfig } from "@/lib/settings";
 import net from "node:net";
 import { Agent } from "undici";
+import { processStore, processOutputBuffers, processStdinStreams, cleanupProcess } from "@/lib/process-store";
 
 const execAsync = promisify(exec);
-
-interface AppProcess {
-  pid: number;
-  startedAt: string;
-  command: string;
-}
-
-const processStore = new Map<string, AppProcess>();
 const insecureAgent = new Agent({
   connect: { rejectUnauthorized: false },
 });
@@ -223,7 +216,7 @@ export async function POST(request: NextRequest) {
         const child = spawn(cmd, args, {
           cwd: repoPath,
           detached: false,
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: ["pipe", "pipe", "pipe"],
         });
 
         if (!child.pid) {
@@ -233,10 +226,40 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Initialize output buffer for this process
+        processOutputBuffers.set(child.pid, "");
+
+        // Store stdin for interactive input
+        if (child.stdin) {
+          processStdinStreams.set(child.pid, child.stdin);
+        }
+
+        // Capture stdout
+        child.stdout?.on("data", (data: Buffer) => {
+          const text = data.toString();
+          const existing = processOutputBuffers.get(child.pid!) || "";
+          processOutputBuffers.set(child.pid!, existing + text);
+        });
+
+        // Capture stderr
+        child.stderr?.on("data", (data: Buffer) => {
+          const text = data.toString();
+          const existing = processOutputBuffers.get(child.pid!) || "";
+          processOutputBuffers.set(child.pid!, existing + text);
+        });
+
+        // Clean up on process exit
+        child.on("exit", () => {
+          if (child.pid) {
+            cleanupProcess(repo, child.pid);
+          }
+        });
+
         processStore.set(repo, {
           pid: child.pid,
           startedAt: new Date().toISOString(),
           command: devCommand,
+          childProcess: child,
         });
 
         return NextResponse.json({
@@ -251,8 +274,12 @@ export async function POST(request: NextRequest) {
         if (managedProcess) {
           // Stop managed process
           try {
-            process.kill(managedProcess.pid, "SIGTERM");
-            processStore.delete(repo);
+            if (managedProcess.childProcess) {
+              managedProcess.childProcess.kill("SIGTERM");
+            } else {
+              process.kill(managedProcess.pid, "SIGTERM");
+            }
+            cleanupProcess(repo, managedProcess.pid);
             return NextResponse.json({ success: true, managed: true });
           } catch (error: any) {
             return NextResponse.json({
@@ -273,6 +300,9 @@ export async function POST(request: NextRequest) {
               if (pid) {
                 try {
                   process.kill(pid, "SIGTERM");
+                  // Clean up if it was somehow in our buffers
+                  processOutputBuffers.delete(pid);
+                  processStdinStreams.delete(pid);
                   return NextResponse.json({ success: true, managed: false });
                 } catch (error: any) {
                   return NextResponse.json({
@@ -296,8 +326,12 @@ export async function POST(request: NextRequest) {
         const managedProcess = processStore.get(repo);
         if (managedProcess) {
           try {
-            process.kill(managedProcess.pid, "SIGTERM");
-            processStore.delete(repo);
+            if (managedProcess.childProcess) {
+              managedProcess.childProcess.kill("SIGTERM");
+            } else {
+              process.kill(managedProcess.pid, "SIGTERM");
+            }
+            cleanupProcess(repo, managedProcess.pid);
             // Wait a bit for the process to die
             await new Promise((resolve) => setTimeout(resolve, 1000));
           } catch {
@@ -312,7 +346,7 @@ export async function POST(request: NextRequest) {
         const child = spawn(cmd, args, {
           cwd: repoPath,
           detached: false,
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: ["pipe", "pipe", "pipe"],
         });
 
         if (!child.pid) {
@@ -322,10 +356,40 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Initialize output buffer for this process
+        processOutputBuffers.set(child.pid, "");
+
+        // Store stdin for interactive input
+        if (child.stdin) {
+          processStdinStreams.set(child.pid, child.stdin);
+        }
+
+        // Capture stdout
+        child.stdout?.on("data", (data: Buffer) => {
+          const text = data.toString();
+          const existing = processOutputBuffers.get(child.pid!) || "";
+          processOutputBuffers.set(child.pid!, existing + text);
+        });
+
+        // Capture stderr
+        child.stderr?.on("data", (data: Buffer) => {
+          const text = data.toString();
+          const existing = processOutputBuffers.get(child.pid!) || "";
+          processOutputBuffers.set(child.pid!, existing + text);
+        });
+
+        // Clean up on process exit
+        child.on("exit", () => {
+          if (child.pid) {
+            cleanupProcess(repo, child.pid);
+          }
+        });
+
         processStore.set(repo, {
           pid: child.pid,
           startedAt: new Date().toISOString(),
           command: devCommand,
+          childProcess: child,
         });
 
         return NextResponse.json({

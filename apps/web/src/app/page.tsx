@@ -458,6 +458,16 @@ export default function Home() {
     isAppActionsMenuOpen,
     setIsAppActionsMenuOpen,
   ] = React.useState(false);
+  const [appLogs, setAppLogs] =
+    React.useState<string>("");
+  const [
+    isAppStarting,
+    setIsAppStarting,
+  ] = React.useState(false);
+  const appLogsAbortControllerRef =
+    React.useRef<AbortController | null>(
+      null,
+    );
 
   const selectedRepoStorageKey =
     "agelum.selectedRepo";
@@ -526,6 +536,7 @@ export default function Home() {
         "review",
         "separator",
         "ai",
+        "logs",
         "browser",
       ];
 
@@ -728,6 +739,107 @@ export default function Home() {
     };
   }, [selectedRepo, currentProject?.url]);
 
+  // Stream app logs and detect when app is ready
+  React.useEffect(() => {
+    if (!isAppManaged || !isAppRunning || !appPid) {
+      setIsAppStarting(false);
+      return;
+    }
+
+    let cancelled = false;
+    let lastLogTime = Date.now();
+    let hasLoggedRecently = false;
+
+    const streamLogs = async () => {
+      appLogsAbortControllerRef.current = new AbortController();
+      const ac = appLogsAbortControllerRef.current;
+
+      try {
+        const res = await fetch(`/api/app-logs?pid=${appPid}`, {
+          signal: ac.signal,
+        });
+
+        if (!res.ok || !res.body) {
+          setAppLogs((prev) => prev + "\nError: Failed to stream logs\n");
+          setIsAppStarting(false);
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done || cancelled) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line);
+                if (data.output) {
+                  setAppLogs((prev) => prev + data.output);
+                  lastLogTime = Date.now();
+                  hasLoggedRecently = true;
+                }
+              } catch {
+                // Not JSON, append as plain text
+                setAppLogs((prev) => prev + line + "\n");
+                lastLogTime = Date.now();
+                hasLoggedRecently = true;
+              }
+            }
+          }
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError" && !cancelled) {
+          console.error("Log streaming error:", error);
+        }
+      }
+    };
+
+    // Start streaming logs
+    streamLogs();
+
+    // Check for app readiness: if no new logs for 3 seconds and URL is alive
+    const readinessInterval = window.setInterval(async () => {
+      if (cancelled) return;
+
+      const timeSinceLastLog = Date.now() - lastLogTime;
+      
+      // If we've had logs and then 3 seconds of silence, check if app is ready
+      if (hasLoggedRecently && timeSinceLastLog > 3000 && currentProject?.url) {
+        // Check if URL is responding
+        try {
+          const checkRes = await fetch(`/api/app-status?repo=${selectedRepo}`);
+          const status = await checkRes.json();
+          
+          if (status.isRunning) {
+            // App is ready, switch to browser view
+            setIsAppStarting(false);
+            setIframeUrl(currentProject.url);
+            setViewMode("browser");
+          }
+        } catch (error) {
+          console.error("Readiness check error:", error);
+        }
+      }
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(readinessInterval);
+      if (appLogsAbortControllerRef.current) {
+        appLogsAbortControllerRef.current.abort();
+        appLogsAbortControllerRef.current = null;
+      }
+    };
+  }, [isAppManaged, isAppRunning, appPid, selectedRepo, currentProject?.url]);
+
   React.useEffect(() => {
     if (viewMode !== "tests") return;
     if (!selectedRepo) return;
@@ -881,6 +993,17 @@ export default function Home() {
 
   const handleStartApp = React.useCallback(async () => {
     if (!selectedRepo) return;
+    
+    // Clear previous logs and switch to logs view
+    setAppLogs("");
+    setIsAppStarting(true);
+    setViewMode("logs");
+    
+    // Abort any existing log streaming
+    if (appLogsAbortControllerRef.current) {
+      appLogsAbortControllerRef.current.abort();
+    }
+    
     try {
       const res = await fetch("/api/app-status", {
         method: "POST",
@@ -890,14 +1013,25 @@ export default function Home() {
       const data = await res.json();
       if (!data.success) {
         console.error("Failed to start app:", data.error);
+        setAppLogs(`Error: ${data.error || "Failed to start app"}\n`);
+        setIsAppStarting(false);
       }
     } catch (error) {
       console.error("Error starting app:", error);
+      setAppLogs(`Error: ${error}\n`);
+      setIsAppStarting(false);
     }
   }, [selectedRepo]);
 
   const handleStopApp = React.useCallback(async () => {
     if (!selectedRepo) return;
+    
+    // Abort log streaming
+    if (appLogsAbortControllerRef.current) {
+      appLogsAbortControllerRef.current.abort();
+      appLogsAbortControllerRef.current = null;
+    }
+    
     try {
       const res = await fetch("/api/app-status", {
         method: "POST",
@@ -3495,6 +3629,27 @@ export default function Home() {
                   Select a file to view and edit
                 </div>
               )}
+            </div>
+          ) : viewMode === "logs" ? (
+            <div className="flex flex-1 overflow-hidden flex-col bg-background">
+              <div className="flex-1 min-h-0 bg-black">
+                <TerminalViewer
+                  output={appLogs || (isAppStarting ? "Starting application...\n" : "No logs available")}
+                  className="w-full h-full"
+                  onInput={(data) => {
+                    // Send input to the app process if needed
+                    if (appPid && isAppRunning) {
+                      fetch("/api/app-logs", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pid: appPid, input: data }),
+                      }).catch((error) => {
+                        console.error("Failed to send input:", error);
+                      });
+                    }
+                  }}
+                />
+              </div>
             </div>
           ) : viewMode === "browser" ? (
             <div className="flex flex-1 overflow-hidden">
