@@ -2501,7 +2501,7 @@ export default function Home() {
                     e.target.value,
                   )
                 }
-                className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 min-w-[120px] appearance-none cursor-pointer hover:text-white font-medium"
+                className="bg-transparent text-foreground text-sm border-none focus:ring-0 p-0 pr-6 appearance-none cursor-pointer hover:text-white font-medium"
               >
                 <option
                   value=""

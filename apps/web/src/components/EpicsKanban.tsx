@@ -34,7 +34,7 @@ const columns: KanbanColumnType[] = [
   },
   {
     id: "priority",
-    title: "Bugs",
+    title: "Fixes",
     color: "red",
     order: 1,
   },

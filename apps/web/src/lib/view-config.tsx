@@ -40,7 +40,7 @@ export const VIEW_MODE_CONFIG: Record<
     icon: Terminal,
   },
   "cli-tools": {
-    label: "Cli tools",
+    label: "Tools",
     icon: Wrench,
   },
   separator: {
