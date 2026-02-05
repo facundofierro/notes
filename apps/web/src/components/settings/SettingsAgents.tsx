@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Switch, Label } from "@agelum/shadcn";
+import { Switch } from "@agelum/shadcn";
 import { UserSettings } from "@/hooks/use-settings";
 
 interface SettingsAgentsProps {
@@ -28,27 +28,46 @@ export function SettingsAgents({ settings, onChange }: SettingsAgentsProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-white mb-4">Agent Configuration</h3>
-        <p className="text-sm text-gray-400">
+        <h3 className="text-lg font-medium text-foreground mb-4">Agent Configuration</h3>
+        <p className="text-sm text-muted-foreground">
           Select which AI agents and tools are available in the interface.
         </p>
       </div>
       
-      <div className="grid gap-4">
-        {tools.map(tool => (
-          <div key={tool.name} className="flex items-center justify-between p-4 border border-gray-800 rounded-lg bg-gray-900">
-            <div>
-              <div className="font-medium text-gray-200">{tool.displayName}</div>
-              <div className="text-xs text-gray-500">
-                 {tool.available ? "Available" : "Not installed/Available"}
+      <div className="grid grid-cols-3 gap-3">
+        {tools.map(tool => {
+          const isEnabled = (settings.enabledAgents || []).includes(tool.name);
+          return (
+            <div 
+              key={tool.name} 
+              className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${
+                isEnabled 
+                  ? "border-border bg-secondary hover:border-muted-foreground shadow-sm"
+                  : "border-border bg-card opacity-50 hover:opacity-100"
+              }`}
+            >
+              <div className="flex-1 px-3 py-3 text-left">
+                <div className="flex gap-2 items-center mb-0.5">
+                  <div className="text-sm font-medium text-foreground">
+                    {tool.displayName}
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                   {tool.available ? "Available" : "Not installed"}
+                </div>
+              </div>
+              
+              <div className="px-3 py-2 border-t bg-background/50 border-border flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">Enabled</span>
+                <Switch 
+                  checked={isEnabled}
+                  onCheckedChange={(c) => toggleAgent(tool.name, c)}
+                  className="scale-75 origin-right"
+                />
               </div>
             </div>
-            <Switch 
-              checked={(settings.enabledAgents || []).includes(tool.name)}
-              onCheckedChange={(c) => toggleAgent(tool.name, c)}
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

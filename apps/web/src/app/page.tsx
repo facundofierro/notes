@@ -350,6 +350,9 @@ export default function Home() {
       | "tests"
       | "defaults"
       | "workflows"
+      | "project-config"
+      | "project-commands"
+      | "project-preview"
     >("defaults");
   const [
     isServiceRunning,
@@ -560,14 +563,18 @@ export default function Home() {
   const testsSetupState =
     testsSetupStatus?.state ?? null;
 
-  // Sync iframeUrl with project url
+  // Sync iframeUrl with project url (only for browser view, not OpenCode)
   React.useEffect(() => {
-    if (currentProject?.url) {
-      setIframeUrl(currentProject.url);
-    } else if (typeof window !== "undefined") {
-      setIframeUrl(window.location.origin);
+    // Only set iframe URL to project URL when on browser tab
+    // Don't overwrite if it's an OpenCode URL (port 9988)
+    if (viewMode === "browser") {
+      if (currentProject?.url) {
+        setIframeUrl(currentProject.url);
+      } else if (typeof window !== "undefined") {
+        setIframeUrl(window.location.origin);
+      }
     }
-  }, [currentProject?.url]);
+  }, [currentProject?.url, viewMode]);
 
   // Auto-run logic
   React.useEffect(() => {
@@ -2565,7 +2572,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   setSettingsTab(
-                    "projects",
+                    "project-config",
                   );
                   setIsSettingsOpen(
                     true,
@@ -3223,13 +3230,16 @@ export default function Home() {
         onSave={handleSettingsSave}
         initialTab={settingsTab}
         projectName={
-          settingsTab ===
-          "projects"
+          settingsTab === "project-config" ||
+          settingsTab === "project-commands" ||
+          settingsTab === "project-preview"
             ? selectedRepo || undefined
             : undefined
         }
         projectPath={
-          settingsTab === "projects" && selectedRepo
+          (settingsTab === "project-config" ||
+           settingsTab === "project-commands" ||
+           settingsTab === "project-preview") && selectedRepo
             ? repositories.find((r) => r.name === selectedRepo)?.path
             : undefined
         }
