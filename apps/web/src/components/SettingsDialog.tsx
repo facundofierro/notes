@@ -18,6 +18,8 @@ import {
   TestTube,
   Settings as SettingsIcon,
   LayoutTemplate,
+  Terminal,
+  Eye,
 } from "lucide-react";
 import { SettingsProjects } from "./settings/SettingsProjects";
 import { SettingsAgents } from "./settings/SettingsAgents";
@@ -41,7 +43,9 @@ type Tab =
   | "tests"
   | "defaults"
   | "workflows"
-  | "project-config";
+  | "project-config"
+  | "project-commands"
+  | "project-preview";
 
 export function SettingsDialog({
   open,
@@ -172,6 +176,18 @@ export function SettingsDialog({
       hidden: !projectName,
     },
     {
+      id: "project-commands",
+      label: "Commands",
+      icon: Terminal,
+      hidden: !projectName,
+    },
+    {
+      id: "project-preview",
+      label: "Preview",
+      icon: Eye,
+      hidden: !projectName,
+    },
+    {
       id: "projects",
       label: "All Projects",
       icon: Folder,
@@ -197,7 +213,7 @@ export function SettingsDialog({
     },
     {
       id: "workflows",
-      label: "Workflow Library",
+      label: "Workflow",
       icon: LayoutTemplate,
     },
   ];
@@ -277,6 +293,23 @@ export function SettingsDialog({
               projectName={projectName}
               settings={localSettings}
               onChange={handleChange}
+              view="general"
+            />
+          )}
+          {activeTab === "project-commands" && projectName && (
+            <ProjectSettings
+              projectName={projectName}
+              settings={localSettings}
+              onChange={handleChange}
+              view="commands"
+            />
+          )}
+          {activeTab === "project-preview" && projectName && (
+            <ProjectSettings
+              projectName={projectName}
+              settings={localSettings}
+              onChange={handleChange}
+              view="preview"
             />
           )}
           {activeTab === "projects" && (
