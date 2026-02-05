@@ -16,6 +16,7 @@ import {
 interface BrowserRightPanelProps {
   repo: string;
   onTaskCreated?: () => void;
+  onRequestCapture?: () => Promise<string | null>;
 }
 
 type Mode = "screen" | "properties" | "prompt";
@@ -31,7 +32,7 @@ interface Annotation {
   prompt: string;
 }
 
-export function BrowserRightPanel({ repo, onTaskCreated }: BrowserRightPanelProps) {
+export function BrowserRightPanel({ repo, onTaskCreated, onRequestCapture }: BrowserRightPanelProps) {
   const [mode, setMode] = useState<Mode>("screen");
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -52,6 +53,17 @@ export function BrowserRightPanel({ repo, onTaskCreated }: BrowserRightPanelProp
 
   const handleCaptureScreen = async () => {
     try {
+      if (onRequestCapture) {
+        const directCapture = await onRequestCapture();
+        if (directCapture) {
+          setScreenshot(directCapture);
+          setAnnotations([]);
+          setNextId(1);
+          setSelectedAnnotationId(null);
+          return;
+        }
+      }
+
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: "always" } as any,
         audio: false
@@ -76,6 +88,7 @@ export function BrowserRightPanel({ repo, onTaskCreated }: BrowserRightPanelProp
       // Reset state
       setAnnotations([]);
       setNextId(1);
+      setSelectedAnnotationId(null);
       
     } catch (err) {
       console.error("Error capturing screen:", err);

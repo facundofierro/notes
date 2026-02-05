@@ -235,6 +235,10 @@ export default function Home() {
     React.useRef<HTMLInputElement>(
       null,
     );
+  const browserIframeRef =
+    React.useRef<HTMLIFrameElement>(
+      null,
+    );
   const recognitionRef =
     React.useRef<any>(null);
   const [
@@ -281,6 +285,82 @@ export default function Home() {
       },
       [activePromptKey],
     );
+  const requestEmbeddedCapture =
+    React.useCallback(() => {
+      return new Promise<string | null>(
+        (resolve) => {
+          const targetWindow =
+            browserIframeRef.current
+              ?.contentWindow;
+          if (!targetWindow) {
+            resolve(null);
+            return;
+          }
+
+          const captureId =
+            typeof crypto !== "undefined" &&
+            "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random()
+                  .toString(16)
+                  .slice(2)}`;
+
+          const timeoutId =
+            window.setTimeout(() => {
+              window.removeEventListener(
+                "message",
+                handleMessage,
+              );
+              resolve(null);
+            }, 1500);
+
+          const handleMessage = (
+            event: MessageEvent,
+          ) => {
+            if (
+              event.source !==
+              targetWindow
+            ) {
+              return;
+            }
+            const data = event.data;
+            if (
+              !data ||
+              data.type !==
+                "agelum:capture-response" ||
+              data.id !== captureId
+            ) {
+              return;
+            }
+            window.clearTimeout(timeoutId);
+            window.removeEventListener(
+              "message",
+              handleMessage,
+            );
+            if (
+              typeof data.dataUrl ===
+              "string"
+            ) {
+              resolve(data.dataUrl);
+            } else {
+              resolve(null);
+            }
+          };
+
+          window.addEventListener(
+            "message",
+            handleMessage,
+          );
+          targetWindow.postMessage(
+            {
+              type: "agelum:capture-request",
+              id: captureId,
+            },
+            "*",
+          );
+        },
+      );
+    }, []);
   const [
     openCodeWebError,
     setOpenCodeWebError,
@@ -3443,6 +3523,7 @@ export default function Home() {
                 {iframeUrl ? (
                   <iframe 
                     src={iframeUrl} 
+                    ref={browserIframeRef}
                     className="flex-1 w-full border-none bg-white"
                     title="App Browser"
                     allow="camera; microphone; display-capture" // Enable display-capture for getDisplayMedia if supported in iframe
@@ -3455,6 +3536,9 @@ export default function Home() {
               </div>
               <BrowserRightPanel 
                 repo={selectedRepo || ""} 
+                onRequestCapture={
+                  requestEmbeddedCapture
+                }
                 onTaskCreated={() => {
                    // Optional: toast or feedback could be added here
                 }}
