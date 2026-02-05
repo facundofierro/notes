@@ -297,18 +297,53 @@ export function SettingsProjects({
                   </div>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() =>
-                  handleDelete(
-                    project.id,
-                  )
-                }
-                className="text-muted-foreground hover:text-red-400 hover:bg-secondary"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="w-48">
+                  <Select
+                    value={project.workflowId || "default"}
+                    onValueChange={(value) => {
+                      const updatedProjects = (settings.projects || []).map(p => 
+                        p.id === project.id 
+                          ? { ...p, workflowId: value === "default" ? undefined : value }
+                          : p
+                      );
+                      onChange("projects", updatedProjects);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs text-foreground bg-background border-border">
+                      <SelectValue placeholder="Workflow" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border-border">
+                      <SelectItem value="default">
+                        Default
+                      </SelectItem>
+                      {(
+                        settings.workflows ||
+                        []
+                      ).map((w) => (
+                        <SelectItem
+                          key={w.id}
+                          value={w.id}
+                        >
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    handleDelete(
+                      project.id,
+                    )
+                  }
+                  className="text-muted-foreground hover:text-red-400 hover:bg-secondary h-8 w-8"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ),
         )}

@@ -24,12 +24,14 @@ import { SettingsAgents } from "./settings/SettingsAgents";
 import { SettingsTests } from "./settings/SettingsTests";
 import { SettingsDefaults } from "./settings/SettingsDefaults";
 import { SettingsWorkflows } from "./settings/SettingsWorkflows";
+import { ProjectSettings } from "./settings/ProjectSettings";
 
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: () => void;
   initialTab?: Tab;
+  projectName?: string;
 }
 
 type Tab =
@@ -37,13 +39,15 @@ type Tab =
   | "agents"
   | "tests"
   | "defaults"
-  | "workflows";
+  | "workflows"
+  | "project-config";
 
 export function SettingsDialog({
   open,
   onOpenChange,
   onSave,
   initialTab,
+  projectName,
 }: SettingsDialogProps) {
   const {
     settings,
@@ -63,14 +67,19 @@ export function SettingsDialog({
     React.useState(false);
   const [activeTab, setActiveTab] =
     React.useState<Tab>(
-      initialTab || "defaults",
+      initialTab ||
+        (projectName
+          ? "project-config"
+          : "defaults"),
     );
 
   React.useEffect(() => {
     if (open && initialTab) {
       setActiveTab(initialTab);
+    } else if (open && projectName) {
+      setActiveTab("project-config");
     }
-  }, [open, initialTab]);
+  }, [open, initialTab, projectName]);
 
   React.useEffect(() => {
     setLocalSettings(settings);
@@ -115,11 +124,19 @@ export function SettingsDialog({
     id: Tab;
     label: string;
     icon: any;
+    hidden?: boolean;
   }[] = [
     {
+      id: "project-config",
+      label: "Project",
+      icon: LayoutTemplate,
+      hidden: !projectName,
+    },
+    {
       id: "projects",
-      label: "Projects",
+      label: "All Projects",
       icon: Folder,
+      hidden: !!projectName,
     },
     {
       id: "agents",
@@ -133,15 +150,19 @@ export function SettingsDialog({
     },
     {
       id: "defaults",
-      label: "Defaults",
+      label: "Global Defaults",
       icon: SettingsIcon,
     },
     {
       id: "workflows",
-      label: "Workflows",
+      label: "Workflow Library",
       icon: LayoutTemplate,
     },
   ];
+
+  const visibleTabs = tabs.filter(
+    (t) => !t.hidden,
+  );
 
   return (
     <Dialog
@@ -153,12 +174,14 @@ export function SettingsDialog({
         <div className="flex flex-col gap-2 p-4 w-64 border-r border-border bg-background">
           <div className="px-2 pt-2 mb-4">
             <h2 className="text-lg font-bold text-white">
-              Settings
+              {projectName
+                ? "Project Settings"
+                : "System Settings"}
             </h2>
           </div>
 
           <div className="space-y-1">
-            {tabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <Button
@@ -207,6 +230,13 @@ export function SettingsDialog({
 
         {/* Content */}
         <div className="overflow-y-auto flex-1 p-8 bg-background">
+          {activeTab === "project-config" && projectName && (
+            <ProjectSettings
+              projectName={projectName}
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
           {activeTab === "projects" && (
             <SettingsProjects
               settings={localSettings}

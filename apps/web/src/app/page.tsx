@@ -2388,63 +2388,54 @@ export default function Home() {
           <AgelumNotesLogo size="sm" />
 
           <div className="flex gap-1 items-center">
-            {(() => {
-              const standardOrder = [
-                "ideas",
-                "docs",
-                "plan",
-                "epics",
-                "kanban",
-                "tests",
-                "commands",
-                "cli-tools",
-              ];
-              return standardOrder.map(
-                (mode) => {
-                  if (
-                    !visibleItems.includes(
-                      mode,
-                    )
-                  )
-                    return null;
-                  const config =
-                    VIEW_MODE_CONFIG[
-                      mode
-                    ];
-                  if (!config)
-                    return null;
-                  const Icon =
-                    config.icon;
+            {visibleItems.map(
+              (mode, index) => {
+                if (
+                  mode === "separator"
+                ) {
                   return (
-                    <button
-                      key={mode}
-                      onClick={() => {
-                        setViewMode(
-                          mode as ViewMode,
-                        );
-                        if (
-                          mode ===
-                          "commands"
-                        ) {
-                          setDocAiMode(
-                            "modify",
-                          );
-                        }
-                      }}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                        viewMode ===
-                        mode
-                          ? "bg-amber-500/15 text-amber-500 border border-amber-500/20"
-                          : "text-muted-foreground hover:bg-accent border border-transparent"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {config.label}
-                    </button>
+                    <div
+                      key={`sep-${index}`}
+                      className="w-px h-6 bg-border mx-1"
+                    />
                   );
-                },
-              );
-            })()}
+                }
+                const config =
+                  VIEW_MODE_CONFIG[
+                    mode
+                  ];
+                if (!config)
+                  return null;
+                const Icon =
+                  config.icon;
+                return (
+                  <button
+                    key={`${mode}-${index}`}
+                    onClick={() => {
+                      setViewMode(
+                        mode as ViewMode,
+                      );
+                      if (
+                        mode ===
+                        "commands"
+                      ) {
+                        setDocAiMode(
+                          "modify",
+                        );
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                      viewMode === mode
+                        ? "bg-amber-500/15 text-amber-500 border border-amber-500/20"
+                        : "text-muted-foreground hover:bg-accent border border-transparent"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {config.label}
+                  </button>
+                );
+              },
+            )}
           </div>
         </div>
 
@@ -2485,7 +2476,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   setSettingsTab(
-                    "projects",
+                    "project-config",
                   );
                   setIsSettingsOpen(
                     true,
@@ -3095,6 +3086,12 @@ export default function Home() {
         onOpenChange={setIsSettingsOpen}
         onSave={handleSettingsSave}
         initialTab={settingsTab}
+        projectName={
+          settingsTab ===
+          "project-config"
+            ? selectedRepo || undefined
+            : undefined
+        }
       />
     </div>
   );
