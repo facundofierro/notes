@@ -205,7 +205,7 @@ export function saveSettings(settings: UserSettings): void {
       ...settings,
       projects: settings.projects?.map(project => {
         if (project.type === "project") {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // eslint-disable-next-line no-unused-vars
           const { workflowId, commands, url, autoRun, ...rest } = project;
           return rest;
         }

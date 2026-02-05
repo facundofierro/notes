@@ -420,8 +420,8 @@ export default function Home() {
         "kanban",
         "tests",
         "review",
-        "ai",
         "separator",
+        "ai",
         "browser",
       ];
 
@@ -3194,6 +3194,11 @@ export default function Home() {
           settingsTab ===
           "projects"
             ? selectedRepo || undefined
+            : undefined
+        }
+        projectPath={
+          settingsTab === "projects" && selectedRepo
+            ? repositories.find((r) => r.name === selectedRepo)?.path
             : undefined
         }
       />

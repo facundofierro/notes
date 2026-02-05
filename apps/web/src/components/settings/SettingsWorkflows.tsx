@@ -44,6 +44,8 @@ interface SettingsWorkflowsProps {
     key: keyof UserSettings,
     value: any,
   ) => void;
+  activeWorkflowId?: string;
+  onSelectWorkflow?: (id: string) => void;
 }
 
 interface SortableItemProps {
@@ -124,6 +126,8 @@ function SortableItem({
 export function SettingsWorkflows({
   settings,
   onChange,
+  activeWorkflowId: propActiveId,
+  onSelectWorkflow,
 }: SettingsWorkflowsProps) {
   const [viewMode, setViewMode] =
     React.useState<"list" | "edit">(
@@ -241,10 +245,14 @@ export function SettingsWorkflows({
   const handleSelectWorkflow = (
     id: string,
   ) => {
-    onChange(
-      "defaultWorkflowId",
-      id === "default" ? undefined : id,
-    );
+    if (onSelectWorkflow) {
+      onSelectWorkflow(id);
+    } else {
+      onChange(
+        "defaultWorkflowId",
+        id === "default" ? undefined : id,
+      );
+    }
   };
 
   const addItem = (type: string) => {
@@ -563,6 +571,7 @@ export function SettingsWorkflows({
   ];
 
   const activeWorkflowId =
+    propActiveId ||
     settings.defaultWorkflowId ||
     "default";
 

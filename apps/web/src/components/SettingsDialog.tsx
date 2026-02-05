@@ -32,6 +32,7 @@ interface SettingsDialogProps {
   onSave?: () => void;
   initialTab?: Tab;
   projectName?: string;
+  projectPath?: string;
 }
 
 type Tab =
@@ -48,6 +49,7 @@ export function SettingsDialog({
   onSave,
   initialTab,
   projectName,
+  projectPath,
 }: SettingsDialogProps) {
   const {
     settings,
@@ -63,6 +65,43 @@ export function SettingsDialog({
     React.useState<UserSettings>(
       settings,
     );
+    
+  React.useEffect(() => {
+    const loadProjectConfig = async () => {
+      if (
+        open && 
+        projectName && 
+        projectPath && 
+        settings.projects && 
+        !settings.projects.find(p => p.name === projectName)
+      ) {
+        try {
+          const res = await fetch(
+            `/api/project/config?path=${encodeURIComponent(projectPath)}`
+          );
+          const data = await res.json();
+          if (data.config) {
+            const newProject = {
+              id: crypto.randomUUID(),
+              name: projectName,
+              path: projectPath,
+              type: "project" as const,
+              ...data.config
+            };
+            
+            setLocalSettings(prev => ({
+              ...prev,
+              projects: [...(prev.projects || []), newProject]
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to load project config:", error);
+        }
+      }
+    };
+    
+    loadProjectConfig();
+  }, [open, projectName, projectPath, settings.projects]);
   const [hasChanges, setHasChanges] =
     React.useState(false);
   const [activeTab, setActiveTab] =
@@ -269,6 +308,26 @@ export function SettingsDialog({
             <SettingsWorkflows
               settings={localSettings}
               onChange={handleChange}
+              activeWorkflowId={
+                projectName
+                  ? localSettings.projects?.find((p) => p.name === projectName)?.workflowId
+                  : undefined
+              }
+              onSelectWorkflow={
+                projectName
+                  ? (id) => {
+                      const updatedProjects = (localSettings.projects || []).map((p) =>
+                        p.name === projectName
+                          ? {
+                              ...p,
+                              workflowId: id === "default" ? undefined : id,
+                            }
+                          : p,
+                      );
+                      handleChange("projects", updatedProjects);
+                    }
+                  : undefined
+              }
             />
           )}
         </div>

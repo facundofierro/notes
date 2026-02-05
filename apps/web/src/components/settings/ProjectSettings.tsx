@@ -74,32 +74,7 @@ export function ProjectSettings({
               </p>
             </div>
 
-            <div className="grid gap-2">
-              <Label className="text-gray-200">Active Workflow</Label>
-              <Select
-                value={project.workflowId || "default"}
-                onValueChange={(value) =>
-                  updateProject({
-                    workflowId: value === "default" ? undefined : value,
-                  })
-                }
-              >
-                <SelectTrigger className="w-full bg-background border-border text-white">
-                  <SelectValue placeholder="Select a workflow" />
-                </SelectTrigger>
-                <SelectContent className="bg-secondary border-border text-white">
-                  <SelectItem value="default">Default (All Items)</SelectItem>
-                  {(settings.workflows || []).map((w) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {w.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-400">
-                Select which tools and layout to use for this project.
-              </p>
-            </div>
+
           </div>
         </div>
 
@@ -114,7 +89,7 @@ export function ProjectSettings({
                 <Input
                   value={project.commands?.build || ""}
                   onChange={(e) => updateCommand("build", e.target.value)}
-                  placeholder="npm run build"
+                  placeholder="pnpm run build"
                   className="bg-background border-border text-white text-sm"
                 />
               </div>
@@ -123,7 +98,7 @@ export function ProjectSettings({
                 <Input
                   value={project.commands?.dev || ""}
                   onChange={(e) => updateCommand("dev", e.target.value)}
-                  placeholder="npm run dev"
+                  placeholder="pnpm run dev"
                   className="bg-background border-border text-white text-sm"
                 />
               </div>
@@ -132,7 +107,7 @@ export function ProjectSettings({
                 <Input
                   value={project.commands?.run || ""}
                   onChange={(e) => updateCommand("run", e.target.value)}
-                  placeholder="npm test"
+                  placeholder="pnpm test"
                   className="bg-background border-border text-white text-sm"
                 />
               </div>
@@ -141,7 +116,7 @@ export function ProjectSettings({
                 <Input
                   value={project.commands?.start || ""}
                   onChange={(e) => updateCommand("start", e.target.value)}
-                  placeholder="npm start"
+                  placeholder="pnpm start"
                   className="bg-background border-border text-white text-sm"
                 />
               </div>
