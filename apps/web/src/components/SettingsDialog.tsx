@@ -142,16 +142,19 @@ export function SettingsDialog({
       id: "agents",
       label: "Agents",
       icon: Bot,
+      hidden: !!projectName,
     },
     {
       id: "tests",
       label: "Tests",
       icon: TestTube,
+      hidden: !!projectName,
     },
     {
       id: "defaults",
       label: "Global Defaults",
       icon: SettingsIcon,
+      hidden: !!projectName,
     },
     {
       id: "workflows",

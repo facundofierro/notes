@@ -7,6 +7,15 @@ export interface ProjectConfig {
   name: string;
   path: string;
   type: "project" | "folder";
+  workflowId?: string;
+  commands?: {
+    build?: string;
+    dev?: string;
+    run?: string;
+    start?: string;
+  };
+  url?: string;
+  autoRun?: boolean;
 }
 
 export interface WorkflowConfig {
@@ -28,7 +37,8 @@ export interface UserSettings {
     | "kanban"
     | "tests"
     | "commands"
-    | "cli-tools";
+    | "cli-tools"
+    | "ai";
   sidebarCollapsed: boolean;
   editorFontSize: number;
   editorFontFamily: string;
@@ -97,160 +107,119 @@ function ensureSettingsDir(): void {
   }
 }
 
+function readProjectConfig(projectPath: string): Partial<ProjectConfig> {
+  try {
+    const configPath = path.join(projectPath, ".agelum", "config.json");
+    if (fs.existsSync(configPath)) {
+      const content = fs.readFileSync(configPath, "utf-8");
+      return JSON.parse(content) as Partial<ProjectConfig>;
+    }
+  } catch (error) {
+    console.error(`Error reading project config at ${projectPath}:`, error);
+  }
+  return {};
+}
+
+function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>): void {
+  try {
+    const agelumDir = path.join(projectPath, ".agelum");
+    if (!fs.existsSync(agelumDir)) {
+      fs.mkdirSync(agelumDir, { recursive: true });
+    }
+    const configPath = path.join(agelumDir, "config.json");
+    
+    // Only save project-specific fields to the project config
+    const projectSpecificConfig = {
+      workflowId: config.workflowId,
+      commands: config.commands,
+      url: config.url,
+      autoRun: config.autoRun,
+    };
+
+    fs.writeFileSync(configPath, JSON.stringify(projectSpecificConfig, null, 2));
+  } catch (error) {
+    console.error(`Error saving project config at ${projectPath}:`, error);
+  }
+}
+
 export function readSettings(): UserSettings {
   try {
     ensureSettingsDir();
     const file = getSettingsFile();
+    let settings: UserSettings;
+
     if (!fs.existsSync(file)) {
-      let merged: UserSettings = {
-        ...defaultSettings,
-      };
-      const backfill: Partial<UserSettings> =
-        {};
-      if (
-        !merged.stagehandApiKey &&
-        process.env.BROWSERBASE_API_KEY
-      ) {
-        backfill.stagehandApiKey =
-          process.env.BROWSERBASE_API_KEY;
-      }
-      if (
-        !merged.openaiApiKey &&
-        process.env.OPENAI_API_KEY
-      ) {
-        backfill.openaiApiKey =
-          process.env.OPENAI_API_KEY;
-      }
-      if (
-        !merged.anthropicApiKey &&
-        process.env.ANTHROPIC_API_KEY
-      ) {
-        backfill.anthropicApiKey =
-          process.env.ANTHROPIC_API_KEY;
-      }
-      if (
-        !merged.googleApiKey &&
-        process.env
-          .GOOGLE_GENERATIVE_AI_API_KEY
-      ) {
-        backfill.googleApiKey =
-          process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-      }
-      if (
-        !merged.grokApiKey &&
-        process.env.XAI_API_KEY
-      ) {
-        backfill.grokApiKey =
-          process.env.XAI_API_KEY;
-      }
-      merged = {
-        ...merged,
-        ...backfill,
-      };
-      fs.writeFileSync(
-        file,
-        JSON.stringify(merged, null, 2),
-        { mode: 0o600 },
-      );
-      return merged;
-    }
-    const content = fs.readFileSync(
-      file,
-      "utf-8",
-    );
-    const parsed = JSON.parse(
-      content,
-    ) as Partial<UserSettings>;
-    let merged: UserSettings = {
-      ...defaultSettings,
-      ...parsed,
-    };
-
-    const backfill: Partial<UserSettings> =
-      {};
-    if (
-      !merged.stagehandApiKey &&
-      process.env.BROWSERBASE_API_KEY
-    ) {
-      backfill.stagehandApiKey =
-        process.env.BROWSERBASE_API_KEY;
-    }
-    if (
-      !merged.openaiApiKey &&
-      process.env.OPENAI_API_KEY
-    ) {
-      backfill.openaiApiKey =
-        process.env.OPENAI_API_KEY;
-    }
-    if (
-      !merged.anthropicApiKey &&
-      process.env.ANTHROPIC_API_KEY
-    ) {
-      backfill.anthropicApiKey =
-        process.env.ANTHROPIC_API_KEY;
-    }
-    if (
-      !merged.googleApiKey &&
-      process.env
-        .GOOGLE_GENERATIVE_AI_API_KEY
-    ) {
-      backfill.googleApiKey =
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    }
-    if (
-      !merged.grokApiKey &&
-      process.env.XAI_API_KEY
-    ) {
-      backfill.grokApiKey =
-        process.env.XAI_API_KEY;
+      settings = { ...defaultSettings };
+    } else {
+      const content = fs.readFileSync(file, "utf-8");
+      settings = { ...defaultSettings, ...JSON.parse(content) };
     }
 
-    const needsMigration = Object.keys(
-      defaultSettings,
-    ).some((key) => !(key in parsed));
-    if (
-      Object.keys(backfill).length >
-        0 ||
-      needsMigration
-    ) {
-      merged = {
-        ...merged,
-        ...backfill,
-      };
-      fs.writeFileSync(
-        file,
-        JSON.stringify(merged, null, 2),
-        { mode: 0o600 },
-      );
+    // Backfill API keys from env
+    const backfill: Partial<UserSettings> = {};
+    if (!settings.stagehandApiKey && process.env.BROWSERBASE_API_KEY) backfill.stagehandApiKey = process.env.BROWSERBASE_API_KEY;
+    if (!settings.openaiApiKey && process.env.OPENAI_API_KEY) backfill.openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!settings.anthropicApiKey && process.env.ANTHROPIC_API_KEY) backfill.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!settings.googleApiKey && process.env.GOOGLE_GENERATIVE_AI_API_KEY) backfill.googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!settings.grokApiKey && process.env.XAI_API_KEY) backfill.grokApiKey = process.env.XAI_API_KEY;
+
+    if (Object.keys(backfill).length > 0) {
+      settings = { ...settings, ...backfill };
     }
 
-    return merged;
+    // Load project-specific configurations
+    if (settings.projects) {
+      settings.projects = settings.projects.map((project) => {
+        if (project.type === "project" && project.path) {
+          const projectConfig = readProjectConfig(project.path);
+          return { ...project, ...projectConfig };
+        }
+        return project;
+      });
+    }
+
+    return settings;
   } catch (error) {
-    console.error(
-      "Error reading settings:",
-      error,
-    );
+    console.error("Error reading settings:", error);
     return defaultSettings;
   }
 }
 
-export function saveSettings(
-  settings: UserSettings,
-): void {
+export function saveSettings(settings: UserSettings): void {
   try {
     ensureSettingsDir();
+
+    // Before saving global settings, extract project-specific settings and save them to projects
+    if (settings.projects) {
+      for (const project of settings.projects) {
+        if (project.type === "project" && project.path) {
+          saveProjectConfig(project.path, project);
+        }
+      }
+    }
+
+    // When saving the global user-settings.json, we might want to strip the project-specific 
+    // fields to avoid duplication, but keeping them as a cache is also okay.
+    // Given the request, it's better to NOT store them globally if they should be in the project.
+    const globalSettingsToSave = {
+      ...settings,
+      projects: settings.projects?.map(project => {
+        if (project.type === "project") {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { workflowId, commands, url, autoRun, ...rest } = project;
+          return rest;
+        }
+        return project;
+      })
+    };
+
     fs.writeFileSync(
       getSettingsFile(),
-      JSON.stringify(settings, null, 2),
-      {
-        mode: 0o600,
-      },
+      JSON.stringify(globalSettingsToSave, null, 2),
+      { mode: 0o600 },
     );
   } catch (error) {
-    console.error(
-      "Error saving settings:",
-      error,
-    );
+    console.error("Error saving settings:", error);
     throw error;
   }
 }

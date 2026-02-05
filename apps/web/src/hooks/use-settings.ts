@@ -12,6 +12,14 @@ export interface ProjectConfig {
   path: string;
   type: "project" | "folder";
   workflowId?: string;
+  commands?: {
+    build?: string;
+    dev?: string;
+    run?: string;
+    start?: string;
+  };
+  url?: string;
+  autoRun?: boolean;
 }
 
 export interface WorkflowConfig {
@@ -32,7 +40,9 @@ export interface UserSettings {
     | "epics"
     | "kanban"
     | "tests"
-    | "ai";
+    | "ai"
+    | "commands"
+    | "cli-tools";
   sidebarCollapsed: boolean;
   editorFontSize: number;
   editorFontFamily: string;
@@ -49,6 +59,7 @@ export interface UserSettings {
   grokApiKey: string;
   workflows: WorkflowConfig[];
   defaultWorkflowId?: string;
+  activeWorkflow?: string;
   createBranchPerTask: boolean;
 }
 

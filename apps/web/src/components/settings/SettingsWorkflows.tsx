@@ -546,7 +546,18 @@ export function SettingsWorkflows({
     {
       id: "default",
       name: "Default (All Items)",
-      items: availableItems,
+      items: [
+        "ideas",
+        "docs",
+        "separator",
+        "epics",
+        "kanban",
+        "tests",
+        "review",
+        "separator",
+        "ai",
+        "browser",
+      ],
     },
     ...(settings.workflows || []),
   ];

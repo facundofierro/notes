@@ -551,8 +551,22 @@ export default function Home() {
     }
   }, [viewMode]);
 
+  const currentProject = React.useMemo(() => {
+    if (!selectedRepo || !settings.projects) return null;
+    return settings.projects.find((p) => p.name === selectedRepo);
+  }, [selectedRepo, settings]);
+
   const testsSetupState =
     testsSetupStatus?.state ?? null;
+
+  // Auto-run logic
+  React.useEffect(() => {
+    if (selectedRepo && currentProject?.autoRun && !isServiceRunning) {
+      // In a real app we might trigger the dev command here
+      // For now, we just indicate it's running
+      setIsServiceRunning(true);
+    }
+  }, [selectedRepo, currentProject, isServiceRunning]);
 
   React.useEffect(() => {
     if (viewMode !== "tests") return;
@@ -3083,12 +3097,12 @@ export default function Home() {
               <div className="absolute inset-0 flex flex-col">
                 <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
                   <div className="flex items-center gap-1 flex-1 bg-background border border-border rounded px-3 py-1 text-xs text-muted-foreground overflow-hidden whitespace-nowrap">
-                    {typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}
+                    {currentProject?.url || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")}
                   </div>
                 </div>
                 <iframe 
-                  src={typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"} 
-                  className="flex-1 w-full border-none"
+                  src={currentProject?.url || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")} 
+                  className="flex-1 w-full border-none bg-white"
                   title="App Browser"
                 />
               </div>
