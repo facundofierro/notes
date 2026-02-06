@@ -1,6 +1,6 @@
 import React from "react";
 import { inferTestExecutionStatus } from "@/lib/test-output";
-import { TestsSetupStatus } from "./useHomeState";
+import { TestsSetupStatus } from "@/types/entities";
 
 export function useTestsManager(state: {
   selectedRepo: string | null;

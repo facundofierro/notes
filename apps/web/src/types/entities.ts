@@ -1,0 +1,67 @@
+export interface FileNode {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  children?: FileNode[];
+  content?: string;
+}
+
+export type TestsSetupState =
+  | "missing"
+  | "initializing"
+  | "installing"
+  | "ready"
+  | "error";
+
+export interface TestsSetupStatus {
+  state: TestsSetupState;
+  startedAt?: string;
+  updatedAt: string;
+  pid?: number;
+  log: string;
+  error?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  state:
+    | "backlog"
+    | "priority"
+    | "pending"
+    | "doing"
+    | "done";
+  createdAt: string;
+  epic?: string;
+  assignee?: string;
+  path?: string;
+}
+
+export interface Epic {
+  id: string;
+  title: string;
+  description: string;
+  state:
+    | "backlog"
+    | "priority"
+    | "pending"
+    | "doing"
+    | "done";
+  createdAt: string;
+  path?: string;
+}
+
+export interface Idea {
+  id: string;
+  title: string;
+  description: string;
+  state:
+    | "thinking"
+    | "important"
+    | "priority"
+    | "planned"
+    | "done";
+  createdAt: string;
+  path?: string;
+}

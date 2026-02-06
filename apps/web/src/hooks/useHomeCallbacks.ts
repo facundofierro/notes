@@ -1,101 +1,39 @@
 import * as React from "react";
-import { useSettings } from "@/hooks/use-settings";
 import { usePromptBuilder, PromptBuilderOptions } from "./usePromptBuilder";
 import { useAppLifecycle } from "./useAppLifecycle";
 import { useTestsManager } from "./useTestsManager";
 import { inferTestExecutionStatus } from "@/lib/test-output";
-
-interface HomeState {
-  repositories: { name: string; path: string; folderConfigId?: string }[];
-  setRepositories: (val: any) => void;
-  selectedRepo: string | null;
-  setSelectedRepo: (val: string | null) => void;
-  fileTree: any | null;
-  setFileTree: (val: any) => void;
-  selectedFile: { path: string; content: string } | null;
-  setSelectedFile: (val: any) => void;
-  basePath: string;
-  setBasePath: (val: string) => void;
-  viewMode: string;
-  setViewMode: (val: string) => void;
-  testViewMode: "steps" | "code" | "results";
-  setTestViewMode: (val: "steps" | "code" | "results") => void;
-  testOutput: string;
-  setTestOutput: (val: string | ((prev: string) => string)) => void;
-  isTestRunning: boolean;
-  setIsTestRunning: (val: boolean) => void;
-  testsSetupStatus: any;
-  setTestsSetupStatus: (val: any) => void;
-  isSetupLogsVisible: boolean;
-  setIsSetupLogsVisible: (val: boolean) => void;
-  workEditorEditing: boolean;
-  setWorkEditorEditing: (val: boolean) => void;
-  promptDrafts: Record<string, string>;
-  setPromptDrafts: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
-  agentTools: any[];
-  setAgentTools: (val: any) => void;
-  rightSidebarView: "prompt" | "terminal" | "iframe";
-  setRightSidebarView: (val: "prompt" | "terminal" | "iframe") => void;
-  iframeUrl: string;
-  setIframeUrl: (val: string) => void;
-  projectConfig: any;
-  setProjectConfig: (val: any) => void;
-  isRecording: boolean;
-  setIsRecording: (val: boolean) => void;
-  filePickerOpen: boolean;
-  setFilePickerOpen: (val: boolean) => void;
-  fileSearch: string;
-  setFileSearch: (val: string) => void;
-  allFiles: { name: string; path: string }[];
-  setAllFiles: (val: any) => void;
-  fileMap: Record<string, string>;
-  setFileMap: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
-  workDocIsDraft: boolean;
-  setWorkDocIsDraft: (val: boolean) => void;
-  promptMode: "agent" | "plan" | "chat";
-  setPromptMode: (val: "agent" | "plan" | "chat") => void;
-  docAiMode: "modify" | "start";
-  setDocAiMode: (val: "modify" | "start") => void;
-  toolModelsByTool: Record<string, string[]>;
-  setToolModelsByTool: (fn: (prev: Record<string, string[]>) => Record<string, string[]>) => void;
-  toolModelByTool: Record<string, string>;
-  setToolModelByTool: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
-  isToolModelsLoading: Record<string, boolean>;
-  setIsToolModelsLoading: (fn: (prev: Record<string, boolean>) => Record<string, boolean>) => void;
-  terminalToolName: string;
-  setTerminalToolName: (val: string) => void;
-  terminalOutput: string;
-  setTerminalOutput: (fn: (prev: string) => string) => void;
-  isTerminalRunning: boolean;
-  setIsTerminalRunning: (val: boolean) => void;
-  terminalProcessId: string | null;
-  setTerminalProcessId: (val: string | null) => void;
-  appLogsAbortControllerRef: React.MutableRefObject<AbortController | null>;
-  appLogs: string;
-  setAppLogs: (fn: (prev: string) => string) => void;
-  isAppStarting: boolean;
-  setIsAppStarting: (val: boolean) => void;
-  logStreamPid: number | null;
-  setLogStreamPid: (val: number | null) => void;
-  appPid: number | null;
-  setAppPid: (val: number | null) => void;
-  isAppRunning: boolean;
-  setIsAppRunning: (val: boolean) => void;
-  isAppManaged: boolean;
-  setIsAppManaged: (val: boolean) => void;
-  currentProjectPath: string | null;
-  currentProjectConfig: any;
-  currentProject: any;
-  settings: any;
-}
+import { HomeState } from "./useHomeState";
 
 export function useHomeCallbacks(state: HomeState) {
-  const { settings, refetch: refetchSettings } = useSettings();
+  const { refetchSettings, settings } = state;
   const { buildToolPrompt } = usePromptBuilder();
   const terminalAbortControllerRef = React.useRef<AbortController | null>(null);
   const recognitionRef = React.useRef<any>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const browserIframeRef = React.useRef<HTMLIFrameElement>(null);
+
+  const activePromptKey =
+    state.viewMode === "tests"
+      ? `tests:${state.testViewMode}`
+      : "default";
+  
+  const promptText = state.promptDrafts[activePromptKey] ?? "";
+
+  const setPromptText = React.useCallback(
+    (next: string | ((prev: string) => string)) => {
+      state.setPromptDrafts((prev) => {
+        const prevValue = prev[activePromptKey] ?? "";
+        const nextValue = typeof next === "function" ? next(prevValue) : next;
+        if (prev[activePromptKey] === nextValue) return prev;
+        return {
+          ...prev,
+          [activePromptKey]: nextValue,
+        };
+      });
+    },
+    [state.setPromptDrafts, activePromptKey]
+  );
 
   const joinFsPath = React.useCallback(
     (...parts: string[]) =>
@@ -444,8 +382,7 @@ state: ${opts.state}
           state.setPromptDrafts((prev) => ({
             ...prev,
             [promptKey]: prev[promptKey]
-              ? `${prev[promptKey]}
-![${data.name}](${data.path})`
+              ? `${prev[promptKey]}\n![${data.name}](${data.path})`
               : `![${data.name}](${data.path})`,
           }));
         }
@@ -487,6 +424,433 @@ state: ${opts.state}
     }
   }, [state]);
 
+  const cancelTerminal = React.useCallback(() => {
+      terminalAbortControllerRef.current?.abort();
+      terminalAbortControllerRef.current = null;
+      state.setIsTerminalRunning(false);
+      state.setTerminalProcessId(null);
+      state.setTerminalOutput((prev) =>
+        prev ? `${prev}\n\nCancelled` : "Cancelled"
+      );
+    }, [state]);
+
+  const openInteractiveTerminal = React.useCallback(async () => {
+      if (!state.selectedRepo) return;
+      
+      const cwd = state.basePath && state.selectedRepo
+        ? `${state.basePath}/${state.selectedRepo}`.replace(/\/+/g, "/")
+        : undefined;
+      
+      state.setTerminalToolName("Interactive Terminal");
+      state.setTerminalOutput("");
+      state.setTerminalProcessId(null);
+      state.setIsTerminalRunning(true);
+      state.setRightSidebarView("terminal");
+      
+      terminalAbortControllerRef.current = new AbortController();
+      const ac = terminalAbortControllerRef.current;
+      
+      try {
+        const res = await fetch("/api/terminal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cwd }),
+          signal: ac.signal,
+        });
+        
+        const processId = res.headers.get("X-Agent-Process-ID");
+        if (processId) {
+          state.setTerminalProcessId(processId);
+        }
+        
+        const reader = res.body?.getReader();
+        if (!reader) {
+          state.setTerminalOutput("Failed to open terminal");
+          state.setIsTerminalRunning(false);
+          return;
+        }
+        
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          if (chunk) {
+            state.setTerminalOutput((prev) => prev + chunk);
+          }
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          state.setTerminalOutput(
+            (prev) => `${prev}\nError: ${error.message}`
+          );
+        }
+      } finally {
+        if (terminalAbortControllerRef.current === ac) {
+          terminalAbortControllerRef.current = null;
+        }
+        state.setIsTerminalRunning(false);
+      }
+    }, [state]);
+
+    const handleTerminalInput = React.useCallback(
+      async (data: string) => {
+        if (!state.terminalProcessId) return;
+
+        try {
+          await fetch("/api/agents/input", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: state.terminalProcessId,
+              data,
+            }),
+          });
+        } catch (error) {
+          console.error("Failed to send input:", error);
+        }
+      },
+      [state.terminalProcessId]
+    );
+
+    const runTool = React.useCallback(
+      async (toolName: string) => {
+        if (!state.selectedFile) return;
+        const trimmedPrompt = promptText.trim();
+        if (!trimmedPrompt) return;
+
+        terminalAbortControllerRef.current?.abort();
+        const controller = new AbortController();
+        terminalAbortControllerRef.current = controller;
+
+        state.setTerminalToolName(toolName);
+        state.setTerminalOutput("");
+        state.setTerminalProcessId(null);
+        state.setIsTerminalRunning(true);
+        state.setRightSidebarView("terminal");
+
+        const rawPrompt = buildToolPrompt({
+          promptText: trimmedPrompt,
+          mode: state.promptMode,
+          docMode: state.docAiMode,
+          file: {
+            path: state.selectedFile.path,
+          },
+          viewMode: state.viewMode as any,
+          testContext:
+            state.viewMode === "tests"
+              ? {
+                  testViewMode: state.testViewMode,
+                  testOutput: state.testOutput,
+                  testStatus: inferTestExecutionStatus(
+                    state.testOutput,
+                    state.isTestRunning
+                  ),
+                }
+              : undefined,
+          selectedRepo: state.selectedRepo,
+        } as PromptBuilderOptions);
+
+        // Replace @mentions with full paths
+        let prompt = rawPrompt;
+        Object.entries(state.fileMap).forEach(([name, path]) => {
+          prompt = prompt.split(`@${name}`).join(path);
+        });
+
+        const cwd =
+          state.basePath && state.selectedRepo
+            ? `${state.basePath}/${state.selectedRepo}`.replace(/\/+/g, "/")
+            : undefined;
+
+        try {
+          const res = await fetch("/api/agents", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tool: toolName,
+              prompt,
+              model: state.toolModelByTool[toolName] || undefined,
+              cwd,
+            }),
+            signal: controller.signal,
+          });
+
+          const processId = res.headers.get("X-Agent-Process-ID");
+          if (processId) {
+            state.setTerminalProcessId(processId);
+          }
+
+          const reader = res.body?.getReader();
+          if (!reader) {
+            const fallbackText = res.ok
+              ? ""
+              : await res.text().catch(() => "");
+            state.setTerminalOutput(fallbackText || "Tool execution failed");
+            return;
+          }
+
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, {
+              stream: true,
+            });
+            if (chunk) {
+              state.setTerminalOutput((prev) => prev + chunk);
+            }
+          }
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            state.setTerminalOutput((prev) =>
+              prev ? `${prev}\n\nCancelled` : "Cancelled"
+            );
+            return;
+          }
+          state.setTerminalOutput("Tool execution failed");
+        } finally {
+          if (terminalAbortControllerRef.current === controller) {
+            terminalAbortControllerRef.current = null;
+          }
+          state.setIsTerminalRunning(false);
+        }
+      },
+      [
+        state,
+        buildToolPrompt,
+        promptText
+      ]
+    );
+
+  const handleInstallDeps = React.useCallback(async () => {
+    if (!state.selectedRepo || !state.currentProject) return;
+    const installCmd = "pnpm install";
+    state.setTerminalToolName("Install Dependencies");
+    state.setTerminalOutput(`Running: ${installCmd}\n`);
+    state.setRightSidebarView("terminal");
+    state.setIsTerminalRunning(true);
+
+    terminalAbortControllerRef.current = new AbortController();
+    const ac = terminalAbortControllerRef.current;
+
+    try {
+      const res = await fetch("/api/system/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repo: state.selectedRepo,
+          command: installCmd,
+        }),
+        signal: ac.signal,
+      });
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        state.setTerminalOutput((prev) => `${prev}\nError: No response body`);
+        state.setIsTerminalRunning(false);
+        return;
+      }
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (data.output) {
+                state.setTerminalOutput((prev) => prev + data.output);
+              }
+            } catch {
+              state.setTerminalOutput((prev) => prev + line + "\n");
+            }
+          }
+        }
+      }
+
+      state.setIsTerminalRunning(false);
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        state.setTerminalOutput((prev) => `${prev}\nError: ${error.message}`);
+      }
+      state.setIsTerminalRunning(false);
+    }
+  }, [state]);
+
+  const handleBuildApp = React.useCallback(async () => {
+    if (!state.selectedRepo || !state.currentProject) return;
+    const buildCmd = state.currentProject.commands?.build || "pnpm build";
+    state.setTerminalToolName("Build App");
+    state.setTerminalOutput(`Running: ${buildCmd}\n`);
+    state.setRightSidebarView("terminal");
+    state.setIsTerminalRunning(true);
+
+    terminalAbortControllerRef.current = new AbortController();
+    const ac = terminalAbortControllerRef.current;
+
+    try {
+      const res = await fetch("/api/system/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repo: state.selectedRepo,
+          command: buildCmd,
+        }),
+        signal: ac.signal,
+      });
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        state.setTerminalOutput((prev) => `${prev}\nError: No response body`);
+        state.setIsTerminalRunning(false);
+        return;
+      }
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (data.output) {
+                state.setTerminalOutput((prev) => prev + data.output);
+              }
+            } catch {
+              state.setTerminalOutput((prev) => prev + line + "\n");
+            }
+          }
+        }
+      }
+
+      state.setIsTerminalRunning(false);
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        state.setTerminalOutput((prev) => `${prev}\nError: ${error.message}`);
+      }
+      state.setIsTerminalRunning(false);
+    }
+  }, [state]);
+
+  const ensureModelsForTool = React.useCallback(
+    async (toolName: string) => {
+      if (state.toolModelsByTool[toolName]) return;
+      if (state.isToolModelsLoading[toolName]) return;
+
+      state.setIsToolModelsLoading((prev) => ({
+        ...prev,
+        [toolName]: true,
+      }));
+
+      try {
+        const res = await fetch(
+          `/api/agents?action=models&tool=${encodeURIComponent(toolName)}`
+        );
+        const data = (await res.json()) as { models?: string[] };
+        const models = Array.isArray(data.models) ? data.models : [];
+
+        state.setToolModelsByTool((prev) => ({
+          ...prev,
+          [toolName]: models,
+        }) as Record<string, string[]>);
+
+        if (models.length > 0 && state.toolModelByTool[toolName] === undefined) {
+          state.setToolModelByTool((prev) => ({
+            ...prev,
+            [toolName]: models[0],
+          }) as Record<string, string>);
+        }
+      } catch {
+        state.setToolModelsByTool((prev) => ({
+          ...prev,
+          [toolName]: [],
+        }));
+      } finally {
+        state.setIsToolModelsLoading((prev) => ({
+          ...prev,
+          [toolName]: false,
+        }));
+      }
+    },
+    [state]
+  );
+  
+  const requestEmbeddedCapture = React.useCallback(() => {
+    // Electron path: use native capturePage
+    if (window.electronAPI?.browserView) {
+      return window.electronAPI.browserView.capture();
+    }
+
+    // Fallback: iframe postMessage capture
+    return new Promise<string | null>((resolve) => {
+      const targetWindow = browserIframeRef.current?.contentWindow;
+      if (!targetWindow) {
+        resolve(null);
+        return;
+      }
+
+      const captureId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      const timeoutId = window.setTimeout(() => {
+        window.removeEventListener("message", handleMessage);
+        resolve(null);
+      }, 1500);
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.source !== targetWindow) {
+          return;
+        }
+        const data = event.data;
+        if (
+          !data ||
+          data.type !== "agelum:capture-response" ||
+          data.id !== captureId
+        ) {
+          return;
+        }
+        window.clearTimeout(timeoutId);
+        window.removeEventListener("message", handleMessage);
+        if (typeof data.dataUrl === "string") {
+          resolve(data.dataUrl);
+        } else {
+          resolve(null);
+        }
+      };
+
+      window.addEventListener("message", handleMessage);
+      targetWindow.postMessage(
+        {
+          type: "agelum:capture-request",
+          id: captureId,
+        },
+        "*"
+      );
+    });
+  }, [browserIframeRef]);
+
   return {
     fetchRepositories,
     handleSettingsSave,
@@ -510,5 +874,15 @@ state: ${opts.state}
     recognitionRef,
     fileInputRef,
     browserIframeRef,
+    promptText,
+    setPromptText,
+    cancelTerminal,
+    openInteractiveTerminal,
+    handleTerminalInput,
+    runTool,
+    handleInstallDeps,
+    handleBuildApp,
+    ensureModelsForTool,
+    requestEmbeddedCapture,
   };
 }

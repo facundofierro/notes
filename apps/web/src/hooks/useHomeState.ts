@@ -1,22 +1,19 @@
 import * as React from "react";
 import { ViewMode } from "@/lib/view-config";
-
-export interface TestsSetupStatus {
-  state: "missing" | "initializing" | "installing" | "ready" | "error";
-  startedAt?: string;
-  updatedAt: string;
-  pid?: number;
-  log: string;
-  error?: string;
-}
+import { TestsSetupStatus, FileNode } from "@/types/entities";
+import { useSettings } from "@/hooks/use-settings";
 
 export function useHomeState() {
+  const {
+    settings,
+    refetch: refetchSettings,
+  } = useSettings();
   const [repositories, setRepositories] = React.useState<
     { name: string; path: string; folderConfigId?: string }[]
   >([]);
   const [selectedRepo, setSelectedRepo] = React.useState<string | null>(null);
   const [currentPath, setCurrentPath] = React.useState<string>("");
-  const [fileTree, setFileTree] = React.useState<any | null>(null);
+  const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [selectedFile, setSelectedFile] = React.useState<{
     path: string;
     content: string;
@@ -118,6 +115,27 @@ export function useHomeState() {
   const [terminalProcessId, setTerminalProcessId] = React.useState<string | null>(
     null
   );
+  const appLogsAbortControllerRef = React.useRef<AbortController | null>(null);
+  const [isElectron, setIsElectron] = React.useState(false);
+  const [isScreenshotMode, setIsScreenshotMode] = React.useState(false);
+
+  const currentProject = React.useMemo(() => {
+    if (!selectedRepo || !settings.projects) return null;
+    return settings.projects.find((p) => p.name === selectedRepo);
+  }, [selectedRepo, settings]);
+
+  const currentProjectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      currentProject?.path ||
+      null
+    );
+  }, [currentProject?.path, repositories, selectedRepo]);
+
+  const currentProjectConfig = React.useMemo(() => {
+    return currentProject || projectConfig || null;
+  }, [currentProject, projectConfig]);
 
   return {
     repositories,
@@ -218,5 +236,17 @@ export function useHomeState() {
     setLogStreamPid,
     terminalProcessId,
     setTerminalProcessId,
+    appLogsAbortControllerRef,
+    isElectron,
+    setIsElectron,
+    isScreenshotMode,
+    setIsScreenshotMode,
+    currentProject,
+    currentProjectPath,
+    currentProjectConfig,
+    settings,
+    refetchSettings,
   };
 }
+
+export type HomeState = ReturnType<typeof useHomeState>;
