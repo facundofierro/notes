@@ -10,6 +10,8 @@ import {
   Code,
   History,
 } from "lucide-react";
+import { ScreenshotAnnotationModal } from "./ScreenshotAnnotationModal";
+import { AnnotationPromptList } from "./AnnotationPromptList";
 import dynamic from "next/dynamic";
 import type { EditorProps } from "@monaco-editor/react";
 
@@ -19,10 +21,11 @@ interface BrowserRightPanelProps {
   onRequestCapture?: () => Promise<string | null>;
   projectPath?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
+  electronBrowserView?: ElectronBrowserViewAPI;
 }
 
 type Mode = "screen" | "properties" | "prompt";
-type AnnotationType = "modify" | "move" | "remove";
+type AnnotationType = "modify" | "arrow" | "remove";
 
 interface Annotation {
   id: number;
@@ -31,6 +34,8 @@ interface Annotation {
   y: number;
   width?: number; // for modify and remove
   height?: number; // for modify and remove
+  endX?: number; // for arrow
+  endY?: number; // for arrow
   prompt: string;
 }
 
@@ -130,6 +135,7 @@ export function BrowserRightPanel({
   onRequestCapture,
   projectPath,
   iframeRef,
+  electronBrowserView,
 }: BrowserRightPanelProps) {
   const [mode, setMode] = useState<Mode>("screen");
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -139,6 +145,7 @@ export function BrowserRightPanel({
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [nextId, setNextId] = useState(1);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<number | null>(null);
+  const [showAnnotationModal, setShowAnnotationModal] = useState(false);
   
   // Ref for the image container to calculate relative coordinates
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -181,6 +188,7 @@ export function BrowserRightPanel({
     setNextId(1);
     setIsDrawing(false);
     setStartPos({ x: 0, y: 0 });
+    setShowAnnotationModal(false);
   };
 
   const recordChange = (entry: Omit<ChangeEntry, "id" | "timestamp">) => {
@@ -325,6 +333,46 @@ export function BrowserRightPanel({
     property: string,
     nextValue: string,
   ) => {
+    // Electron path: apply style via executeJs
+    if (electronBrowserView && selectedElementInfo) {
+      const selector = selectedElementInfo.selector;
+      const trimmed = nextValue.trim();
+      const escapedProp = property.replace(/'/g, "\\'");
+      const escapedVal = trimmed.replace(/'/g, "\\'");
+      const escapedSel = selector.replace(/'/g, "\\'");
+      electronBrowserView.executeJs(`
+        (function() {
+          var el = document.querySelector('${escapedSel}');
+          if (!el) return null;
+          var prev = el.style.getPropertyValue('${escapedProp}');
+          if (!('${escapedVal}')) {
+            el.style.removeProperty('${escapedProp}');
+          } else {
+            el.style.setProperty('${escapedProp}', '${escapedVal}');
+          }
+          var updated = el.style.getPropertyValue('${escapedProp}');
+          return { prev: prev, updated: updated, cssText: el.style.cssText };
+        })()
+      `).then((result: unknown) => {
+        const res = result as { prev: string; updated: string; cssText: string } | null;
+        if (res && res.prev !== res.updated) {
+          recordChange({
+            selector,
+            property,
+            previousValue: res.prev || "(not set)",
+            nextValue: res.updated || "(cleared)",
+            source: "props",
+          });
+        }
+        if (res) {
+          setCssDraft(res.cssText || "");
+          lastCssTextRef.current = res.cssText || "";
+        }
+      });
+      return;
+    }
+
+    // Iframe path: direct DOM access
     const element = asHTMLElement(
       selectedElementRef.current,
     );
@@ -420,6 +468,7 @@ export function BrowserRightPanel({
           setAnnotations([]);
           setNextId(1);
           setSelectedAnnotationId(null);
+          setShowAnnotationModal(true);
           return;
         }
       }
@@ -449,6 +498,7 @@ export function BrowserRightPanel({
       setAnnotations([]);
       setNextId(1);
       setSelectedAnnotationId(null);
+      setShowAnnotationModal(true);
       
     } catch (err) {
       console.error("Error capturing screen:", err);
@@ -458,6 +508,106 @@ export function BrowserRightPanel({
   useEffect(() => {
     if (!elementPickerMode) return;
 
+    // ── Electron path: use executeJs to run picker in the WebContentsView ──
+    if (electronBrowserView) {
+      setIframeAccessError("Click an element in the preview.");
+
+      // Inject a one-shot click listener via executeJs
+      electronBrowserView.executeJs(`
+        new Promise(function(resolve) {
+          var prev = document.body.style.cursor;
+          document.body.style.cursor = 'crosshair';
+          function onClick(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            document.removeEventListener('click', onClick, true);
+            document.removeEventListener('keydown', onKey, true);
+            document.body.style.cursor = prev;
+            var el = e.target;
+            if (!el) { resolve(null); return; }
+            var testId = el.getAttribute('data-testid') || el.getAttribute('data-test') || el.getAttribute('data-qa');
+            var selector;
+            if (testId) { selector = '[data-testid="' + testId + '"]'; }
+            else if (el.id) { selector = '#' + el.id; }
+            else {
+              var classList = Array.from(el.classList || []);
+              if (classList.length > 0) {
+                selector = '.' + classList.slice(0,2).map(function(n){return n.trim();}).filter(Boolean).join('.');
+              } else {
+                var tag = el.tagName.toLowerCase();
+                var parent = el.parentElement;
+                if (!parent) { selector = tag; }
+                else {
+                  var siblings = Array.from(parent.children).filter(function(c){return c.tagName===el.tagName;});
+                  selector = siblings.length <= 1 ? tag : tag + ':nth-of-type(' + (siblings.indexOf(el)+1) + ')';
+                }
+              }
+            }
+            var text = (el.textContent||'').slice(0,80).trim().replace(/\\s+/g,' ');
+            var computed = window.getComputedStyle(el);
+            resolve({
+              selector: selector,
+              tagName: el.tagName.toLowerCase(),
+              textSnippet: text,
+              styles: {
+                color: computed.color || '',
+                backgroundColor: computed.backgroundColor || '',
+                padding: computed.padding || '',
+                fontSize: computed.fontSize || '',
+                visibility: computed.visibility || 'visible',
+              },
+              cssText: el.style ? el.style.cssText : '',
+            });
+          }
+          function onKey(e) {
+            if (e.key === 'Escape') {
+              document.removeEventListener('click', onClick, true);
+              document.removeEventListener('keydown', onKey, true);
+              document.body.style.cursor = prev;
+              resolve(null);
+            }
+          }
+          document.addEventListener('click', onClick, true);
+          document.addEventListener('keydown', onKey, true);
+        })
+      `).then((result: unknown) => {
+        setIframeAccessError(null);
+        if (!result) {
+          // User cancelled (ESC)
+          setElementPickerMode(null);
+          return;
+        }
+        const info = result as {
+          selector: string;
+          tagName: string;
+          textSnippet: string;
+          styles: typeof propsDraft;
+          cssText: string;
+        };
+        setSelectedElementInfo({
+          selector: info.selector,
+          tagName: info.tagName,
+          textSnippet: info.textSnippet,
+        });
+        selectedElementRef.current = null; // No direct ref in Electron mode
+        setPropsDraft(info.styles);
+        setCssDraft(info.cssText);
+        lastCssTextRef.current = info.cssText;
+
+        if (elementPickerMode === "prompt") {
+          insertPromptReference(info.selector);
+        }
+        setElementPickerMode(null);
+      }).catch(() => {
+        setIframeAccessError("Element picker failed.");
+        setElementPickerMode(null);
+      });
+
+      return; // No cleanup needed — the promise handles everything
+    }
+
+    // ── Iframe path (non-Electron) ──
     const pickId = `pick-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     let isHandlingResponse = false;
 
@@ -622,7 +772,6 @@ export function BrowserRightPanel({
 
       // Store resize/scroll handlers for cleanup
       const _positionOverlay = positionOverlay;
-      const _handleOverlayClick = handleOverlayClick;
 
       // Extend cleanup to remove overlay event listeners
       const originalCleanup = cleanup;
@@ -642,7 +791,7 @@ export function BrowserRightPanel({
     window.addEventListener("message", handlePickerMessage);
 
     return cleanup;
-  }, [elementPickerMode, requestIframeElementPick, tryGetIframeDocument, insertPromptReference, updateOverlayForElement, ensureOverlay]);
+  }, [elementPickerMode, electronBrowserView, requestIframeElementPick, tryGetIframeDocument, insertPromptReference, updateOverlayForElement, ensureOverlay]);
 
   useEffect(() => {
     if (!selectedElementInfo) {
@@ -676,51 +825,6 @@ export function BrowserRightPanel({
     }
   }, [mode]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!selectedTool || !imageContainerRef.current) return;
-    
-    const rect = imageContainerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    setIsDrawing(true);
-    setStartPos({ x, y });
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDrawing || !selectedTool || !imageContainerRef.current) return;
-    
-    const rect = imageContainerRef.current.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
-    
-    const width = Math.abs(currentX - startPos.x);
-    const height = Math.abs(currentY - startPos.y);
-    const x = Math.min(startPos.x, currentX);
-    const y = Math.min(startPos.y, currentY);
-    
-    // Only add if it has some size or is a move (point)
-    if (selectedTool === 'move' || (width > 5 && height > 5)) {
-      const annotationId = nextId;
-      const newAnnotation: Annotation = {
-        id: annotationId,
-        type: selectedTool,
-        x: selectedTool === 'move' ? currentX : x,
-        y: selectedTool === 'move' ? currentY : y,
-        width: selectedTool === 'move' ? 0 : width,
-        height: selectedTool === 'move' ? 0 : height,
-        prompt: ""
-      };
-      
-      setAnnotations((prev) => [...prev, newAnnotation]);
-      setNextId((prev) => prev + 1);
-      setSelectedAnnotationId(annotationId);
-    }
-    
-    setIsDrawing(false);
-    // Optional: Keep tool selected? user requested 'first it has buttons for...' 
-    // Usually better to reset tool or keep it? Let's keep it for multiple annotations.
-  };
 
   const handlePropValueChange = (
     property: keyof typeof propsDraft,
@@ -751,6 +855,40 @@ export function BrowserRightPanel({
 
   const handleCssDraftChange = (nextValue: string) => {
     setCssDraft(nextValue);
+
+    // Electron path: apply cssText via executeJs
+    if (electronBrowserView && selectedElementInfo) {
+      const selector = selectedElementInfo.selector;
+      const escaped = nextValue.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const escapedSel = selector.replace(/'/g, "\\'");
+
+      if (cssChangeTimeoutRef.current) {
+        window.clearTimeout(cssChangeTimeoutRef.current);
+      }
+
+      const previous = lastCssTextRef.current;
+      cssChangeTimeoutRef.current = window.setTimeout(() => {
+        electronBrowserView.executeJs(`
+          (function() {
+            var el = document.querySelector('${escapedSel}');
+            if (el) el.style.cssText = '${escaped}';
+          })()
+        `);
+        if (previous !== nextValue) {
+          recordChange({
+            selector,
+            property: "style",
+            previousValue: previous || "(empty)",
+            nextValue: nextValue || "(empty)",
+            source: "css",
+          });
+        }
+        lastCssTextRef.current = nextValue;
+      }, 700);
+      return;
+    }
+
+    // Iframe path: direct DOM access
     const element = asHTMLElement(
       selectedElementRef.current,
     );
@@ -861,32 +999,43 @@ export function BrowserRightPanel({
               12 * scale,
             );
 
-            if (ann.type === "move") {
-              const pointX = mappedX;
-              const pointY = mappedY;
+            if (ann.type === "arrow" && ann.endX !== undefined && ann.endY !== undefined) {
+              const startX = mappedX;
+              const startY = mappedY;
+              const endX = ann.endX * scaleX;
+              const endY = ann.endY * scaleY;
+              
+              // Draw arrow line
               ctx.strokeStyle = "#3b82f6";
-              ctx.lineWidth = strokeWidth;
+              ctx.lineWidth = strokeWidth * 1.5;
               ctx.beginPath();
-              ctx.arc(
-                pointX,
-                pointY,
-                12 * scale,
-                0,
-                Math.PI * 2,
+              ctx.moveTo(startX, startY);
+              ctx.lineTo(endX, endY);
+              ctx.stroke();
+              
+              // Draw arrowhead
+              const angle = Math.atan2(endY - startY, endX - startX);
+              const arrowLength = 12 * scale;
+              ctx.fillStyle = "#3b82f6";
+              ctx.beginPath();
+              ctx.moveTo(endX, endY);
+              ctx.lineTo(
+                endX - arrowLength * Math.cos(angle - Math.PI / 6),
+                endY - arrowLength * Math.sin(angle - Math.PI / 6)
               );
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(pointX - 12 * scale, pointY);
-              ctx.lineTo(pointX + 12 * scale, pointY);
-              ctx.moveTo(pointX, pointY - 12 * scale);
-              ctx.lineTo(pointX, pointY + 12 * scale);
-              ctx.stroke();
+              ctx.lineTo(
+                endX - arrowLength * Math.cos(angle + Math.PI / 6),
+                endY - arrowLength * Math.sin(angle + Math.PI / 6)
+              );
+              ctx.closePath();
+              ctx.fill();
 
+              // Draw badge at arrow end
               ctx.fillStyle = "#111827";
               ctx.beginPath();
               ctx.arc(
-                pointX + badgeRadius,
-                pointY - badgeRadius,
+                endX + badgeRadius,
+                endY - badgeRadius,
                 badgeRadius,
                 0,
                 Math.PI * 2,
@@ -898,8 +1047,8 @@ export function BrowserRightPanel({
               ctx.textBaseline = "middle";
               ctx.fillText(
                 String(ann.id),
-                pointX + badgeRadius,
-                pointY - badgeRadius,
+                endX + badgeRadius,
+                endY - badgeRadius,
               );
               return;
             }
@@ -1039,8 +1188,8 @@ export function BrowserRightPanel({
             const action =
               ann.type === "remove"
                 ? "REMOVE"
-                : ann.type === "move"
-                  ? "MOVE"
+                : ann.type === "arrow"
+                  ? "ARROW"
                   : "MODIFY";
             const safePrompt = (ann.prompt || "")
               .replace(/\n/g, " ")
@@ -1162,7 +1311,7 @@ export function BrowserRightPanel({
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {mode === "screen" && (
-          <div className="space-y-4">
+          <div className="flex flex-col h-full">
             {!screenshot ? (
               <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border rounded-lg bg-secondary/20">
                 <button
@@ -1174,115 +1323,15 @@ export function BrowserRightPanel({
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Image Canvas */}
-                <div 
-                    ref={imageContainerRef}
-                    className="relative border border-border rounded-lg overflow-hidden cursor-crosshair select-none"
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                >
-                  <img
-                    ref={screenshotImageRef}
-                    src={screenshot}
-                    alt="Screenshot"
-                    className="w-full h-auto block"
-                    draggable={false}
-                  />
-                  
-                  {/* Annotations Overlay */}
-                  {annotations.map((ann) => (
-                    <div
-                      key={ann.id}
-                      className="absolute"
-                      style={{
-                        left: ann.x,
-                        top: ann.y,
-                        width: ann.width || (ann.type === "move" ? 20 : 0),
-                        height: ann.height || (ann.type === "move" ? 20 : 0),
-                        border: ann.type === "remove" ? "2px solid red" : ann.type === "modify" ? "2px solid orange" : "none",
-                        backgroundColor: ann.type === "remove" ? "rgba(255, 0, 0, 0.2)" : ann.type === "modify" ? "rgba(255, 165, 0, 0.2)" : "transparent",
-                      }}
-                      onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedAnnotationId(ann.id);
-                      }}
-                    >
-                        {ann.type === "remove" && (
-                            <div className="absolute -top-5 left-0 bg-red-600 text-white text-[9px] px-1 rounded-sm whitespace-nowrap">
-                                REMOVE THIS
-                            </div>
-                        )}
-                        {ann.type === "move" && (
-                             <Move className="text-blue-500 w-6 h-6 -translate-x-1/2 -translate-y-1/2 filter drop-shadow-md" />
-                        )}
-                        
-                        {/* Number Badge */}
-                        <div className="absolute -top-3 -right-3 w-5 h-5 bg-black text-white rounded-full flex items-center justify-center text-[10px] border border-white shadow-sm z-10">
-                            {ann.id}
-                        </div>
-                    </div>
-                  ))}
-                  
-                  {isDrawing && (
-                      <div className="absolute border font-xs text-white bg-black/50 px-1 rounded" style={{ top: startPos.y, left: startPos.x }}>
-                          Drawing...
-                      </div>
-                  )}
-                </div>
-
-                {/* Toolbar */}
-                <div className="flex gap-2 justify-center">
-                    <button
-                        onClick={() => setSelectedTool("modify")}
-                        className={`p-2 rounded border ${selectedTool === "modify" ? "bg-orange-100 border-orange-500 text-orange-700" : "bg-background border-border"}`}
-                        title="Modify"
-                    >
-                        <Square className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={() => setSelectedTool("move")}
-                        className={`p-2 rounded border ${selectedTool === "move" ? "bg-blue-100 border-blue-500 text-blue-700" : "bg-background border-border"}`}
-                        title="Move"
-                    >
-                        <Move className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={() => setSelectedTool("remove")}
-                        className={`p-2 rounded border ${selectedTool === "remove" ? "bg-red-100 border-red-500 text-red-700" : "bg-background border-border"}`}
-                        title="Remove"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-                
-                {/* Selected Annotation Prompt */}
-                {selectedAnnotationId !== null && (
-                    <div className="p-3 bg-secondary/30 rounded border border-border space-y-2">
-                         <div className="flex justify-between items-center">
-                             <span className="text-xs font-medium">Data for item #{selectedAnnotationId}</span>
-                             <button onClick={() => handleDeleteAnnotation(selectedAnnotationId)} className="text-red-500 hover:text-red-700">
-                                 <Trash2 className="w-3 h-3" />
-                             </button>
-                         </div>
-                         <textarea 
-                            className="w-full text-xs p-2 rounded border border-border bg-background h-20 resize-none focus:outline-none focus:ring-1"
-                            placeholder="Instructions for this change..."
-                            value={annotations.find(a => a.id === selectedAnnotationId)?.prompt || ""}
-                            onChange={(e) => {
-                                setAnnotations(annotations.map(a => a.id === selectedAnnotationId ? { ...a, prompt: e.target.value } : a));
-                            }}
-                         />
-                    </div>
-                )}
-                
-                <button
-                  onClick={resetScreenState}
-                  className="w-full py-2 text-xs text-red-500 border border-red-200 hover:bg-red-50 rounded"
-                >
-                  Cancel / Retake
-                </button>
-              </div>
+              <AnnotationPromptList
+                annotations={annotations}
+                selectedAnnotationId={selectedAnnotationId}
+                onSelectAnnotation={setSelectedAnnotationId}
+                onUpdatePrompt={(id, prompt) => {
+                  setAnnotations(annotations.map(a => a.id === id ? { ...a, prompt } : a));
+                }}
+                onDeleteAnnotation={handleDeleteAnnotation}
+              />
             )}
           </div>
         )}
@@ -1636,6 +1685,20 @@ export function BrowserRightPanel({
           {!isCreatingTask && <CheckCircle2 className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* Screenshot Annotation Modal */}
+      {showAnnotationModal && screenshot && (
+        <ScreenshotAnnotationModal
+          screenshot={screenshot}
+          annotations={annotations}
+          onAnnotationsChange={setAnnotations}
+          selectedAnnotationId={selectedAnnotationId}
+          onSelectAnnotation={setSelectedAnnotationId}
+          onClose={() => setShowAnnotationModal(false)}
+          onCreateTask={handleCreateTask}
+          isCreatingTask={isCreatingTask}
+        />
+      )}
     </div>
   );
 }

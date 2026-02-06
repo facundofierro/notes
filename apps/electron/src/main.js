@@ -1,4 +1,9 @@
-const { app, BrowserWindow, webFrameMain } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  ipcMain,
+} = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 
@@ -8,6 +13,9 @@ const DEV_URL =
 const PROD_URL = "http://127.0.0.1:6500";
 
 let nextProcess = null;
+
+// Track WebContentsView per BrowserWindow (by window id)
+const browserViews = new Map();
 
 function startNextServer() {
   const serverPath = path.join(
@@ -34,6 +42,175 @@ function startNextServer() {
   );
 }
 
+/**
+ * Get or create the WebContentsView for a given BrowserWindow.
+ */
+function getOrCreateBrowserView(win) {
+  const winId = win.id;
+  let entry = browserViews.get(winId);
+  if (entry) return entry;
+
+  const view = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  entry = { view, attached: false };
+  browserViews.set(winId, entry);
+
+  // Forward navigation events to the renderer
+  const wc = view.webContents;
+
+  wc.on("did-navigate", (_event, url) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("browser-view:navigated", url);
+    }
+  });
+
+  wc.on("did-navigate-in-page", (_event, url) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("browser-view:navigated", url);
+    }
+  });
+
+  wc.on("page-title-updated", (_event, title) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("browser-view:title-updated", title);
+    }
+  });
+
+  wc.on("did-start-loading", () => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("browser-view:loading-changed", true);
+    }
+  });
+
+  wc.on("did-stop-loading", () => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("browser-view:loading-changed", false);
+    }
+  });
+
+  return entry;
+}
+
+/**
+ * Remove and destroy the WebContentsView for a given window id.
+ */
+function destroyBrowserView(winId) {
+  const entry = browserViews.get(winId);
+  if (!entry) return;
+  const win = BrowserWindow.fromId(winId);
+  if (win && !win.isDestroyed() && entry.attached) {
+    try {
+      win.contentView.removeChildView(entry.view);
+    } catch (_) {
+      // view may already be detached
+    }
+  }
+  entry.view.webContents.close();
+  browserViews.delete(winId);
+}
+
+function setupIpcHandlers() {
+  // Load a URL in the WebContentsView
+  ipcMain.handle("browser-view:load-url", async (event, url) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const entry = getOrCreateBrowserView(win);
+    if (!entry.attached) {
+      win.contentView.addChildView(entry.view);
+      entry.attached = true;
+    }
+    await entry.view.webContents.loadURL(url);
+  });
+
+  // Set the bounds (position + size) of the WebContentsView
+  ipcMain.on("browser-view:set-bounds", (event, bounds) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const entry = browserViews.get(win.id);
+    if (!entry) return;
+    // bounds: { x, y, width, height } — integers
+    entry.view.setBounds({
+      x: Math.round(bounds.x),
+      y: Math.round(bounds.y),
+      width: Math.round(bounds.width),
+      height: Math.round(bounds.height),
+    });
+  });
+
+  // Hide the WebContentsView (remove from parent)
+  ipcMain.on("browser-view:hide", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const entry = browserViews.get(win.id);
+    if (!entry || !entry.attached) return;
+    try {
+      win.contentView.removeChildView(entry.view);
+    } catch (_) {
+      // already removed
+    }
+    entry.attached = false;
+  });
+
+  // Show the WebContentsView (re-add to parent)
+  ipcMain.on("browser-view:show", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const entry = browserViews.get(win.id);
+    if (!entry || entry.attached) return;
+    win.contentView.addChildView(entry.view);
+    entry.attached = true;
+  });
+
+  // Capture a screenshot of the WebContentsView
+  ipcMain.handle("browser-view:capture", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return null;
+    const entry = browserViews.get(win.id);
+    if (!entry) return null;
+    try {
+      const image = await entry.view.webContents.capturePage();
+      return image.toDataURL();
+    } catch (_) {
+      return null;
+    }
+  });
+
+  // Execute JavaScript in the WebContentsView
+  ipcMain.handle("browser-view:execute-js", async (event, code) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return null;
+    const entry = browserViews.get(win.id);
+    if (!entry) return null;
+    try {
+      return await entry.view.webContents.executeJavaScript(code);
+    } catch (err) {
+      return { __error: err.message };
+    }
+  });
+
+  // Get the current URL of the WebContentsView
+  ipcMain.handle("browser-view:get-url", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return "";
+    const entry = browserViews.get(win.id);
+    if (!entry) return "";
+    return entry.view.webContents.getURL();
+  });
+
+  // Destroy the WebContentsView
+  ipcMain.on("browser-view:destroy", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    destroyBrowserView(win.id);
+  });
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1400,
@@ -44,119 +221,14 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      // Disable web security to allow cross-origin iframe access
-      webSecurity: false,
     },
   });
 
   win.loadURL(app.isPackaged ? PROD_URL : DEV_URL);
 
-  // Handle iframe navigation for cross-origin element access
-  win.webContents.on("did-frame-navigate", (event, url, httpResponseCode, httpStatusText, isMainFrame, frameProcessId, frameRoutingId) => {
-    if (!isMainFrame && frameProcessId && frameRoutingId) {
-      const frame = webFrameMain.fromId(frameProcessId, frameRoutingId);
-      if (frame) {
-        // Inject full element picker handler into iframe for Electron context
-        const injectionCode = `
-          if (!window.__agelumFrameSetup) {
-            window.__agelumFrameSetup = true;
-
-            function __agelumGetSelector(element) {
-              var testId = element.getAttribute('data-testid') ||
-                           element.getAttribute('data-test') ||
-                           element.getAttribute('data-qa');
-              if (testId) return '[data-testid="' + testId + '"]';
-              if (element.id) return '#' + element.id;
-              var classList = Array.from(element.classList || []);
-              if (classList.length > 0) {
-                return '.' + classList.slice(0, 2).map(function(n) { return n.trim(); }).filter(Boolean).join('.');
-              }
-              var tag = element.tagName.toLowerCase();
-              var parent = element.parentElement;
-              if (!parent) return tag;
-              var siblings = Array.from(parent.children).filter(function(c) { return c.tagName === element.tagName; });
-              if (siblings.length <= 1) return tag;
-              return tag + ':nth-of-type(' + (siblings.indexOf(element) + 1) + ')';
-            }
-
-            function __agelumSerialize(element) {
-              return {
-                selector: __agelumGetSelector(element),
-                tagName: element.tagName.toLowerCase(),
-                textSnippet: (element.textContent || '').slice(0, 50).trim().replace(/\\s+/g, ' '),
-              };
-            }
-
-            // Coordinate-based element picker (used by parent overlay)
-            window.addEventListener('message', function(event) {
-              var data = event.data;
-              if (!data || data.type !== 'agelum:pick-at-point') return;
-              var el = document.elementFromPoint(data.x, data.y);
-              if (el && window.parent && window.parent !== window) {
-                window.parent.postMessage({
-                  type: 'agelum:pick-response',
-                  id: data.id,
-                  element: __agelumSerialize(el),
-                }, '*');
-              }
-            });
-
-            // Click-based element picker
-            window.addEventListener('message', function(event) {
-              var data = event.data;
-              if (!data || data.type !== 'agelum:pick-request') return;
-
-              var isPickingMode = true;
-              var originalCursor = document.body.style.cursor;
-              document.body.style.cursor = 'crosshair';
-
-              var handleCancel = function(e) {
-                if (e.key === 'Escape') {
-                  isPickingMode = false;
-                  document.body.style.cursor = originalCursor;
-                  document.removeEventListener('click', handleClick, true);
-                  document.removeEventListener('keydown', handleCancel, true);
-                  if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({ type: 'agelum:pick-cancel', id: data.id }, '*');
-                  }
-                }
-              };
-
-              var handleClick = function(e) {
-                if (!isPickingMode) return;
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                var element = e.target;
-                if (!element) return;
-                if (window.parent && window.parent !== window) {
-                  window.parent.postMessage({
-                    type: 'agelum:pick-response',
-                    id: data.id,
-                    element: __agelumSerialize(element),
-                  }, '*');
-                }
-                isPickingMode = false;
-                document.body.style.cursor = originalCursor;
-                document.removeEventListener('click', handleClick, true);
-                document.removeEventListener('keydown', handleCancel, true);
-                return false;
-              };
-
-              document.addEventListener('click', handleClick, true);
-              document.addEventListener('keydown', handleCancel, true);
-            });
-          }
-        `;
-        try {
-          frame.executeJavaScript(injectionCode).catch(() => {
-            // Frame may not be accessible, that's okay
-          });
-        } catch (err) {
-          // Silently fail for non-accessible frames
-        }
-      }
-    }
+  // Clean up WebContentsView when window is closed
+  win.on("closed", () => {
+    destroyBrowserView(win.id);
   });
 }
 
@@ -164,6 +236,7 @@ app.whenReady().then(() => {
   if (app.isPackaged) {
     startNextServer();
   }
+  setupIpcHandlers();
   createWindow();
 
   app.on("activate", () => {

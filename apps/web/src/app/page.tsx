@@ -251,6 +251,12 @@ export default function Home() {
     React.useRef<HTMLIFrameElement>(
       null,
     );
+  const browserViewPlaceholderRef =
+    React.useRef<HTMLDivElement>(
+      null,
+    );
+  const [isElectron, setIsElectron] =
+    React.useState(false);
   const recognitionRef =
     React.useRef<any>(null);
   const [
@@ -297,8 +303,91 @@ export default function Home() {
       },
       [activePromptKey],
     );
+  // Detect Electron environment on mount
+  React.useEffect(() => {
+    setIsElectron(
+      !!window.electronAPI?.browserView,
+    );
+  }, []);
+
+  // Sync WebContentsView bounds with placeholder div
+  React.useEffect(() => {
+    if (
+      !isElectron ||
+      viewMode !== "browser" ||
+      !browserViewPlaceholderRef.current
+    )
+      return;
+
+    const el = browserViewPlaceholderRef.current;
+    const api = window.electronAPI!.browserView;
+
+    const syncBounds = () => {
+      const rect = el.getBoundingClientRect();
+      api.setBounds({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    const ro = new ResizeObserver(syncBounds);
+    ro.observe(el);
+    // Also sync on window resize (scroll position changes, etc.)
+    window.addEventListener("resize", syncBounds);
+    // Initial sync
+    syncBounds();
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncBounds);
+    };
+  }, [isElectron, viewMode]);
+
+  // Show/hide WebContentsView when switching view modes
+  React.useEffect(() => {
+    if (!isElectron) return;
+    const api = window.electronAPI!.browserView;
+    if (viewMode === "browser") {
+      api.show();
+    } else {
+      api.hide();
+    }
+  }, [isElectron, viewMode]);
+
+  // Track the last URL loaded into the WebContentsView to avoid re-loading on navigation feedback
+  const electronLoadedUrlRef = React.useRef<string>("");
+
+  // Load URL in the Electron WebContentsView when iframeUrl changes
+  React.useEffect(() => {
+    if (!isElectron || !iframeUrl) return;
+    if (iframeUrl === electronLoadedUrlRef.current) return;
+    electronLoadedUrlRef.current = iframeUrl;
+    window.electronAPI!.browserView.loadUrl(iframeUrl);
+  }, [isElectron, iframeUrl]);
+
+  // Listen for navigation events from WebContentsView
+  React.useEffect(() => {
+    if (!isElectron) return;
+    const api = window.electronAPI!.browserView;
+    const unsubNav = api.onNavigated((url) => {
+      electronLoadedUrlRef.current = url;
+      setIframeUrl(url);
+    });
+    return () => {
+      unsubNav();
+    };
+  }, [isElectron]);
+
   const requestEmbeddedCapture =
     React.useCallback(() => {
+      // Electron path: use native capturePage
+      if (window.electronAPI?.browserView) {
+        return window.electronAPI.browserView.capture();
+      }
+
+      // Fallback: iframe postMessage capture
       return new Promise<string | null>(
         (resolve) => {
           const targetWindow =
@@ -752,9 +841,11 @@ export default function Home() {
 
   // Sync iframeUrl with project url (only for browser view, not OpenCode)
   // Preserve the iframe URL when switching away from browser view
+  const isEnteringBrowserView = React.useRef(false);
   React.useEffect(() => {
-    if (viewMode === "browser") {
-      // When entering browser view, restore the preserved URL or load from config
+    if (viewMode === "browser" && !isEnteringBrowserView.current) {
+      // When entering browser view for the first time, restore the preserved URL or load from config
+      isEnteringBrowserView.current = true;
       if (preservedIframeUrl) {
         setIframeUrl(preservedIframeUrl);
       } else if (currentProjectConfig?.url) {
@@ -763,11 +854,12 @@ export default function Home() {
       } else {
         setIframeUrl("");
       }
-    } else {
-      // When leaving browser view, preserve the current URL
+    } else if (viewMode !== "browser") {
+      // When leaving browser view, preserve the current URL and reset the entry flag
       setPreservedIframeUrl((prev) => iframeUrl || prev);
+      isEnteringBrowserView.current = false;
     }
-  }, [viewMode, currentProjectConfig?.url, iframeUrl]);
+  }, [viewMode]);
 
   // Poll app status
   React.useEffect(() => {
@@ -3941,11 +4033,13 @@ export default function Home() {
                       onChange={(e) => setIframeUrl(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
-                          // Force reload or something if needed
-                          const target = e.currentTarget;
-                          const val = target.value;
-                          setIframeUrl("");
-                          setTimeout(() => setIframeUrl(val), 0);
+                          const val = e.currentTarget.value;
+                          if (isElectron) {
+                            window.electronAPI!.browserView.loadUrl(val);
+                          } else {
+                            setIframeUrl("");
+                            setTimeout(() => setIframeUrl(val), 0);
+                          }
                         }
                       }}
                       className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"
@@ -3953,7 +4047,19 @@ export default function Home() {
                     />
                   </div>
                 </div>
-                {iframeUrl ? (
+                {isElectron ? (
+                  /* Electron: WebContentsView is overlaid by main process; this div is the sizing placeholder */
+                  <div
+                    ref={browserViewPlaceholderRef}
+                    className="flex-1 w-full bg-white"
+                  >
+                    {!iframeUrl && (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        Enter a URL to preview the application
+                      </div>
+                    )}
+                  </div>
+                ) : iframeUrl ? (
                   <iframe 
                     src={iframeUrl} 
                     ref={browserIframeRef}
@@ -3968,8 +4074,8 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              {/* Inject capture script into iframe */}
-              <IframeCaptureInjector iframeRef={browserIframeRef} />
+              {/* Inject capture script into iframe (non-Electron only) */}
+              {!isElectron && <IframeCaptureInjector iframeRef={browserIframeRef} />}
               <BrowserRightPanel 
                 repo={selectedRepo || ""} 
                 onRequestCapture={
@@ -3983,7 +4089,12 @@ export default function Home() {
                       )?.path
                     : undefined
                 }
-                iframeRef={browserIframeRef}
+                iframeRef={isElectron ? undefined : browserIframeRef}
+                electronBrowserView={
+                  isElectron
+                    ? window.electronAPI!.browserView
+                    : undefined
+                }
                 onTaskCreated={() => {
                    // Optional: toast or feedback could be added here
                 }}
