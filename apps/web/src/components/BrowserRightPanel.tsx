@@ -10,7 +10,7 @@ import {
   Code,
   History,
 } from "lucide-react";
-import { ScreenshotAnnotationModal } from "./ScreenshotAnnotationModal";
+import { ScreenshotViewer } from "./ScreenshotViewer";
 import { AnnotationPromptList } from "./AnnotationPromptList";
 import dynamic from "next/dynamic";
 import type { EditorProps } from "@monaco-editor/react";
@@ -22,6 +22,7 @@ interface BrowserRightPanelProps {
   projectPath?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   electronBrowserView?: ElectronBrowserViewAPI;
+  onScreenshotModeChange?: (isActive: boolean) => void;
 }
 
 type Mode = "screen" | "properties" | "prompt";
@@ -136,6 +137,7 @@ export function BrowserRightPanel({
   projectPath,
   iframeRef,
   electronBrowserView,
+  onScreenshotModeChange,
 }: BrowserRightPanelProps) {
   const [mode, setMode] = useState<Mode>("screen");
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -188,7 +190,7 @@ export function BrowserRightPanel({
     setNextId(1);
     setIsDrawing(false);
     setStartPos({ x: 0, y: 0 });
-    setShowAnnotationModal(false);
+    onScreenshotModeChange?.(false);
   };
 
   const recordChange = (entry: Omit<ChangeEntry, "id" | "timestamp">) => {
@@ -468,7 +470,7 @@ export function BrowserRightPanel({
           setAnnotations([]);
           setNextId(1);
           setSelectedAnnotationId(null);
-          setShowAnnotationModal(true);
+          onScreenshotModeChange?.(true);
           return;
         }
       }
@@ -498,7 +500,7 @@ export function BrowserRightPanel({
       setAnnotations([]);
       setNextId(1);
       setSelectedAnnotationId(null);
-      setShowAnnotationModal(true);
+      onScreenshotModeChange?.(true);
       
     } catch (err) {
       console.error("Error capturing screen:", err);
@@ -1277,6 +1279,35 @@ export function BrowserRightPanel({
   const isTabDisabled = (nextMode: Mode) =>
     nextMode !== mode && isModeLocked;
 
+  // Show screenshot viewer if screenshot is active
+  if (screenshot) {
+    return (
+      <div className="flex flex-col h-full bg-background border-l border-border w-[300px]">
+        <ScreenshotViewer
+          screenshot={screenshot}
+          annotations={annotations}
+          onAnnotationsChange={setAnnotations}
+          selectedAnnotationId={selectedAnnotationId}
+          onSelectAnnotation={setSelectedAnnotationId}
+          onClose={resetScreenState}
+          selectedTool={selectedTool}
+          onToolSelect={setSelectedTool}
+        />
+        {/* Footer Action */}
+        <div className="p-4 border-t border-border bg-secondary/10">
+          <button
+            onClick={handleCreateTask}
+            disabled={isCreatingTask}
+            className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isCreatingTask ? "Creating..." : "Create Task"}
+            {!isCreatingTask && <CheckCircle2 className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-background border-l border-border w-[300px]">
       {/* Tabs */}
@@ -1686,19 +1717,6 @@ export function BrowserRightPanel({
         </button>
       </div>
 
-      {/* Screenshot Annotation Modal */}
-      {showAnnotationModal && screenshot && (
-        <ScreenshotAnnotationModal
-          screenshot={screenshot}
-          annotations={annotations}
-          onAnnotationsChange={setAnnotations}
-          selectedAnnotationId={selectedAnnotationId}
-          onSelectAnnotation={setSelectedAnnotationId}
-          onClose={() => setShowAnnotationModal(false)}
-          onCreateTask={handleCreateTask}
-          isCreatingTask={isCreatingTask}
-        />
-      )}
     </div>
   );
 }

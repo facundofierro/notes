@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Square, Trash2, ArrowRight, X, CheckCircle2 } from "lucide-react";
 
 type AnnotationType = "modify" | "arrow" | "remove";
@@ -15,31 +15,30 @@ export interface Annotation {
   prompt: string;
 }
 
-interface ScreenshotAnnotationModalProps {
+interface ScreenshotViewerProps {
   screenshot: string;
   annotations: Annotation[];
   onAnnotationsChange: (annotations: Annotation[]) => void;
   selectedAnnotationId: number | null;
   onSelectAnnotation: (id: number | null) => void;
   onClose: () => void;
-  onCreateTask: () => void;
-  isCreatingTask: boolean;
+  selectedTool: AnnotationType | null;
+  onToolSelect: (tool: AnnotationType | null) => void;
 }
 
-export function ScreenshotAnnotationModal({
+export function ScreenshotViewer({
   screenshot,
   annotations,
   onAnnotationsChange,
   selectedAnnotationId,
   onSelectAnnotation,
   onClose,
-  onCreateTask,
-  isCreatingTask,
-}: ScreenshotAnnotationModalProps) {
-  const [selectedTool, setSelectedTool] = useState<AnnotationType | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
+  selectedTool,
+  onToolSelect,
+}: ScreenshotViewerProps) {
+  const [isDrawing, setIsDrawing] = React.useState(false);
+  const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
+  const [currentPos, setCurrentPos] = React.useState({ x: 0, y: 0 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const screenshotImageRef = useRef<HTMLImageElement>(null);
 
@@ -73,7 +72,6 @@ export function ScreenshotAnnotationModal({
     const currentY = e.clientY - rect.top;
 
     if (selectedTool === "arrow") {
-      // For arrow, we need at least some distance
       const distance = Math.sqrt(
         Math.pow(currentX - startPos.x, 2) + Math.pow(currentY - startPos.y, 2)
       );
@@ -92,7 +90,6 @@ export function ScreenshotAnnotationModal({
         onSelectAnnotation(newAnnotation.id);
       }
     } else {
-      // For modify and remove, create a box
       const width = Math.abs(currentX - startPos.x);
       const height = Math.abs(currentY - startPos.y);
       const x = Math.min(startPos.x, currentX);
@@ -120,7 +117,6 @@ export function ScreenshotAnnotationModal({
   const renderArrowhead = (x1: number, y1: number, x2: number, y2: number) => {
     const angle = Math.atan2(y2 - y1, x2 - x1);
     const arrowLength = 12;
-    const arrowWidth = 8;
 
     const point1X = x2 - arrowLength * Math.cos(angle - Math.PI / 6);
     const point1Y = y2 - arrowLength * Math.sin(angle - Math.PI / 6);
@@ -132,9 +128,9 @@ export function ScreenshotAnnotationModal({
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Toolbar */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-secondary/50 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground">Annotate Screenshot</h3>
+        <h3 className="text-sm font-medium text-foreground">Screenshot</h3>
         <button
           onClick={onClose}
           className="text-muted-foreground hover:text-foreground transition-colors"
@@ -156,7 +152,7 @@ export function ScreenshotAnnotationModal({
             ref={screenshotImageRef}
             src={screenshot}
             alt="Screenshot"
-            className="max-w-full max-h-[calc(100vh-250px)] w-auto h-auto block"
+            className="max-w-full max-h-[calc(100vh-280px)] w-auto h-auto block"
             draggable={false}
           />
 
@@ -300,7 +296,7 @@ export function ScreenshotAnnotationModal({
       <div className="flex items-center justify-between gap-3 px-4 py-3 bg-secondary/50 border-t border-border flex-wrap">
         <div className="flex gap-2">
           <button
-            onClick={() => setSelectedTool("modify")}
+            onClick={() => onToolSelect("modify")}
             className={`flex items-center gap-1 px-3 py-2 rounded border text-xs transition-all ${
               selectedTool === "modify"
                 ? "bg-orange-500/20 border-orange-500 text-orange-600"
@@ -312,7 +308,7 @@ export function ScreenshotAnnotationModal({
             <span>Modify</span>
           </button>
           <button
-            onClick={() => setSelectedTool("arrow")}
+            onClick={() => onToolSelect("arrow")}
             className={`flex items-center gap-1 px-3 py-2 rounded border text-xs transition-all ${
               selectedTool === "arrow"
                 ? "bg-blue-500/20 border-blue-500 text-blue-600"
@@ -324,7 +320,7 @@ export function ScreenshotAnnotationModal({
             <span>Arrow</span>
           </button>
           <button
-            onClick={() => setSelectedTool("remove")}
+            onClick={() => onToolSelect("remove")}
             className={`flex items-center gap-1 px-3 py-2 rounded border text-xs transition-all ${
               selectedTool === "remove"
                 ? "bg-red-500/20 border-red-500 text-red-600"
@@ -334,23 +330,6 @@ export function ScreenshotAnnotationModal({
           >
             <Trash2 className="w-3 h-3" />
             <span>Remove</span>
-          </button>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-2 text-xs border border-border text-muted-foreground hover:bg-secondary/50 rounded transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onCreateTask}
-            disabled={isCreatingTask}
-            className="flex items-center gap-1 px-3 py-2 bg-primary text-primary-foreground text-xs font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isCreatingTask ? "Creating..." : "Create"}
-            {!isCreatingTask && <CheckCircle2 className="w-3 h-3" />}
           </button>
         </div>
       </div>
