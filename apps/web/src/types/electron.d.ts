@@ -20,11 +20,13 @@ declare global {
     destroy: () => void;
 
     /** Listen for navigation events. Returns an unsubscribe function. */
-    onNavigated: (callback: (url: string) => void) => () => void;
+    onNavigated: (callback: (url: string, isInsecure?: boolean) => void) => () => void;
     /** Listen for page title changes. Returns an unsubscribe function. */
     onTitleUpdated: (callback: (title: string) => void) => () => void;
     /** Listen for loading state changes. Returns an unsubscribe function. */
     onLoadingChanged: (callback: (loading: boolean) => void) => () => void;
+    /** Listen for load failures. Returns an unsubscribe function. */
+    onLoadFailed: (callback: (url: string, errorDescription: string, errorCode: number) => void) => () => void;
   }
 
   interface ElectronAPI {

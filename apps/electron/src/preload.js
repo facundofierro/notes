@@ -43,5 +43,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () =>
         ipcRenderer.removeListener("browser-view:loading-changed", handler);
     },
+    onLoadFailed: (callback) => {
+      const handler = (_event, url, errorDescription, errorCode) => callback(url, errorDescription, errorCode);
+      ipcRenderer.on("browser-view:load-failed", handler);
+      return () =>
+        ipcRenderer.removeListener("browser-view:load-failed", handler);
+    },
   },
 });

@@ -96,6 +96,12 @@ function getOrCreateBrowserView(win) {
     }
   });
 
+  wc.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("browser-view:load-failed", validatedURL, errorDescription, errorCode);
+    }
+  });
+
   return entry;
 }
 

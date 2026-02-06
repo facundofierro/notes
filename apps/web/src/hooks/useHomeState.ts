@@ -34,6 +34,7 @@ export function useHomeState() {
     }>
   >([]);
   const [iframeUrl, setIframeUrl] = React.useState<string>("");
+  const [preservedIframeUrls, setPreservedIframeUrls] = React.useState<Record<string, string>>({});
   const [isIframeInsecure, setIsIframeInsecure] = React.useState(false);
   const [projectConfig, setProjectConfig] = React.useState<{
     url?: string;
@@ -106,6 +107,8 @@ export function useHomeState() {
     setAgentTools,
     iframeUrl,
     setIframeUrl,
+    preservedIframeUrls,
+    setPreservedIframeUrls,
     isIframeInsecure,
     setIsIframeInsecure,
     projectConfig,

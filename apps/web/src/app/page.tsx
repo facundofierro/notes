@@ -92,80 +92,10 @@ export default function Home() {
     requestEmbeddedCapture,
   } = callbacks;
 
-  const browserViewPlaceholderRef = React.useRef<HTMLDivElement>(null);
-
   // Detect Electron environment on mount
   React.useEffect(() => {
     setIsElectron(!!window.electronAPI?.browserView);
   }, [setIsElectron]);
-
-  // Sync WebContentsView bounds with placeholder div
-  React.useEffect(() => {
-    if (
-      !isElectron ||
-      viewMode !== "browser" ||
-      !browserViewPlaceholderRef.current
-    )
-      return;
-
-    const el = browserViewPlaceholderRef.current;
-    const api = window.electronAPI!.browserView;
-
-    const syncBounds = () => {
-      const rect = el.getBoundingClientRect();
-      api.setBounds({
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-      });
-    };
-
-    const ro = new ResizeObserver(syncBounds);
-    ro.observe(el);
-    window.addEventListener("resize", syncBounds);
-    syncBounds();
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", syncBounds);
-    };
-  }, [isElectron, viewMode]);
-
-  // Show/hide WebContentsView when switching view modes
-  React.useEffect(() => {
-    if (!isElectron) return;
-    const api = window.electronAPI!.browserView;
-    if (viewMode === "browser") {
-      api.show();
-    } else {
-      api.hide();
-    }
-  }, [isElectron, viewMode]);
-
-  const electronLoadedUrlRef = React.useRef<string>("");
-
-  // Load URL in the Electron WebContentsView when iframeUrl changes
-  React.useEffect(() => {
-    if (!isElectron || !iframeUrl) return;
-    if (iframeUrl === electronLoadedUrlRef.current) return;
-    electronLoadedUrlRef.current = iframeUrl;
-    window.electronAPI!.browserView.loadUrl(iframeUrl);
-  }, [isElectron, iframeUrl]);
-
-  // Listen for navigation events from WebContentsView
-  React.useEffect(() => {
-    if (!isElectron) return;
-    const api = window.electronAPI!.browserView;
-    const unsubNav = api.onNavigated((url, isInsecure) => {
-      electronLoadedUrlRef.current = url;
-      setIframeUrl(url);
-      setIsIframeInsecure(!!isInsecure);
-    });
-    return () => {
-      unsubNav();
-    };
-  }, [isElectron, setIframeUrl, setIsIframeInsecure]);
 
   const visibleItems = React.useMemo(() => {
     const defaultItems: ViewMode[] = [
@@ -248,38 +178,6 @@ export default function Home() {
     fetchConfig();
     return () => { cancelled = true; };
   }, [currentProjectPath, setProjectConfig]);
-
-  // Sync iframeUrl with project url
-  const lastUrlRepoRef = React.useRef<string | null>(null);
-  const [preservedIframeUrls, setPreservedIframeUrls] = React.useState<Record<string, string>>({});
-
-  // Save current URL to preservedUrls whenever it changes in browser mode
-  React.useEffect(() => {
-    if (viewMode === "browser" && selectedRepo && iframeUrl) {
-      setPreservedIframeUrls((prev) => {
-        if (prev[selectedRepo] === iframeUrl) return prev;
-        return { ...prev, [selectedRepo]: iframeUrl };
-      });
-    }
-  }, [viewMode, selectedRepo, iframeUrl]);
-
-  // Restore or set initial URL when entering browser mode or switching repo
-  React.useEffect(() => {
-    if (viewMode !== "browser" || !selectedRepo) return;
-
-    const repoChanged = selectedRepo !== lastUrlRepoRef.current;
-    lastUrlRepoRef.current = selectedRepo;
-
-    const preserved = preservedIframeUrls[selectedRepo];
-    const targetUrl = repoChanged 
-      ? (currentProjectConfig?.url || "") 
-      : (preserved || currentProjectConfig?.url || "");
-
-    const normalize = (u: string) => (u || "").replace(/\/$/, "");
-    if (normalize(iframeUrl) !== normalize(targetUrl)) {
-      setIframeUrl(targetUrl);
-    }
-  }, [viewMode, selectedRepo, currentProjectConfig?.url, iframeUrl, preservedIframeUrls, setIframeUrl]);
 
   // Refresh app status on project change or tab change to logs/browser
   const lastStatusRepoRef = React.useRef<string | null>(null);
@@ -470,19 +368,19 @@ export default function Home() {
 
               <LogsTab state={state} />
 
-            ) : viewMode === "browser" ? (
+                        ) : viewMode === "browser" ? (
 
-              <BrowserTab
+                          <BrowserTab
 
-                state={state}
+                            state={state}
 
-                callbacks={callbacks}
+                            callbacks={callbacks}
 
-                browserViewPlaceholderRef={browserViewPlaceholderRef}
+                          />
 
-              />
+                        ) : (
 
-            ) : (
+            
 
               <TasksTab state={state} callbacks={callbacks} />
 
