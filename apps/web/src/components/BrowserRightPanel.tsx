@@ -51,6 +51,7 @@ interface BrowserRightPanelProps {
   onToolSelect?: (
     tool: AnnotationType | null,
   ) => void;
+  screenshotDisplaySize?: { width: number; height: number } | null;
 }
 
 type Mode =
@@ -188,6 +189,7 @@ export function BrowserRightPanel({
   onSelectAnnotation,
   selectedTool,
   onToolSelect,
+  screenshotDisplaySize,
 }: BrowserRightPanelProps) {
   const [mode, setMode] =
     useState<Mode>("screen");
@@ -206,8 +208,6 @@ export function BrowserRightPanel({
   // Ref for the image container to calculate relative coordinates
   const imageContainerRef =
     useRef<HTMLDivElement>(null);
-  const screenshotImageRef =
-    useRef<HTMLImageElement>(null);
 
   // Prompt mode state
   const [promptText, setPromptText] =
@@ -1404,12 +1404,10 @@ export function BrowserRightPanel({
           ctx.drawImage(img, 0, 0);
 
           const displayWidth =
-            screenshotImageRef.current
-              ?.clientWidth ||
+            screenshotDisplaySize?.width ||
             naturalWidth;
           const displayHeight =
-            screenshotImageRef.current
-              ?.clientHeight ||
+            screenshotDisplaySize?.height ||
             naturalHeight;
 
           const scaleX =
@@ -1421,25 +1419,41 @@ export function BrowserRightPanel({
             Math.min(scaleX, scaleY) ||
             1;
 
+          // In ScreenshotViewer, the image is centered in a container.
+          // We need to account for the offset if the container is larger than the image.
+          // Since we don't have the container ref from ScreenshotViewer here,
+          // we assume the coordinates 'ann.x' and 'ann.y' are already relative to the image 
+          // top-left because that's how ScreenshotViewer's handleMouseDown calculates them 
+          // relative to imageContainerRef, which shrink-wraps the image.
+          // HOWEVER, if imageContainerRef is larger than the img (due to justify-center),
+          // there will be an offset. Let's look at ScreenshotViewer.tsx again.
+          // In ScreenshotViewer, imageContainerRef wraps the <img>. 
+          // The <img> has block, w-auto, h-auto. The div should shrink-wrap.
+          
           annotations.forEach((ann) => {
-            const mappedX =
-              ann.x * scaleX;
-            const mappedY =
-              ann.y * scaleY;
-            const mappedWidth =
-              (ann.width || 0) * scaleX;
-            const mappedHeight =
-              (ann.height || 0) *
-              scaleY;
+            const mappedX = ann.x * scaleX;
+            const mappedY = ann.y * scaleY;
+            const mappedWidth = (ann.width || 0) * scaleX;
+            const mappedHeight = (ann.height || 0) * scaleY;
 
-            const badgeRadius =
-              Math.max(10, 10 * scale);
-            const strokeWidth =
-              Math.max(2, 2 * scale);
-            const fontSize = Math.max(
-              12,
-              12 * scale,
-            );
+            const badgeRadius = Math.max(10, 12 * scale);
+            const strokeWidth = Math.max(2, 2 * scale);
+            const fontSize = Math.max(10, 10 * scale);
+
+            // Determine colors to match ScreenshotViewer exactly
+            let mainColor = "#f59e0b"; // orange
+            let fillColor = "rgba(245, 158, 11, 0.15)";
+            let badgeBgColor = "#f97316"; // orange-500
+
+            if (ann.type === "remove") {
+              mainColor = "#dc2626"; // red
+              fillColor = "rgba(220, 38, 38, 0.15)";
+              badgeBgColor = "#dc2626"; // red-600
+            } else if (ann.type === "arrow") {
+              mainColor = "#3b82f6"; // blue
+              fillColor = "transparent";
+              badgeBgColor = "#2563eb"; // blue-600
+            }
 
             if (
               ann.type === "arrow" &&
@@ -1448,175 +1462,87 @@ export function BrowserRightPanel({
             ) {
               const startX = mappedX;
               const startY = mappedY;
-              const endX =
-                ann.endX * scaleX;
-              const endY =
-                ann.endY * scaleY;
+              const endX = ann.endX * scaleX;
+              const endY = ann.endY * scaleY;
 
               // Draw arrow line
-              ctx.strokeStyle =
-                "#3b82f6";
-              ctx.lineWidth =
-                strokeWidth * 1.5;
+              ctx.strokeStyle = mainColor;
+              ctx.lineWidth = strokeWidth * 1.5;
               ctx.beginPath();
-              ctx.moveTo(
-                startX,
-                startY,
-              );
+              ctx.moveTo(startX, startY);
               ctx.lineTo(endX, endY);
               ctx.stroke();
 
               // Draw arrowhead
-              const angle = Math.atan2(
-                endY - startY,
-                endX - startX,
-              );
-              const arrowLength =
-                12 * scale;
-              ctx.fillStyle = "#3b82f6";
+              const angle = Math.atan2(endY - startY, endX - startX);
+              const arrowLength = 12 * scale;
+              ctx.fillStyle = mainColor;
               ctx.beginPath();
               ctx.moveTo(endX, endY);
               ctx.lineTo(
-                endX -
-                  arrowLength *
-                    Math.cos(
-                      angle -
-                        Math.PI / 6,
-                    ),
-                endY -
-                  arrowLength *
-                    Math.sin(
-                      angle -
-                        Math.PI / 6,
-                    ),
+                endX - arrowLength * Math.cos(angle - Math.PI / 6),
+                endY - arrowLength * Math.sin(angle - Math.PI / 6)
               );
               ctx.lineTo(
-                endX -
-                  arrowLength *
-                    Math.cos(
-                      angle +
-                        Math.PI / 6,
-                    ),
-                endY -
-                  arrowLength *
-                    Math.sin(
-                      angle +
-                        Math.PI / 6,
-                    ),
+                endX - arrowLength * Math.cos(angle + Math.PI / 6),
+                endY - arrowLength * Math.sin(angle + Math.PI / 6)
               );
               ctx.closePath();
               ctx.fill();
+            } else {
+              // Draw rectangle
+              ctx.lineWidth = strokeWidth;
+              ctx.strokeStyle = mainColor;
+              ctx.fillStyle = fillColor;
+              ctx.strokeRect(mappedX, mappedY, mappedWidth, mappedHeight);
+              ctx.fillRect(mappedX, mappedY, mappedWidth, mappedHeight);
 
-              // Draw badge at arrow end
-              ctx.fillStyle = "#111827";
-              ctx.beginPath();
-              ctx.arc(
-                endX + badgeRadius,
-                endY - badgeRadius,
-                badgeRadius,
-                0,
-                Math.PI * 2,
-              );
-              ctx.fill();
-              ctx.fillStyle = "#ffffff";
-              ctx.font = `${fontSize}px sans-serif`;
-              ctx.textAlign = "center";
-              ctx.textBaseline =
-                "middle";
-              ctx.fillText(
-                String(ann.id),
-                endX + badgeRadius,
-                endY - badgeRadius,
-              );
-              return;
+              if (ann.type === "remove") {
+                const label = "REMOVE THIS";
+                ctx.font = `bold ${Math.max(8, 9 * scale)}px sans-serif`;
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                const labelPadding = 4 * scale;
+                const labelWidth = ctx.measureText(label).width + labelPadding * 2;
+                const labelHeight = Math.max(12, 14 * scale);
+                const labelX = mappedX + 12 * scale;
+                const labelY = mappedY - 25 * scale;
+
+                ctx.fillStyle = "#dc2626";
+                if (typeof ctx.roundRect === "function") {
+                  ctx.beginPath();
+                  ctx.roundRect(labelX, labelY, labelWidth, labelHeight, 2 * scale);
+                  ctx.fill();
+                } else {
+                  ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
+                }
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(label, labelX + labelPadding, labelY + labelHeight / 2);
+              }
             }
 
-            const color =
-              ann.type === "remove"
-                ? "#dc2626"
-                : "#f59e0b";
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeStyle = color;
-            ctx.fillStyle =
-              ann.type === "remove"
-                ? "rgba(220, 38, 38, 0.12)"
-                : "rgba(245, 158, 11, 0.12)";
-            ctx.strokeRect(
-              mappedX,
-              mappedY,
-              mappedWidth,
-              mappedHeight,
-            );
-            ctx.fillRect(
-              mappedX,
-              mappedY,
-              mappedWidth,
-              mappedHeight,
-            );
+            // Draw badge centered at (mappedX, mappedY) to match ScreenshotViewer
+            const badgeX = mappedX;
+            const badgeY = mappedY;
 
-            if (ann.type === "remove") {
-              const label =
-                "REMOVE THIS";
-              ctx.font = `${fontSize}px sans-serif`;
-              ctx.textAlign = "left";
-              ctx.textBaseline =
-                "middle";
-              const labelPadding =
-                6 * scale;
-              const labelWidth =
-                ctx.measureText(label)
-                  .width +
-                labelPadding * 2;
-              const labelHeight =
-                fontSize + 6 * scale;
-              const labelX = mappedX;
-              const labelY = Math.max(
-                0,
-                mappedY -
-                  labelHeight -
-                  4 * scale,
-              );
-              ctx.fillStyle = "#dc2626";
-              ctx.fillRect(
-                labelX,
-                labelY,
-                labelWidth,
-                labelHeight,
-              );
-              ctx.fillStyle = "#ffffff";
-              ctx.fillText(
-                label,
-                labelX + labelPadding,
-                labelY +
-                  labelHeight / 2,
-              );
-            }
-
-            const badgeX =
-              mappedX +
-              mappedWidth +
-              badgeRadius;
-            const badgeY =
-              mappedY - badgeRadius;
-            ctx.fillStyle = "#111827";
-            ctx.beginPath();
-            ctx.arc(
-              badgeX,
-              badgeY,
-              badgeRadius,
-              0,
-              Math.PI * 2,
-            );
-            ctx.fill();
+            // White border around badge
             ctx.fillStyle = "#ffffff";
-            ctx.font = `${fontSize}px sans-serif`;
+            ctx.beginPath();
+            ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Colored badge background
+            ctx.fillStyle = badgeBgColor;
+            ctx.beginPath();
+            ctx.arc(badgeX, badgeY, badgeRadius - (2 * scale), 0, Math.PI * 2);
+            ctx.fill();
+
+            // Badge text
+            ctx.fillStyle = "#ffffff";
+            ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(
-              String(ann.id),
-              badgeX,
-              badgeY,
-            );
+            ctx.fillText(String(ann.id), badgeX, badgeY);
           });
         }
 
@@ -2465,6 +2391,7 @@ export function BrowserRightPanel({
           )}
         </button>
       </div>
+      
     </div>
   );
 }

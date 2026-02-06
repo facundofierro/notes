@@ -102,6 +102,8 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     store.setProjectState(() => ({ selectedTool: tool }));
   }, [store, selectedRepo, repoName]);
 
+  const [screenshotDisplaySize, setScreenshotDisplaySize] = React.useState<{ width: number; height: number } | null>(null);
+
   const requestEmbeddedCapture = React.useCallback(async () => {
     if (window.electronAPI?.browserView && isSelected) {
       return window.electronAPI.browserView.capture();
@@ -294,9 +296,11 @@ export function BrowserTab({ repoName }: { repoName: string }) {
             onClose={() => {
               setScreenshotLocal(null);
               setIsScreenshotModeLocal(false);
+              setScreenshotDisplaySize(null);
             }}
             selectedTool={selectedTool}
             onToolSelect={setSelectedToolLocal}
+            onDisplaySizeChange={setScreenshotDisplaySize}
           />
         )}
       </div>
@@ -324,6 +328,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
         selectedTool={selectedTool}
         onToolSelect={setSelectedToolLocal}
         onTaskCreated={() => {}}
+        screenshotDisplaySize={screenshotDisplaySize}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { Square, Trash2, ArrowRight, X, CheckCircle2 } from "lucide-react";
 import { Annotation, AnnotationType } from "@/types/entities";
 
@@ -11,6 +11,7 @@ interface ScreenshotViewerProps {
   onClose: () => void;
   selectedTool: AnnotationType | null;
   onToolSelect: (tool: AnnotationType | null) => void;
+  onDisplaySizeChange?: (size: { width: number; height: number }) => void;
 }
 
 export function ScreenshotViewer({
@@ -22,6 +23,7 @@ export function ScreenshotViewer({
   onClose,
   selectedTool,
   onToolSelect,
+  onDisplaySizeChange,
 }: ScreenshotViewerProps) {
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
@@ -29,10 +31,34 @@ export function ScreenshotViewer({
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const screenshotImageRef = useRef<HTMLImageElement>(null);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!selectedTool || !imageContainerRef.current) return;
+  const reportDisplaySize = useCallback(() => {
+    const img = screenshotImageRef.current;
+    if (img && img.clientWidth && img.clientHeight && onDisplaySizeChange) {
+      onDisplaySizeChange({ width: img.clientWidth, height: img.clientHeight });
+    }
+  }, [onDisplaySizeChange]);
 
-    const rect = imageContainerRef.current.getBoundingClientRect();
+  useEffect(() => {
+    const img = screenshotImageRef.current;
+    if (!img) return;
+    // Report on load
+    const handleLoad = () => reportDisplaySize();
+    img.addEventListener("load", handleLoad);
+    // Report if already loaded
+    if (img.complete) reportDisplaySize();
+    // Report on resize
+    const ro = new ResizeObserver(reportDisplaySize);
+    ro.observe(img);
+    return () => {
+      img.removeEventListener("load", handleLoad);
+      ro.disconnect();
+    };
+  }, [reportDisplaySize]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!selectedTool || !screenshotImageRef.current) return;
+
+    const rect = screenshotImageRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -42,9 +68,9 @@ export function ScreenshotViewer({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDrawing || !imageContainerRef.current) return;
+    if (!isDrawing || !screenshotImageRef.current) return;
 
-    const rect = imageContainerRef.current.getBoundingClientRect();
+    const rect = screenshotImageRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -52,9 +78,9 @@ export function ScreenshotViewer({
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDrawing || !selectedTool || !imageContainerRef.current) return;
+    if (!isDrawing || !selectedTool || !screenshotImageRef.current) return;
 
-    const rect = imageContainerRef.current.getBoundingClientRect();
+    const rect = screenshotImageRef.current.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
 
@@ -187,8 +213,10 @@ export function ScreenshotViewer({
 
           {/* SVG Overlay for annotations */}
           <svg
-            className="absolute inset-0 pointer-events-none"
+            className="absolute pointer-events-none"
             style={{
+              left: screenshotImageRef.current?.offsetLeft || 0,
+              top: screenshotImageRef.current?.offsetTop || 0,
               width: screenshotImageRef.current?.clientWidth || "100%",
               height: screenshotImageRef.current?.clientHeight || "100%",
             }}
@@ -270,8 +298,10 @@ export function ScreenshotViewer({
           {/* Annotation badges */}
           {annotations.map((ann) => {
             const isSelected = selectedAnnotationId === ann.id;
-            const badgeX = ann.x || 0;
-            const badgeY = ann.y || 0;
+            const imgLeft = screenshotImageRef.current?.offsetLeft || 0;
+            const imgTop = screenshotImageRef.current?.offsetTop || 0;
+            const badgeX = (ann.x || 0) + imgLeft;
+            const badgeY = (ann.y || 0) + imgTop;
 
             let bgColor = "bg-slate-700";
             let glowColor = "rgba(0,0,0,0.3)";
@@ -313,13 +343,15 @@ export function ScreenshotViewer({
           {/* Remove label for remove annotations */}
           {annotations.map((ann) => {
             if (ann.type === "remove") {
+              const imgLeft = screenshotImageRef.current?.offsetLeft || 0;
+              const imgTop = screenshotImageRef.current?.offsetTop || 0;
               return (
                 <div
                   key={`label-${ann.id}`}
                   className="absolute bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-sm whitespace-nowrap pointer-events-none font-medium"
                   style={{
-                    left: (ann.x || 0) + 12,
-                    top: (ann.y || 0) - 25,
+                    left: (ann.x || 0) + 12 + imgLeft,
+                    top: (ann.y || 0) - 25 + imgTop,
                   }}
                 >
                   REMOVE THIS
