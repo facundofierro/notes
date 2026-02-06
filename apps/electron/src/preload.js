@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     // Event listeners from main → renderer
     onNavigated: (callback) => {
-      const handler = (_event, url) => callback(url);
+      const handler = (_event, url, isInsecure) => callback(url, isInsecure);
       ipcRenderer.on("browser-view:navigated", handler);
       return () =>
         ipcRenderer.removeListener("browser-view:navigated", handler);

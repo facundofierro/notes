@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Globe } from "lucide-react";
+import { Globe, ShieldAlert } from "lucide-react";
 import { BrowserRightPanel } from "@/components/BrowserRightPanel";
 import { IframeCaptureInjector } from "@/components/IframeCaptureInjector";
 import { HomeState } from "@/hooks/useHomeState";
@@ -19,6 +19,7 @@ export function BrowserTab({
   const {
     iframeUrl,
     setIframeUrl,
+    isIframeInsecure,
     isElectron,
     isScreenshotMode,
     setIsScreenshotMode,
@@ -53,7 +54,11 @@ export function BrowserTab({
       >
         <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
           <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
-            <Globe className="w-3 h-3 text-muted-foreground" />
+            {isIframeInsecure ? (
+              <ShieldAlert className="w-3 h-3 text-destructive" title="Insecure connection (Certificate Error)" />
+            ) : (
+              <Globe className="w-3 h-3 text-muted-foreground" />
+            )}
             <input
               type="text"
               value={iframeUrl}

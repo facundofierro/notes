@@ -58,7 +58,7 @@ function getOrCreateBrowserView(win) {
     },
   });
 
-  entry = { view, attached: false };
+  entry = { view, attached: false, insecure: false };
   browserViews.set(winId, entry);
 
   // Forward navigation events to the renderer
@@ -66,13 +66,15 @@ function getOrCreateBrowserView(win) {
 
   wc.on("did-navigate", (_event, url) => {
     if (!win.isDestroyed()) {
-      win.webContents.send("browser-view:navigated", url);
+      // Reset insecure flag on new navigation
+      entry.insecure = false;
+      win.webContents.send("browser-view:navigated", url, false);
     }
   });
 
   wc.on("did-navigate-in-page", (_event, url) => {
     if (!win.isDestroyed()) {
-      win.webContents.send("browser-view:navigated", url);
+      win.webContents.send("browser-view:navigated", url, entry.insecure);
     }
   });
 
@@ -125,7 +127,13 @@ function setupIpcHandlers() {
       win.contentView.addChildView(entry.view);
       entry.attached = true;
     }
-    await entry.view.webContents.loadURL(url);
+    try {
+      await entry.view.webContents.loadURL(url);
+    } catch (err) {
+      if (err.code !== "ERR_ABORTED") {
+        console.error(`Error loading URL ${url}:`, err);
+      }
+    }
   });
 
   // Set the bounds (position + size) of the WebContentsView
@@ -244,6 +252,23 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on("certificate-error", (event, webContents, url, error, certificate, callback) => {
+  // Find which browser view this belongs to
+  for (const [winId, entry] of browserViews.entries()) {
+    if (entry.view.webContents === webContents) {
+      entry.insecure = true;
+      const win = BrowserWindow.fromId(winId);
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("browser-view:navigated", url, true);
+      }
+      break;
+    }
+  }
+
+  event.preventDefault();
+  callback(true);
 });
 
 app.on("before-quit", () => {

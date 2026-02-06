@@ -153,14 +153,15 @@ export default function Home() {
   React.useEffect(() => {
     if (!isElectron) return;
     const api = window.electronAPI!.browserView;
-    const unsubNav = api.onNavigated((url) => {
+    const unsubNav = api.onNavigated((url, isInsecure) => {
       electronLoadedUrlRef.current = url;
       setIframeUrl(url);
+      state.setIsIframeInsecure(!!isInsecure);
     });
     return () => {
       unsubNav();
     };
-  }, [isElectron, setIframeUrl]);
+  }, [isElectron, setIframeUrl, state]);
 
   const visibleItems = React.useMemo(() => {
     const defaultItems: ViewMode[] = [
@@ -248,45 +249,33 @@ export default function Home() {
   const lastUrlRepoRef = React.useRef<string | null>(null);
   const [preservedIframeUrls, setPreservedIframeUrls] = React.useState<Record<string, string>>({});
 
+  // Save current URL to preservedUrls whenever it changes in browser mode
   React.useEffect(() => {
-    if (!selectedRepo) return;
-
-    // Save current URL when leaving browser mode
-    if (viewMode !== "browser") {
-      if (iframeUrl) {
-        setPreservedIframeUrls((prev) => ({ ...prev, [selectedRepo]: iframeUrl }));
-      }
-      return;
+    if (viewMode === "browser" && selectedRepo && iframeUrl) {
+      setPreservedIframeUrls((prev) => {
+        if (prev[selectedRepo] === iframeUrl) return prev;
+        return { ...prev, [selectedRepo]: iframeUrl };
+      });
     }
+  }, [viewMode, selectedRepo, iframeUrl]);
 
-    // If we are in browser mode
+  // Restore or set initial URL when entering browser mode or switching repo
+  React.useEffect(() => {
+    if (viewMode !== "browser" || !selectedRepo) return;
+
     const repoChanged = selectedRepo !== lastUrlRepoRef.current;
     lastUrlRepoRef.current = selectedRepo;
 
-    if (repoChanged) {
-      // On repo change, prefer the new project's default URL
-      const targetUrl = currentProjectConfig?.url || "";
+    const preserved = preservedIframeUrls[selectedRepo];
+    const targetUrl = repoChanged 
+      ? (currentProjectConfig?.url || "") 
+      : (preserved || currentProjectConfig?.url || "");
+
+    const normalize = (u: string) => (u || "").replace(/\/$/, "");
+    if (normalize(iframeUrl) !== normalize(targetUrl)) {
       setIframeUrl(targetUrl);
-      // Also update preserved URL for this repo
-      if (targetUrl) {
-        setPreservedIframeUrls((prev) => ({ ...prev, [selectedRepo]: targetUrl }));
-      }
-    } else {
-      // On entering browser mode (not from repo change)
-      const preserved = preservedIframeUrls[selectedRepo];
-      const targetUrl = preserved || currentProjectConfig?.url || "";
-      if (iframeUrl !== targetUrl) {
-        setIframeUrl(targetUrl);
-      }
     }
-  }, [
-    viewMode,
-    selectedRepo,
-    currentProjectConfig?.url,
-    preservedIframeUrls,
-    iframeUrl,
-    setIframeUrl,
-  ]);
+  }, [viewMode, selectedRepo, currentProjectConfig?.url]);
 
   // Refresh app status on project change or tab change to logs/browser
   const lastStatusRepoRef = React.useRef<string | null>(null);
