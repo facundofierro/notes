@@ -12,14 +12,15 @@ interface FileNode {
 }
 
 export function DocsTab() {
+  const store = useHomeStore();
   const { 
     selectedRepo, 
-    currentPath, 
     basePath, 
-    selectedFile, 
     setSelectedFile,
     handleFileSelect
-  } = useHomeStore();
+  } = store;
+
+  const { selectedFile, currentPath } = store.getProjectState();
   
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
 

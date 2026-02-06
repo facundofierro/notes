@@ -8,7 +8,8 @@ const TerminalViewer = dynamic(
 );
 
 export function LogsTab() {
-  const { appLogs, isAppStarting, appPid, isAppRunning } = useHomeStore();
+  const store = useHomeStore();
+  const { appLogs, isAppStarting, appPid, isAppRunning } = store.getProjectState();
 
   const handleInput = React.useCallback(
     (data: string) => {

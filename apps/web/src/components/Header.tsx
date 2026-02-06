@@ -22,20 +22,19 @@ import { useHomeStore } from "@/store/useHomeStore";
 export function Header() {
   const store = useHomeStore();
   const {
-    viewMode,
     setViewMode,
     selectedRepo,
     setSelectedRepo,
     repositories,
-    isAppRunning,
     handleStartApp,
     handleStopApp,
-    isAppManaged,
     handleRestartApp,
     setSettingsTab,
     setIsSettingsOpen,
     settings
   } = store;
+
+  const { viewMode, isAppRunning, isAppManaged } = store.getProjectState();
 
   const [isAppActionsMenuOpen, setIsAppActionsMenuOpen] = React.useState(false);
 

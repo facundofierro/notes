@@ -9,28 +9,23 @@ import { toast } from "@agelum/shadcn";
 export function BrowserTab() {
   const store = useHomeStore();
   const {
-    iframeUrl,
-    setIframeUrl,
-    isIframeInsecure,
-    setIsIframeInsecure,
     isElectron,
-    isScreenshotMode,
-    setIsScreenshotMode,
-    screenshot,
-    setScreenshot,
-    annotations,
-    setAnnotations,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-    selectedTool,
-    setSelectedTool,
     selectedRepo,
     repositories,
     preservedIframeUrls,
-    setPreservedIframeUrls,
     settings,
-    projectConfig
   } = store;
+
+  const {
+    iframeUrl,
+    isIframeInsecure,
+    isScreenshotMode,
+    screenshot,
+    annotations,
+    selectedAnnotationId,
+    selectedTool,
+    projectConfig,
+  } = store.getProjectState();
 
   const currentProjectConfig = React.useMemo(() => {
     return settings.projects?.find((p) => p.name === selectedRepo) || projectConfig || null;
@@ -40,6 +35,34 @@ export function BrowserTab() {
   const browserViewPlaceholderRef = React.useRef<HTMLDivElement>(null);
   const electronLoadedUrlRef = React.useRef<string>("");
   const lastRestoredRepoRef = React.useRef<string | null>(null);
+
+  const setIframeUrlLocal = React.useCallback((url: string) => {
+    store.setProjectState(() => ({ iframeUrl: url }));
+  }, [store]);
+
+  const setIsIframeInsecureLocal = React.useCallback((isInsecure: boolean) => {
+    store.setProjectState(() => ({ isIframeInsecure: isInsecure }));
+  }, [store]);
+
+  const setScreenshotLocal = React.useCallback((sc: string | null) => {
+    store.setProjectState(() => ({ screenshot: sc }));
+  }, [store]);
+
+  const setIsScreenshotModeLocal = React.useCallback((isMode: boolean) => {
+    store.setProjectState(() => ({ isScreenshotMode: isMode }));
+  }, [store]);
+
+  const setAnnotationsLocal = React.useCallback((ann: any) => {
+    store.setProjectState((prev) => ({ annotations: typeof ann === "function" ? ann(prev.annotations) : ann }));
+  }, [store]);
+
+  const setSelectedAnnotationIdLocal = React.useCallback((id: number | null) => {
+    store.setProjectState(() => ({ selectedAnnotationId: id }));
+  }, [store]);
+
+  const setSelectedToolLocal = React.useCallback((tool: any) => {
+    store.setProjectState(() => ({ selectedTool: tool }));
+  }, [store]);
 
   const requestEmbeddedCapture = React.useCallback(async () => {
     if (window.electronAPI?.browserView) {
@@ -61,19 +84,16 @@ export function BrowserTab() {
     const targetUrl = preserved || currentProjectConfig?.url || "";
 
     if (targetUrl && targetUrl !== iframeUrl) {
-      setIframeUrl(targetUrl);
+      setIframeUrlLocal(targetUrl);
     }
-  }, [selectedRepo, currentProjectConfig?.url, preservedIframeUrls, setIframeUrl, iframeUrl]);
+  }, [selectedRepo, currentProjectConfig?.url, preservedIframeUrls, setIframeUrlLocal, iframeUrl]);
 
   // Save current URL to preservedUrls whenever it changes
   React.useEffect(() => {
     if (selectedRepo && iframeUrl) {
-      setPreservedIframeUrls((prev) => {
-        if (prev[selectedRepo] === iframeUrl) return prev;
-        return { ...prev, [selectedRepo]: iframeUrl };
-      });
+      store.preservedIframeUrls[selectedRepo] = iframeUrl; // Using the store ref to avoid direct state change for this background record
     }
-  }, [selectedRepo, iframeUrl, setPreservedIframeUrls]);
+  }, [selectedRepo, iframeUrl, store.preservedIframeUrls]);
 
   // Sync WebContentsView bounds with placeholder div
   React.useEffect(() => {
@@ -125,8 +145,8 @@ export function BrowserTab() {
     const api = window.electronAPI!.browserView;
     const unsubNav = api.onNavigated((url, isInsecure) => {
       electronLoadedUrlRef.current = url;
-      setIframeUrl(url);
-      setIsIframeInsecure(!!isInsecure);
+      setIframeUrlLocal(url);
+      setIsIframeInsecureLocal(!!isInsecure);
     });
 
     const unsubFail = api.onLoadFailed((url, desc, code) => {
@@ -141,7 +161,7 @@ export function BrowserTab() {
       unsubNav();
       unsubFail();
     };
-  }, [isElectron, setIframeUrl, setIsIframeInsecure]);
+  }, [isElectron, setIframeUrlLocal, setIsIframeInsecureLocal]);
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -150,12 +170,12 @@ export function BrowserTab() {
         if (isElectron) {
           window.electronAPI!.browserView.loadUrl(val);
         } else {
-          setIframeUrl("");
-          setTimeout(() => setIframeUrl(val), 0);
+          setIframeUrlLocal("");
+          setTimeout(() => setIframeUrlLocal(val), 0);
         }
       }
     },
-    [isElectron, setIframeUrl],
+    [isElectron, setIframeUrlLocal],
   );
 
   return (
@@ -178,7 +198,7 @@ export function BrowserTab() {
                 <input
                   type="text"
                   value={iframeUrl}
-                  onChange={(e) => setIframeUrl(e.target.value)}
+                  onChange={(e) => setIframeUrlLocal(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"
                   placeholder="Enter URL..."
@@ -212,15 +232,15 @@ export function BrowserTab() {
           <ScreenshotViewer
             screenshot={screenshot}
             annotations={annotations}
-            onAnnotationsChange={setAnnotations}
+            onAnnotationsChange={setAnnotationsLocal}
             selectedAnnotationId={selectedAnnotationId}
-            onSelectAnnotation={setSelectedAnnotationId}
+            onSelectAnnotation={setSelectedAnnotationIdLocal}
             onClose={() => {
-              setScreenshot(null);
-              setIsScreenshotMode(false);
+              setScreenshotLocal(null);
+              setIsScreenshotModeLocal(false);
             }}
             selectedTool={selectedTool}
-            onToolSelect={setSelectedTool}
+            onToolSelect={setSelectedToolLocal}
           />
         )}
       </div>
@@ -238,15 +258,15 @@ export function BrowserTab() {
           isElectron ? window.electronAPI!.browserView : undefined
         }
         isScreenshotMode={isScreenshotMode}
-        onScreenshotModeChange={setIsScreenshotMode}
+        onScreenshotModeChange={setIsScreenshotModeLocal}
         screenshot={screenshot}
-        onScreenshotChange={setScreenshot}
+        onScreenshotChange={setScreenshotLocal}
         annotations={annotations}
-        onAnnotationsChange={setAnnotations}
+        onAnnotationsChange={setAnnotationsLocal}
         selectedAnnotationId={selectedAnnotationId}
-        onSelectAnnotation={setSelectedAnnotationId}
+        onSelectAnnotation={setSelectedAnnotationIdLocal}
         selectedTool={selectedTool}
-        onToolSelect={setSelectedTool}
+        onToolSelect={setSelectedToolLocal}
         onTaskCreated={() => {}}
       />
     </div>

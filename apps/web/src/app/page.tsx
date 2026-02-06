@@ -12,7 +12,7 @@ import { AITab } from "@/components/tabs/AITab";
 import { LogsTab } from "@/components/tabs/LogsTab";
 import { BrowserTab } from "@/components/tabs/BrowserTab";
 import { Header } from "@/components/Header";
-import { useHomeStore } from "@/store/useHomeStore";
+import { useHomeStore, ProjectState } from "@/store/useHomeStore";
 
 export default function Home() {
   const store = useHomeStore();
@@ -20,42 +20,15 @@ export default function Home() {
     fetchSettings,
     fetchRepositories,
     selectedRepo,
-    viewMode,
-    setSelectedFile,
-    setAgentTools,
-    setLogStreamPid,
-    setAppLogs,
-    currentPath,
+    setProjectState,
     repositories,
     settings,
-    projectConfig,
-    setProjectConfig,
     setIsElectron,
     isSettingsOpen,
     setIsSettingsOpen,
     settingsTab,
-    setIsAppRunning,
-    setIsAppManaged,
-    setAppPid,
-    logStreamPid,
-    isAppStarting,
-    setIsAppStarting,
-    appLogsAbortController,
-    setAppLogsAbortController,
+    projectStates,
   } = store;
-
-  const currentProjectPath = React.useMemo(() => {
-    if (!selectedRepo) return null;
-    return (
-      repositories.find((r) => r.name === selectedRepo)?.path ||
-      settings.projects?.find((p) => p.name === selectedRepo)?.path ||
-      null
-    );
-  }, [repositories, selectedRepo, settings.projects]);
-
-  const currentProjectConfig = React.useMemo(() => {
-    return settings.projects?.find((p) => p.name === selectedRepo) || projectConfig || null;
-  }, [selectedRepo, settings.projects, projectConfig]);
 
   // Initial data fetching
   React.useEffect(() => {
@@ -68,115 +41,117 @@ export default function Home() {
     setIsElectron(!!window.electronAPI?.browserView);
   }, [setIsElectron]);
 
-  // Fetch agent tools
-  React.useEffect(() => {
-    let cancelled = false;
-    fetch("/api/agents?action=tools")
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        const tools = (data.tools || []) as Array<{ name: string; displayName: string; available: boolean }>;
-        setAgentTools(tools);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAgentTools([]);
-      });
-    return () => { cancelled = true; };
-  }, [setAgentTools]);
-
   // Save selected repo to local storage
   React.useEffect(() => {
     if (!selectedRepo) return;
     window.localStorage.setItem("agelum.selectedRepo", selectedRepo);
   }, [selectedRepo]);
 
-  // Clear selected file on view or repo change
-  React.useEffect(() => {
-    setSelectedFile(null);
-  }, [viewMode, selectedRepo, setSelectedFile]);
+  const currentProjectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      settings.projects?.find((p) => p.name === selectedRepo)?.path ||
+      null
+    );
+  }, [repositories, selectedRepo, settings.projects]);
 
-  // Clear log streaming when repo changes
-  React.useEffect(() => {
-    setLogStreamPid(null);
-    setAppLogs("");
-  }, [selectedRepo, setLogStreamPid, setAppLogs]);
+  return (
+    <div className="flex flex-col w-full h-full">
+      <Header />
 
-  // Fetch project configuration
+      <div className="flex overflow-hidden flex-col flex-1 relative">
+        {Object.entries(projectStates).map(([repoName, projectState]) => (
+          <div 
+            key={repoName} 
+            className={`absolute inset-0 flex flex-col ${repoName === selectedRepo ? "z-10 visible" : "z-0 invisible"}`}
+          >
+            <ProjectView repoName={repoName} projectState={projectState} />
+          </div>
+        ))}
+        {!selectedRepo && (
+          <div className="flex flex-1 items-center justify-center text-muted-foreground bg-background">
+            Select a project to get started
+          </div>
+        )}
+      </div>
+
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        onSave={fetchSettings}
+        initialTab={settingsTab as any}
+        projectName={selectedRepo || undefined}
+        projectPath={currentProjectPath || undefined}
+      />
+    </div>
+  );
+}
+
+function ProjectView({ repoName, projectState }: { repoName: string; projectState: ProjectState }) {
+  const store = useHomeStore();
+  const {
+    repositories,
+    settings,
+    setProjectState,
+  } = store;
+
+  const { viewMode, logStreamPid, isAppStarting, projectConfig } = projectState;
+
+  const currentProjectPath = React.useMemo(() => {
+    return (
+      repositories.find((r) => r.name === repoName)?.path ||
+      settings.projects?.find((p) => p.name === repoName)?.path ||
+      null
+    );
+  }, [repositories, repoName, settings.projects]);
+
+  const currentProjectConfig = React.useMemo(() => {
+    return settings.projects?.find((p) => p.name === repoName) || projectConfig || null;
+  }, [repoName, settings.projects, projectConfig]);
+
+  // Project-specific background effects (Status, Logs, Config)
   React.useEffect(() => {
-    if (!currentProjectPath) {
-      setProjectConfig(null);
-      return;
-    }
+    if (!currentProjectPath) return;
     let cancelled = false;
-    const fetchConfig = async () => {
-      try {
-        const res = await fetch(`/api/project/config?path=${encodeURIComponent(currentProjectPath)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setProjectConfig(data.config || null);
-      } catch (error) {
-        console.error("Error fetching project config:", error);
-      }
-    };
-    fetchConfig();
+    fetch(`/api/project/config?path=${encodeURIComponent(currentProjectPath)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!cancelled && data) {
+          setProjectState(prev => ({ ...prev, projectConfig: data.config || null }));
+        }
+      });
     return () => { cancelled = true; };
-  }, [currentProjectPath, setProjectConfig]);
+  }, [currentProjectPath, setProjectState]);
 
-  // Refresh app status on project change or tab change to logs/browser
-  const lastStatusRepoRef = React.useRef<string | null>(null);
-  const lastStatusViewModeRef = React.useRef<string | null>(null);
-
+  // Refresh app status for this project
   React.useEffect(() => {
-    if (!selectedRepo) {
-      setIsAppRunning(false);
-      setIsAppManaged(false);
-      setAppPid(null);
-      return;
-    }
-
-    const isTargetView = viewMode === "logs" || viewMode === "browser";
-    const repoChanged = selectedRepo !== lastStatusRepoRef.current;
-    const viewChangedToTarget = isTargetView && viewMode !== lastStatusViewModeRef.current;
-
-    lastStatusRepoRef.current = selectedRepo;
-    lastStatusViewModeRef.current = viewMode;
-
     let cancelled = false;
     const checkStatus = async () => {
       try {
-        const res = await fetch(`/api/app-status?repo=${selectedRepo}`);
+        const res = await fetch(`/api/app-status?repo=${repoName}`);
         const data = await res.json();
         if (cancelled) return;
-        setIsAppRunning(data.isRunning);
-        setIsAppManaged(data.isManaged);
-        setAppPid(data.pid || null);
-        if (data.isManaged && data.pid && !logStreamPid) {
-          setLogStreamPid(data.pid);
-        }
-      } catch {
-        if (cancelled) return;
-        setIsAppRunning(false);
-        setIsAppManaged(false);
-        setAppPid(null);
-      }
+        setProjectState(prev => ({
+          ...prev,
+          isAppRunning: data.isRunning,
+          isAppManaged: data.isManaged,
+          appPid: data.pid || null,
+          logStreamPid: data.isManaged && data.pid && !prev.logStreamPid ? data.pid : prev.logStreamPid
+        }));
+      } catch {}
     };
 
-    if (repoChanged || viewChangedToTarget) {
-      checkStatus();
-    }
-
-    const handleFocus = () => {
-      if (isTargetView) checkStatus();
-    };
+    checkStatus();
+    const handleFocus = () => checkStatus();
     window.addEventListener("focus", handleFocus);
     return () => {
       cancelled = true;
       window.removeEventListener("focus", handleFocus);
     };
-  }, [selectedRepo, viewMode, setIsAppRunning, setIsAppManaged, setAppPid, logStreamPid, setLogStreamPid]);
+  }, [repoName, setProjectState]);
 
-  // Stream app logs
+  // Stream logs for this project
   React.useEffect(() => {
     if (!logStreamPid) return;
     let cancelled = false;
@@ -185,19 +160,18 @@ export default function Home() {
 
     const streamLogs = async () => {
       const ac = new AbortController();
-      setAppLogsAbortController(ac);
+      setProjectState(prev => ({ ...prev, appLogsAbortController: ac }));
       try {
         const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, { signal: ac.signal });
         if (!res.ok || !res.body) {
-          setAppLogs((prev) => prev + "\x1b[31mError: Failed to stream logs\x1b[0m\n");
-          setIsAppStarting(false);
+          setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n", isAppStarting: false }));
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        if (startTimeoutId !== null) window.clearTimeout(startTimeoutId);
-        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setIsAppStarting(false); }, 2000);
+        
+        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setProjectState(prev => ({ ...prev, isAppStarting: false })); }, 2000);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -210,22 +184,21 @@ export default function Home() {
               try {
                 const data = JSON.parse(line);
                 if (data.output) {
-                  setAppLogs((prev) => prev + data.output);
+                  setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + data.output, isAppStarting: !currentProjectConfig?.url && data.output ? false : prev.isAppStarting }));
                   hasLoggedRecently = true;
-                  if (!currentProjectConfig?.url) setIsAppStarting(false);
                 }
               } catch {
-                setAppLogs((prev) => prev + line + "\n");
+                setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + line + "\n", isAppStarting: !currentProjectConfig?.url ? false : prev.isAppStarting }));
                 hasLoggedRecently = true;
-                if (!currentProjectConfig?.url) setIsAppStarting(false);
               }
             }
           }
         }
-        setIsAppStarting(false);
+        setProjectState(prev => ({ ...prev, isAppStarting: false }));
       } catch (error: any) {
-        if (error.name !== "AbortError" && !cancelled) setAppLogs((prev) => prev + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`);
-        setIsAppStarting(false);
+        if (error.name !== "AbortError" && !cancelled) {
+          setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`, isAppStarting: false }));
+        }
       }
     };
     streamLogs();
@@ -233,49 +206,30 @@ export default function Home() {
     return () => {
       cancelled = true;
       if (startTimeoutId !== null) window.clearTimeout(startTimeoutId);
-      if (appLogsAbortController) {
-        appLogsAbortController.abort();
-        setAppLogsAbortController(null);
-      }
     };
-  }, [logStreamPid, selectedRepo, currentProjectConfig?.url, isAppStarting, setAppLogs, setIsAppStarting, appLogsAbortController, setAppLogsAbortController]);
+  }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectState]);
 
   return (
-    <div className="flex flex-col w-full h-full">
-      <Header />
-
-      <div className="flex overflow-hidden flex-col flex-1">
-        <div className="flex overflow-hidden flex-1">
-          {viewMode === "docs" ? (
-            <DocsTab />
-          ) : viewMode === "ai" ? (
-            <AITab />
-          ) : viewMode === "tests" ? (
-            <TestsTab />
-          ) : viewMode === "ideas" ? (
-            <IdeasTab />
-          ) : viewMode === "epics" ? (
-            <EpicsTab />
-          ) : viewMode === "review" ? (
-            <ReviewTab />
-          ) : viewMode === "logs" ? (
-            <LogsTab />
-          ) : viewMode === "browser" ? (
-            <BrowserTab />
-          ) : (
-            <TasksTab />
-          )}
-        </div>
-      </div>
-
-      <SettingsDialog
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-        onSave={fetchSettings}
-        initialTab={settingsTab}
-        projectName={selectedRepo || undefined}
-        projectPath={currentProjectPath || undefined}
-      />
+    <div className="flex overflow-hidden flex-1">
+      {viewMode === "docs" ? (
+        <DocsTab />
+      ) : viewMode === "ai" ? (
+        <AITab />
+      ) : viewMode === "tests" ? (
+        <TestsTab />
+      ) : viewMode === "ideas" ? (
+        <IdeasTab />
+      ) : viewMode === "epics" ? (
+        <EpicsTab />
+      ) : viewMode === "review" ? (
+        <ReviewTab />
+      ) : viewMode === "logs" ? (
+        <LogsTab />
+      ) : viewMode === "browser" ? (
+        <BrowserTab />
+      ) : (
+        <TasksTab />
+      )}
     </div>
   );
 }

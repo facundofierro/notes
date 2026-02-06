@@ -4,13 +4,15 @@ import { WorkEditorTab } from "@/components/WorkEditorTab";
 import { useHomeStore } from "@/store/useHomeStore";
 
 export function TasksTab() {
+  const store = useHomeStore();
   const { 
     selectedRepo, 
-    selectedFile, 
     setSelectedFile, 
     handleTaskSelect, 
-    openWorkDraft 
-  } = useHomeStore();
+    openWorkDraft,
+  } = store;
+
+  const { selectedFile } = store.getProjectState();
 
   const onBack = () => setSelectedFile(null);
 

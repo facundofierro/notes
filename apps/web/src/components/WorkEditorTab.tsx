@@ -17,22 +17,24 @@ export function WorkEditorTab({
   onRename,
   onRefresh,
 }: WorkEditorTabProps) {
+  const store = useHomeStore();
   const {
     selectedFile,
-    setSelectedFile,
     viewMode,
-    selectedRepo,
-    basePath,
-    agentTools,
     workEditorEditing,
-    setWorkEditorEditing,
     workDocIsDraft,
     testViewMode,
-    setTestViewMode,
     testOutput,
     isTestRunning,
+  } = store.getProjectState();
+
+  const {
+    setSelectedFile,
     handleRunTest,
-  } = useHomeStore();
+    selectedRepo,
+    basePath,
+    agentTools
+  } = store;
 
   if (!selectedFile) return null;
 
@@ -48,10 +50,10 @@ export function WorkEditorTab({
       basePath={basePath}
       agentTools={agentTools}
       workEditorEditing={workEditorEditing}
-      onWorkEditorEditingChange={setWorkEditorEditing}
+      onWorkEditorEditingChange={(editing) => store.setProjectState(() => ({ workEditorEditing: editing }))}
       workDocIsDraft={workDocIsDraft}
       testViewMode={testViewMode}
-      onTestViewModeChange={setTestViewMode}
+      onTestViewModeChange={(mode) => store.setProjectState(() => ({ testViewMode: mode }))}
       testOutput={testOutput}
       isTestRunning={isTestRunning}
       onRunTest={handleRunTest}

@@ -31,22 +31,26 @@ interface TabItem {
 }
 
 export function ReviewTab() {
+  const store = useHomeStore();
   const { 
     selectedRepo, 
-    currentPath, 
     basePath, 
-    selectedFile, 
     setSelectedFile,
+    handleFileSelect,
+    handleRunTest,
+    saveFile,
     agentTools,
+  } = store;
+
+  const {
+    selectedFile,
+    currentPath,
     viewMode,
     workDocIsDraft,
     testViewMode,
     testOutput,
-    isTestRunning,
-    handleFileSelect,
-    handleRunTest,
-    saveFile
-  } = useHomeStore();
+    isTestRunning
+  } = store.getProjectState();
 
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [leftSidebarView, setLeftSidebarView] = React.useState<LeftSidebarView>("files");

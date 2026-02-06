@@ -13,15 +13,16 @@ interface FileNode {
 }
 
 export function TestsTab() {
+  const store = useHomeStore();
   const { 
     selectedRepo, 
-    currentPath, 
     basePath, 
-    selectedFile, 
     setSelectedFile,
     handleFileSelect,
     handleRunTest
-  } = useHomeStore();
+  } = store;
+
+  const { selectedFile, currentPath } = store.getProjectState();
 
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [testsSetupStatus, setTestsSetupStatus] =

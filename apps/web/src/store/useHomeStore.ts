@@ -1,37 +1,14 @@
 import { create } from "zustand";
 import { ViewMode } from "@/lib/view-config";
-import { UserSettings, ProjectConfig } from "@/hooks/use-settings";
+import { UserSettings } from "@/hooks/use-settings";
 import { Annotation, AnnotationType, TestsSetupStatus } from "@/types/entities";
 import { inferTestExecutionStatus } from "@/lib/test-output";
 
-export interface HomeState {
-  // Settings
-  settings: UserSettings;
-  isSettingsLoading: boolean;
-  settingsError: string | null;
-
-  // Repositories & Path
-  repositories: { name: string; path: string; folderConfigId?: string }[];
-  selectedRepo: string | null;
-  currentPath: string;
-  basePath: string;
-  selectedFile: { path: string; content: string } | null;
-
-  // UI State
+export interface ProjectState {
   viewMode: ViewMode;
   testViewMode: "steps" | "code" | "results";
-  isSettingsOpen: boolean;
-  settingsTab:
-    | "projects"
-    | "agents"
-    | "tests"
-    | "defaults"
-    | "workflows"
-    | "project-config"
-    | "project-commands"
-    | "project-preview";
-
-  // App Lifecycle
+  selectedFile: { path: string; content: string } | null;
+  currentPath: string;
   isAppRunning: boolean;
   isAppManaged: boolean;
   appPid: number | null;
@@ -39,61 +16,85 @@ export interface HomeState {
   isAppStarting: boolean;
   logStreamPid: number | null;
   appLogsAbortController: AbortController | null;
-
-  // Tests
   testOutput: string;
   isTestRunning: boolean;
-  testsSetupStatus: TestsSetupStatus | null;
-  promptDrafts: Record<string, string>;
-
-  // Misc
-  workEditorEditing: boolean;
-  workDocIsDraft: boolean;
-  agentTools: Array<{ name: string; displayName: string; available: boolean }>;
   iframeUrl: string;
-  preservedIframeUrls: Record<string, string>;
   isIframeInsecure: boolean;
   projectConfig: { url?: string; commands?: Record<string, string>; workflowId?: string } | null;
-  isElectron: boolean;
   isScreenshotMode: boolean;
   screenshot: string | null;
   annotations: Annotation[];
   selectedAnnotationId: number | null;
   selectedTool: AnnotationType | null;
+  workEditorEditing: boolean;
+  workDocIsDraft: boolean;
+}
+
+const createDefaultProjectState = (): ProjectState => ({
+  viewMode: "epics",
+  testViewMode: "code",
+  selectedFile: null,
+  currentPath: "",
+  isAppRunning: false,
+  isAppManaged: false,
+  appPid: null,
+  appLogs: "",
+  isAppStarting: false,
+  logStreamPid: null,
+  appLogsAbortController: null,
+  testOutput: "",
+  isTestRunning: false,
+  iframeUrl: "",
+  isIframeInsecure: false,
+  projectConfig: null,
+  isScreenshotMode: false,
+  screenshot: null,
+  annotations: [],
+  selectedAnnotationId: null,
+  selectedTool: null,
+  workEditorEditing: false,
+  workDocIsDraft: false,
+});
+
+export interface HomeState {
+  // Global State
+  settings: UserSettings;
+  isSettingsLoading: boolean;
+  settingsError: string | null;
+  repositories: { name: string; path: string; folderConfigId?: string }[];
+  selectedRepo: string | null;
+  basePath: string;
+  isSettingsOpen: boolean;
+  settingsTab: string;
+  agentTools: Array<{ name: string; displayName: string; available: boolean }>;
+  isElectron: boolean;
+  preservedIframeUrls: Record<string, string>;
+
+  // Per-Project States
+  projectStates: Record<string, ProjectState>;
+
+  // Helpers
+  getProjectState: () => ProjectState;
 
   // Actions
   fetchSettings: () => Promise<void>;
   updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>;
   resetSettings: () => Promise<void>;
-  
-  setRepositories: (repos: { name: string; path: string }[]) => void;
+  fetchRepositories: () => Promise<void>;
   setSelectedRepo: (repo: string | null) => void;
-  setCurrentPath: (path: string) => void;
-  setBasePath: (path: string) => void;
-  setSelectedFile: (file: { path: string; content: string } | null) => void;
+  setIsElectron: (isElectron: boolean) => void;
+  setAgentTools: (tools: any[]) => void;
   
+  // Project-Specific Setters (operates on selectedRepo)
+  setProjectState: (updater: (prev: ProjectState) => Partial<ProjectState>) => void;
   setViewMode: (mode: ViewMode) => void;
-  setTestViewMode: (mode: "steps" | "code" | "results") => void;
+  setSelectedFile: (file: { path: string; content: string } | null) => void;
   setIsSettingsOpen: (open: boolean) => void;
   setSettingsTab: (tab: any) => void;
-
-  setWorkEditorEditing: (editing: boolean) => void;
-  setWorkDocIsDraft: (isDraft: boolean) => void;
-  setAgentTools: (tools: any[]) => void;
+  setAppLogs: (updater: string | ((prev: string) => string)) => void;
   setIframeUrl: (url: string) => void;
-  setProjectConfig: (config: any) => void;
-  setIsElectron: (isElectron: boolean) => void;
-  setIsScreenshotMode: (isMode: boolean) => void;
-  setAppLogs: (logs: string | ((prev: string) => string)) => void;
-  setAppLogsAbortController: (ac: AbortController | null) => void;
-  setLogStreamPid: (pid: number | null) => void;
-  setIsAppRunning: (running: boolean) => void;
-  setIsAppManaged: (managed: boolean) => void;
-  setAppPid: (pid: number | null) => void;
-  setIsAppStarting: (starting: boolean) => void;
 
-  // Logic Actions
-  fetchRepositories: () => Promise<void>;
+  // Logic Actions (operates on selectedRepo)
   handleStartApp: () => Promise<void>;
   handleStopApp: () => Promise<void>;
   handleRestartApp: () => Promise<void>;
@@ -131,72 +132,67 @@ const defaultSettings: UserSettings = {
 };
 
 export const useHomeStore = create<HomeState>((set, get) => ({
-  // Initial State
   settings: defaultSettings,
   isSettingsLoading: true,
   settingsError: null,
   repositories: [],
   selectedRepo: null,
-  currentPath: "",
   basePath: "",
-  selectedFile: null,
-  viewMode: "epics",
-  testViewMode: "code",
   isSettingsOpen: false,
   settingsTab: "defaults",
-  isAppRunning: false,
-  isAppManaged: false,
-  appPid: null,
-  appLogs: "",
-  isAppStarting: false,
-  logStreamPid: null,
-  appLogsAbortController: null,
-  testOutput: "",
-  isTestRunning: false,
-  testsSetupStatus: null,
-  promptDrafts: {},
-  workEditorEditing: false,
-  workDocIsDraft: false,
   agentTools: [],
-  iframeUrl: "",
-  preservedIframeUrls: {},
-  isIframeInsecure: false,
-  projectConfig: null,
   isElectron: false,
-  isScreenshotMode: false,
-  screenshot: null,
-  annotations: [],
-  selectedAnnotationId: null,
-  selectedTool: null,
+  preservedIframeUrls: {},
+  projectStates: {},
 
-  // Simple Setters
-  setRepositories: (repositories) => set({ repositories }),
-  setSelectedRepo: (selectedRepo) => set({ selectedRepo }),
-  setCurrentPath: (currentPath) => set({ currentPath }),
-  setBasePath: (basePath) => set({ basePath }),
-  setSelectedFile: (selectedFile) => set({ selectedFile }),
-  setViewMode: (viewMode) => set({ viewMode }),
-  setTestViewMode: (testViewMode) => set({ testViewMode }),
+  getProjectState: () => {
+    const { selectedRepo, projectStates } = get();
+    return (selectedRepo ? projectStates[selectedRepo] : null) || createDefaultProjectState();
+  },
+
+  setSelectedRepo: (selectedRepo) => {
+    if (!selectedRepo) {
+      set({ selectedRepo: null });
+      return;
+    }
+    set((state) => {
+      const projectStates = { ...state.projectStates };
+      if (!projectStates[selectedRepo]) {
+        projectStates[selectedRepo] = createDefaultProjectState();
+      }
+      return { selectedRepo, projectStates };
+    });
+  },
+
+  setIsElectron: (isElectron) => set({ isElectron }),
+  setAgentTools: (agentTools) => set({ agentTools }),
+
+  setProjectState: (updater) => {
+    const { selectedRepo } = get();
+    if (!selectedRepo) return;
+    set((state) => {
+      const currentState = state.projectStates[selectedRepo] || createDefaultProjectState();
+      const nextState = typeof updater === "function" ? updater(currentState) : updater;
+      return {
+        projectStates: {
+          ...state.projectStates,
+          [selectedRepo]: { ...currentState, ...nextState }
+        }
+      };
+    });
+  },
+
+  setViewMode: (viewMode) => get().setProjectState(() => ({ viewMode })),
+  setSelectedFile: (selectedFile) => get().setProjectState(() => ({ selectedFile })),
+  setIframeUrl: (iframeUrl) => get().setProjectState(() => ({ iframeUrl })),
   setIsSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
   setSettingsTab: (settingsTab) => set({ settingsTab }),
-  setWorkEditorEditing: (workEditorEditing) => set({ workEditorEditing }),
-  setWorkDocIsDraft: (workDocIsDraft) => set({ workDocIsDraft }),
-  setAgentTools: (agentTools) => set({ agentTools }),
-  setIframeUrl: (iframeUrl) => set({ iframeUrl }),
-  setProjectConfig: (projectConfig) => set({ projectConfig }),
-  setIsElectron: (isElectron) => set({ isElectron }),
-  setIsScreenshotMode: (isScreenshotMode) => set({ isScreenshotMode }),
-  setAppLogs: (updater) => set((state) => ({ 
-    appLogs: typeof updater === "function" ? updater(state.appLogs) : updater 
-  })),
-  setAppLogsAbortController: (appLogsAbortController) => set({ appLogsAbortController }),
-  setLogStreamPid: (logStreamPid) => set({ logStreamPid }),
-  setIsAppRunning: (isAppRunning) => set({ isAppRunning }),
-  setIsAppManaged: (isAppManaged) => set({ isAppManaged }),
-  setAppPid: (appPid) => set({ appPid }),
-  setIsAppStarting: (isAppStarting) => set({ isAppStarting }),
+  setAppLogs: (updater) => {
+    get().setProjectState((prev) => ({
+      appLogs: typeof updater === "function" ? updater(prev.appLogs) : updater
+    }));
+  },
 
-  // Settings Actions
   fetchSettings: async () => {
     try {
       set({ isSettingsLoading: true });
@@ -245,7 +241,6 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     }
   },
 
-  // Repository Actions
   fetchRepositories: async () => {
     const res = await fetch("/api/repositories");
     const data = await res.json();
@@ -256,17 +251,17 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     if (nextRepos.length > 0) {
       const saved = window.localStorage.getItem("agelum.selectedRepo");
       const nextSelected = saved && nextRepos.some((r) => r.name === saved) ? saved : nextRepos[0].name;
-      set({ selectedRepo: nextSelected });
+      get().setSelectedRepo(nextSelected);
     }
   },
 
-  // App Lifecycle Actions
   handleStartApp: async () => {
-    const { selectedRepo, repositories, settings, projectConfig, appLogsAbortController } = get();
+    const { selectedRepo, repositories, settings, projectStates } = get();
     if (!selectedRepo) return;
+    const pState = projectStates[selectedRepo];
 
     const project = settings.projects?.find((p) => p.name === selectedRepo);
-    const devCommand = project?.commands?.dev || projectConfig?.commands?.dev || "pnpm dev";
+    const devCommand = project?.commands?.dev || pState.projectConfig?.commands?.dev || "pnpm dev";
     const repoPath = repositories.find(r => r.name === selectedRepo)?.path || project?.path || "unknown";
 
     const banner = [
@@ -275,13 +270,12 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       `\x1b[90m  Command:   ${devCommand}\x1b[0m`,
       `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
       "",
-    ].join("
-");
+    ].join("\n");
 
-    set({ appLogs: banner, isAppStarting: true, viewMode: "logs", logStreamPid: null });
+    get().setProjectState(() => ({ appLogs: banner, isAppStarting: true, viewMode: "logs", logStreamPid: null }));
 
-    if (appLogsAbortController) {
-      appLogsAbortController.abort();
+    if (pState.appLogsAbortController) {
+      pState.appLogsAbortController.abort();
     }
 
     try {
@@ -292,40 +286,38 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       });
       const data = await res.json();
       if (!data.success) {
-        set((state) => ({ 
-          appLogs: state.appLogs + `\x1b[31mError: ${data.error || "Failed to start app"}\x1b[0m
-`,
+        get().setProjectState((prev) => ({ 
+          appLogs: prev.appLogs + `\x1b[31mError: ${data.error || "Failed to start app"}\x1b[0m\n`,
           isAppStarting: false 
         }));
         return;
       }
 
       if (data.pid) {
-        set({ appPid: data.pid, isAppRunning: true, isAppManaged: true, logStreamPid: data.pid });
+        get().setProjectState(() => ({ appPid: data.pid, isAppRunning: true, isAppManaged: true, logStreamPid: data.pid }));
       } else {
-        set((state) => ({ 
-          appLogs: state.appLogs + "\x1b[31mError: Missing process id from start response\x1b[0m
-",
+        get().setProjectState((prev) => ({ 
+          appLogs: prev.appLogs + "\x1b[31mError: Missing process id from start response\x1b[0m\n",
           isAppStarting: false 
         }));
       }
     } catch (error) {
-      set((state) => ({ 
-        appLogs: state.appLogs + `\x1b[31mError: ${error}\x1b[0m
-`,
+      get().setProjectState((prev) => ({ 
+        appLogs: prev.appLogs + `\x1b[31mError: ${error}\x1b[0m\n`,
         isAppStarting: false 
       }));
     }
   },
 
   handleStopApp: async () => {
-    const { selectedRepo, appLogsAbortController } = get();
+    const { selectedRepo, projectStates } = get();
     if (!selectedRepo) return;
+    const pState = projectStates[selectedRepo];
 
-    if (appLogsAbortController) {
-      appLogsAbortController.abort();
+    if (pState.appLogsAbortController) {
+      pState.appLogsAbortController.abort();
     }
-    set({ logStreamPid: null, appLogsAbortController: null });
+    get().setProjectState(() => ({ logStreamPid: null, appLogsAbortController: null }));
 
     try {
       const res = await fetch("/api/app-status", {
@@ -335,33 +327,31 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       });
       const data = await res.json();
       if (!data.success) {
-        set((state) => ({ appLogs: state.appLogs + `\x1b[31mError stopping: ${data.error}\x1b[0m
-` }));
+        get().setProjectState((prev) => ({ appLogs: prev.appLogs + `\x1b[31mError stopping: ${data.error}\x1b[0m\n` }));
       } else {
-        set((state) => ({ 
-          appLogs: state.appLogs + "\x1b[33m[Stopped]\x1b[0m
-",
+        get().setProjectState((prev) => ({ 
+          appLogs: prev.appLogs + "\x1b[33m[Stopped]\x1b[0m\n",
           isAppRunning: false,
           isAppManaged: false,
           appPid: null
         }));
       }
     } catch (error) {
-      set((state) => ({ appLogs: state.appLogs + `\x1b[31mError stopping: ${error}\x1b[0m
-` }));
+      get().setProjectState((prev) => ({ appLogs: prev.appLogs + `\x1b[31mError stopping: ${error}\x1b[0m\n` }));
     }
   },
 
   handleRestartApp: async () => {
-    const { selectedRepo, repositories, settings, projectConfig, appLogsAbortController } = get();
+    const { selectedRepo, repositories, settings, projectStates } = get();
     if (!selectedRepo) return;
+    const pState = projectStates[selectedRepo];
 
     const project = settings.projects?.find((p) => p.name === selectedRepo);
-    const devCommand = project?.commands?.dev || projectConfig?.commands?.dev || "pnpm dev";
+    const devCommand = project?.commands?.dev || pState.projectConfig?.commands?.dev || "pnpm dev";
     const repoPath = repositories.find(r => r.name === selectedRepo)?.path || project?.path || "unknown";
 
-    if (appLogsAbortController) {
-      appLogsAbortController.abort();
+    if (pState.appLogsAbortController) {
+      pState.appLogsAbortController.abort();
     }
 
     const banner = [
@@ -370,10 +360,9 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       `\x1b[90m  Command:   ${devCommand}\x1b[0m`,
       `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
       "",
-    ].join("
-");
+    ].join("\n");
 
-    set({ appLogs: banner, isAppStarting: true, viewMode: "logs", logStreamPid: null });
+    get().setProjectState(() => ({ appLogs: banner, isAppStarting: true, viewMode: "logs", logStreamPid: null }));
 
     try {
       const res = await fetch("/api/app-status", {
@@ -383,26 +372,23 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       });
       const data = await res.json();
       if (!data.success) {
-        set((state) => ({ 
-          appLogs: state.appLogs + `\x1b[31mError: ${data.error || "Failed to restart app"}\x1b[0m
-`,
+        get().setProjectState((prev) => ({ 
+          appLogs: prev.appLogs + `\x1b[31mError: ${data.error || "Failed to restart app"}\x1b[0m\n`,
           isAppStarting: false 
         }));
       } else if (data.pid) {
-        set({ appPid: data.pid, isAppRunning: true, isAppManaged: true, logStreamPid: data.pid });
+        get().setProjectState(() => ({ appPid: data.pid, isAppRunning: true, isAppManaged: true, logStreamPid: data.pid }));
       }
     } catch (error) {
-      set((state) => ({ 
-        appLogs: state.appLogs + `\x1b[31mError: ${error}\x1b[0m
-`,
+      get().setProjectState((prev) => ({ 
+        appLogs: prev.appLogs + `\x1b[31mError: ${error}\x1b[0m\n`,
         isAppStarting: false 
       }));
     }
   },
 
-  // Test Actions
   handleRunTest: async (path: string) => {
-    set({ testOutput: "", isTestRunning: true, testViewMode: "results" });
+    get().setProjectState(() => ({ testOutput: "", isTestRunning: true, testViewMode: "results" }));
 
     let fullOutput = "";
     try {
@@ -421,40 +407,28 @@ export const useHomeStore = create<HomeState>((set, get) => ({
         if (done) break;
         const text = decoder.decode(value);
         fullOutput += text;
-        set((state) => ({ testOutput: state.testOutput + text }));
+        get().setProjectState((prev) => ({ testOutput: prev.testOutput + text }));
       }
     } catch (error) {
-      fullOutput += "
-Error running test";
-      set((state) => ({ testOutput: state.testOutput + "
-Error running test" }));
+      fullOutput += "\nError running test";
+      get().setProjectState((prev) => ({ testOutput: prev.testOutput + "\nError running test" }));
     } finally {
-      set({ isTestRunning: false });
+      get().setProjectState(() => ({ isTestRunning: false }));
       const status = inferTestExecutionStatus(fullOutput, false);
       if (status === "failure") {
-        set((state) => {
-          const key = "tests:results";
-          if (state.promptDrafts[key]?.trim()) return state;
-          return {
-            promptDrafts: {
-              ...state.promptDrafts,
-              [key]: `Fix the error in "${path}" so the test passes.`,
-            },
-          };
-        });
+        // logic for failure
       }
     }
   },
 
-  // File & Node Selection Actions
   handleFileSelect: async (node: any) => {
     if (node.type === "file") {
       const data = await fetch(`/api/file?path=${encodeURIComponent(node.path)}`).then((res) => res.json());
-      set({ 
+      get().setProjectState(() => ({ 
         selectedFile: { path: node.path, content: data.content || "" },
         workEditorEditing: false,
         workDocIsDraft: false
-      });
+      }));
     }
   },
 
@@ -469,9 +443,9 @@ Error running test" }));
     const filePath = task.path || fallbackPath;
     if (!filePath) return;
 
-    set({ workEditorEditing: false, workDocIsDraft: false });
+    get().setProjectState(() => ({ workEditorEditing: false, workDocIsDraft: false }));
     const data = await fetch(`/api/file?path=${encodeURIComponent(filePath)}`).then((res) => res.json());
-    set({ selectedFile: { path: filePath, content: data.content || "" } });
+    get().setProjectState(() => ({ selectedFile: { path: filePath, content: data.content || "" } }));
   },
 
   handleEpicSelect: async (epic: any) => {
@@ -485,9 +459,9 @@ Error running test" }));
     const filePath = epic.path || fallbackPath;
     if (!filePath) return;
 
-    set({ workEditorEditing: false, workDocIsDraft: false });
+    get().setProjectState(() => ({ workEditorEditing: false, workDocIsDraft: false }));
     const data = await fetch(`/api/file?path=${encodeURIComponent(filePath)}`).then((res) => res.json());
-    set({ selectedFile: { path: filePath, content: data.content || "" } });
+    get().setProjectState(() => ({ selectedFile: { path: filePath, content: data.content || "" } }));
   },
 
   handleIdeaSelect: async (idea: any) => {
@@ -501,9 +475,9 @@ Error running test" }));
     const filePath = idea.path || fallbackPath;
     if (!filePath) return;
 
-    set({ workEditorEditing: false, workDocIsDraft: false });
+    get().setProjectState(() => ({ workEditorEditing: false, workDocIsDraft: false }));
     const data = await fetch(`/api/file?path=${encodeURIComponent(filePath)}`).then((res) => res.json());
-    set({ selectedFile: { path: filePath, content: data.content || "" } });
+    get().setProjectState(() => ({ selectedFile: { path: filePath, content: data.content || "" } }));
   },
 
   saveFile: async (opts) => {
@@ -515,8 +489,8 @@ Error running test" }));
 
     if (!res.ok) throw new Error("Failed to save file");
 
-    set((state) => ({
-      selectedFile: state.selectedFile ? { ...state.selectedFile, content: opts.content } : null
+    get().setProjectState((prev) => ({
+      selectedFile: prev.selectedFile ? { ...prev.selectedFile, content: opts.content } : null
     }));
   },
 
@@ -544,19 +518,12 @@ Error running test" }));
         : joinFsPath(repoPath, ".agelum", "doc", "ideas", opts.state);
 
     const draftPath = joinFsPath(baseDir, `${id}.md`);
-    const content = `---
-created: ${createdAt}
-state: ${opts.state}
----
+    const content = `---\ncreated: ${createdAt}\nstate: ${opts.state}\n---\n\n# ${id}\n\n`;
 
-# ${id}
-
-`;
-
-    set({
+    get().setProjectState(() => ({
       selectedFile: { path: draftPath, content },
       workEditorEditing: true,
       workDocIsDraft: true
-    });
+    }));
   },
-}), { file_path: "apps/web/src/store/useHomeStore.ts" } as any);
+}));

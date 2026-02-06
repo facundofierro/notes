@@ -4,13 +4,15 @@ import { WorkEditorTab } from "@/components/WorkEditorTab";
 import { useHomeStore } from "@/store/useHomeStore";
 
 export function EpicsTab() {
+  const store = useHomeStore();
   const { 
     selectedRepo, 
-    selectedFile, 
     setSelectedFile,
     handleEpicSelect,
     openWorkDraft
-  } = useHomeStore();
+  } = store;
+
+  const { selectedFile } = store.getProjectState();
 
   const onBack = () => setSelectedFile(null);
 
