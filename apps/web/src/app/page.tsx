@@ -1,16 +1,19 @@
 "use client";
 
 import * as React from "react";
-import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
-import TaskKanban from "@/components/TaskKanban";
-import EpicsKanban from "@/components/EpicsKanban";
-import IdeasKanban from "@/components/IdeasKanban";
 import { SettingsDialog } from "@/components/SettingsDialog";
-import { BrowserRightPanel } from "@/components/BrowserRightPanel";
-import { IframeCaptureInjector } from "@/components/IframeCaptureInjector";
 import { ProjectSelector } from "@/components/ProjectSelector";
 import { AgelumNotesLogo } from "@agelum/shadcn";
+import { IdeasTab } from "@/components/tabs/IdeasTab";
+import { DocsTab } from "@/components/tabs/DocsTab";
+import { EpicsTab } from "@/components/tabs/EpicsTab";
+import { TasksTab } from "@/components/tabs/TasksTab";
+import { TestsTab } from "@/components/tabs/TestsTab";
+import { ReviewTab } from "@/components/tabs/ReviewTab";
+import { AITab } from "@/components/tabs/AITab";
+import { LogsTab } from "@/components/tabs/LogsTab";
+import { BrowserTab } from "@/components/tabs/BrowserTab";
 import {
   Kanban,
   Files,
@@ -37,7 +40,6 @@ import {
   Paperclip,
   Search,
   X,
-  Globe,
   MoreVertical,
   RotateCw,
   Download,
@@ -228,6 +230,8 @@ export default function Home() {
     workflowId?: string;
   } | null>(null);
   const [isRecording, setIsRecording] =
+    React.useState(false);
+  const [isScreenshotMode, setIsScreenshotMode] =
     React.useState(false);
   const [
     filePickerOpen,
@@ -3499,682 +3503,286 @@ export default function Home() {
 
       <div className="flex overflow-hidden flex-col flex-1">
         <div className="flex overflow-hidden flex-1">
-          {[
-            "docs",
-            "ai",
-            "tests",
-          ].includes(viewMode) ? (
-            <>
-              <FileBrowser
-                fileTree={fileTree}
-                currentPath={
-                  currentPath
-                }
-                onFileSelect={
-                  handleFileSelect
-                }
-                basePath={basePath}
-                onRefresh={loadFileTree}
-                onRunFolder={
-                  viewMode === "tests"
-                    ? handleRunTest
-                    : undefined
-                }
-                viewMode={viewMode}
-              />
-              {viewMode === "tests" ? (
-                <div className="flex overflow-hidden flex-col flex-1 min-h-0">
-                  {testsSetupStatus &&
-                  testsSetupStatus.state !==
-                    "ready" ? (
-                    <div
-                      className={`bg-secondary border-b border-border min-h-0 ${
-                        isSetupLogsVisible
-                          ? "flex overflow-hidden flex-col flex-1"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex flex-shrink-0 justify-between items-center px-3 py-2">
-                        <div className="text-sm text-muted-foreground">
-                          Setup:{" "}
-                          <span
-                            className={`${
-                              testsSetupStatus.state ===
-                              "error"
-                                ? "text-red-400"
-                                : "text-yellow-300"
-                            } ${
-                              testsSetupStatus.state ===
-                              "installing"
-                                ? "animate-pulse"
-                                : ""
-                            }`}
-                          >
-                            {
-                              testsSetupStatus.state
-                            }
-                            {testsSetupStatus.state ===
-                              "installing" &&
-                              "..."}
-                          </span>
-                          {testsSetupStatus.error
-                            ? ` — ${testsSetupStatus.error}`
-                            : ""}
-                        </div>
-                        <button
-                          onClick={() =>
-                            setIsSetupLogsVisible(
-                              (v) => !v,
-                            )
-                          }
-                          className="px-2 py-1 text-xs rounded transition-colors text-foreground hover:text-white hover:bg-accent"
-                        >
-                          {isSetupLogsVisible
-                            ? "Hide logs"
-                            : "Show logs"}
-                        </button>
-                      </div>
-                      {isSetupLogsVisible ? (
-                        <div className="flex overflow-hidden flex-col flex-1 px-3 pb-3 min-h-0">
-                          <div
-                            ref={(
-                              el,
-                            ) => {
-                              if (el) {
-                                el.scrollTop =
-                                  el.scrollHeight;
-                              }
-                            }}
-                            className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs whitespace-pre-wrap bg-black rounded text-foreground"
-                          >
-                            {testsSetupStatus.log ||
-                              `State: ${testsSetupStatus.state}`}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {(!testsSetupStatus ||
-                    testsSetupStatus.state ===
-                      "ready" ||
-                    !isSetupLogsVisible) &&
-                    (selectedFile ? (
-                      renderWorkEditor({
-                        onBack: () =>
-                          setSelectedFile(
-                            null,
-                          ),
-                        onRename:
-                          async (
-                            newTitle,
-                          ) => {
-                            if (
-                              !selectedFile
-                            )
-                              return;
-                            const oldPath =
-                              selectedFile.path;
-                            const dir =
-                              oldPath
-                                .split(
-                                  "/",
-                                )
-                                .slice(
-                                  0,
-                                  -1,
-                                )
-                                .join(
-                                  "/",
-                                );
-                            const fileName =
-                              oldPath
-                                .split(
-                                  "/",
-                                )
-                                .pop() ||
-                              "";
-                            const ext =
-                              fileName.includes(
-                                ".",
-                              )
-                                ? fileName
-                                    .split(
-                                      ".",
-                                    )
-                                    .pop()
-                                : "";
-                            const newPath =
-                              ext &&
-                              newTitle
-                                .toLowerCase()
-                                .endsWith(
-                                  `.${ext.toLowerCase()}`,
-                                )
-                                ? `${dir}/${newTitle}`
-                                : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
-
-                            const res =
-                              await fetch(
-                                "/api/file",
-                                {
-                                  method:
-                                    "POST",
-                                  headers:
-                                    {
-                                      "Content-Type":
-                                        "application/json",
-                                    },
-                                  body: JSON.stringify(
-                                    {
-                                      path: oldPath,
-                                      newPath:
-                                        newPath,
-                                      action:
-                                        "rename",
-                                    },
-                                  ),
-                                },
-                              );
-
-                            const data =
-                              await res.json();
-                            if (!res.ok)
-                              throw new Error(
-                                data.error ||
-                                  "Failed to rename file",
-                              );
-
-                            const next =
-                              {
-                                path: data.path,
-                                content:
-                                  selectedFile.content,
-                              };
-                            setSelectedFile(
-                              next,
-                            );
-                            loadFileTree();
-                            return next;
-                          },
-                      })
-                    ) : (
-                      <div className="flex flex-1 justify-center items-center text-gray-500">
-                        Select a test
-                        file to view and
-                        edit
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="flex overflow-hidden flex-1 bg-background">
-                  {selectedFile ? (
-                    renderWorkEditor({
-                      onBack: () =>
-                        setSelectedFile(
-                          null,
-                        ),
-                      onRename: async (
-                        newTitle,
-                      ) => {
-                        if (
-                          !selectedFile
-                        )
-                          return;
-                        const oldPath =
-                          selectedFile.path;
-                        const dir =
-                          oldPath
-                            .split("/")
-                            .slice(
-                              0,
-                              -1,
-                            )
-                            .join("/");
-                        const fileName =
-                          oldPath
-                            .split("/")
-                            .pop() ||
-                          "";
-                        const ext =
-                          fileName.includes(
-                            ".",
-                          )
-                            ? fileName
-                                .split(
-                                  ".",
-                                )
-                                .pop()
-                            : "";
-                        const newPath =
-                          ext &&
-                          newTitle
-                            .toLowerCase()
-                            .endsWith(
-                              `.${ext.toLowerCase()}`,
-                            )
-                            ? `${dir}/${newTitle}`
-                            : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
-
-                        const res =
-                          await fetch(
-                            "/api/file",
-                            {
-                              method:
-                                "POST",
-                              headers: {
-                                "Content-Type":
-                                  "application/json",
-                              },
-                              body: JSON.stringify(
-                                {
-                                  path: oldPath,
-                                  newPath:
-                                    newPath,
-                                  action:
-                                    "rename",
-                                },
-                              ),
-                            },
-                          );
-
-                        const data =
-                          await res.json();
-                        if (!res.ok)
-                          throw new Error(
-                            data.error ||
-                              "Failed to rename file",
-                          );
-
-                        const next = {
-                          path: data.path,
-                          content:
-                            selectedFile.content,
-                        };
-                        setSelectedFile(
-                          next,
-                        );
-                        loadFileTree();
-                        return next;
-                      },
-                    })
-                  ) : (
-                    <div className="flex flex-1 justify-center items-center text-muted-foreground">
-                      Select a file to
-                      view and edit
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+          {viewMode === "docs" ? (
+            <DocsTab
+              fileTree={fileTree}
+              currentPath={currentPath}
+              basePath={basePath}
+              selectedFile={selectedFile}
+              renderWorkEditor={renderWorkEditor}
+              onFileSelect={handleFileSelect}
+              onRefresh={loadFileTree}
+              onBack={() => setSelectedFile(null)}
+              onRename={async (newTitle) => {
+                if (!selectedFile) return;
+                const oldPath = selectedFile.path;
+                const dir = oldPath.split("/").slice(0, -1).join("/");
+                const fileName = oldPath.split("/").pop() || "";
+                const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
+                const newPath =
+                  ext &&
+                  newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+                    ? `${dir}/${newTitle}`
+                    : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                const res = await fetch("/api/file", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    path: oldPath,
+                    newPath: newPath,
+                    action: "rename",
+                  }),
+                });
+                const data = await res.json();
+                if (!res.ok)
+                  throw new Error(data.error || "Failed to rename file");
+                const next = { path: data.path, content: selectedFile.content };
+                setSelectedFile(next);
+                loadFileTree();
+                return next;
+              }}
+            />
+          ) : viewMode === "ai" ? (
+            <AITab
+              fileTree={fileTree}
+              currentPath={currentPath}
+              basePath={basePath}
+              selectedFile={selectedFile}
+              renderWorkEditor={renderWorkEditor}
+              onFileSelect={handleFileSelect}
+              onRefresh={loadFileTree}
+              onBack={() => setSelectedFile(null)}
+              onRename={async (newTitle) => {
+                if (!selectedFile) return;
+                const oldPath = selectedFile.path;
+                const dir = oldPath.split("/").slice(0, -1).join("/");
+                const fileName = oldPath.split("/").pop() || "";
+                const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
+                const newPath =
+                  ext &&
+                  newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+                    ? `${dir}/${newTitle}`
+                    : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                const res = await fetch("/api/file", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    path: oldPath,
+                    newPath: newPath,
+                    action: "rename",
+                  }),
+                });
+                const data = await res.json();
+                if (!res.ok)
+                  throw new Error(data.error || "Failed to rename file");
+                const next = { path: data.path, content: selectedFile.content };
+                setSelectedFile(next);
+                loadFileTree();
+                return next;
+              }}
+            />
+          ) : viewMode === "tests" ? (
+            <TestsTab
+              fileTree={fileTree}
+              currentPath={currentPath}
+              basePath={basePath}
+              selectedFile={selectedFile}
+              testsSetupStatus={testsSetupStatus}
+              isSetupLogsVisible={isSetupLogsVisible}
+              renderWorkEditor={renderWorkEditor}
+              onFileSelect={handleFileSelect}
+              onRefresh={loadFileTree}
+              onRunTest={handleRunTest}
+              onSetupLogsVisibleChange={setIsSetupLogsVisible}
+              onBack={() => setSelectedFile(null)}
+              onRename={async (newTitle) => {
+                if (!selectedFile) return;
+                const oldPath = selectedFile.path;
+                const dir = oldPath.split("/").slice(0, -1).join("/");
+                const fileName = oldPath.split("/").pop() || "";
+                const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
+                const newPath =
+                  ext &&
+                  newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+                    ? `${dir}/${newTitle}`
+                    : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+                const res = await fetch("/api/file", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    path: oldPath,
+                    newPath: newPath,
+                    action: "rename",
+                  }),
+                });
+                const data = await res.json();
+                if (!res.ok)
+                  throw new Error(data.error || "Failed to rename file");
+                const next = { path: data.path, content: selectedFile.content };
+                setSelectedFile(next);
+                loadFileTree();
+                return next;
+              }}
+            />
           ) : viewMode === "ideas" ? (
-            <div className="flex-1 bg-background">
-              {selectedFile ? (
-                renderWorkEditor({
-                  onBack: () =>
-                    setSelectedFile(
-                      null,
-                    ),
-                  onRename: selectedRepo
-                    ? async (
-                        newTitle: string,
-                      ) => {
-                        const res =
-                          await fetch(
-                            "/api/ideas",
-                            {
-                              method:
-                                "POST",
-                              headers: {
-                                "Content-Type":
-                                  "application/json",
-                              },
-                              body: JSON.stringify(
-                                {
-                                  repo: selectedRepo,
-                                  action:
-                                    "rename",
-                                  path: selectedFile.path,
-                                  newTitle,
-                                },
-                              ),
-                            },
-                          );
-
-                        const data =
-                          await res.json();
-                        if (!res.ok)
-                          throw new Error(
-                            data.error ||
-                              "Failed to rename idea",
-                          );
-
-                        const next = {
-                          path: data.path as string,
-                          content:
-                            data.content as string,
-                        };
-                        setSelectedFile(
-                          next,
-                        );
-                        return next;
-                      }
-                    : undefined,
-                })
-              ) : selectedRepo ? (
-                <IdeasKanban
-                  repo={selectedRepo}
-                  onIdeaSelect={
-                    handleIdeaSelect
-                  }
-                  onCreateIdea={({
-                    state,
-                  }) =>
-                    openWorkDraft({
-                      kind: "idea",
-                      state,
-                    })
-                  }
-                />
-              ) : null}
-            </div>
-          ) : viewMode === "epics" ? (
-            <div className="flex-1 bg-background">
-              {selectedFile ? (
-                renderWorkEditor({
-                  onBack: () =>
-                    setSelectedFile(
-                      null,
-                    ),
-                  onRename: selectedRepo
-                    ? async (
-                        newTitle: string,
-                      ) => {
-                        const res =
-                          await fetch(
-                            "/api/epics",
-                            {
-                              method:
-                                "POST",
-                              headers: {
-                                "Content-Type":
-                                  "application/json",
-                              },
-                              body: JSON.stringify(
-                                {
-                                  repo: selectedRepo,
-                                  action:
-                                    "rename",
-                                  path: selectedFile.path,
-                                  newTitle,
-                                },
-                              ),
-                            },
-                          );
-
-                        const data =
-                          await res.json();
-                        if (!res.ok)
-                          throw new Error(
-                            data.error ||
-                              "Failed to rename epic",
-                          );
-
-                        const next = {
-                          path: data.path as string,
-                          content:
-                            data.content as string,
-                        };
-                        setSelectedFile(
-                          next,
-                        );
-                        return next;
-                      }
-                    : undefined,
-                })
-              ) : selectedRepo ? (
-                <EpicsKanban
-                  repo={selectedRepo}
-                  onEpicSelect={
-                    handleEpicSelect
-                  }
-                  onCreateEpic={({
-                    state,
-                  }) =>
-                    openWorkDraft({
-                      kind: "epic",
-                      state,
-                    })
-                  }
-                />
-              ) : null}
-            </div>
-          ) : viewMode === "review" ? (
-            <div className="flex flex-1 overflow-hidden bg-background">
-              <FileBrowser
-                fileTree={fileTree}
-                onFileSelect={(node) =>
-                  setSelectedFile({
-                    path: node.path,
-                    content: node.content || "",
-                  })
-                }
-                currentPath={currentPath}
-                basePath={basePath}
-                onRefresh={loadFileTree}
-              />
-              {selectedFile ? (
-                <div className="flex relative flex-1 min-w-0">
-                  <FileViewer
-                    file={selectedFile}
-                    onSave={async ({ content }) => {
-                      const res = await fetch(
-                        "/api/files",
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type":
-                              "application/json",
-                          },
-                          body: JSON.stringify({
-                            repo: selectedRepo,
-                            path: selectedFile.path,
-                            content,
-                          }),
-                        },
-                      );
-                      if (!res.ok)
-                        throw new Error(
-                          "Failed to save file",
-                        );
-                      setSelectedFile({
-                        ...selectedFile,
-                        content,
-                      });
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-1 justify-center items-center text-muted-foreground">
-                  Select a file to view and edit
-                </div>
-              )}
-            </div>
-          ) : viewMode === "logs" ? (
-            <div className="flex flex-1 overflow-hidden flex-col bg-background">
-              <div className="flex-1 min-h-0 bg-black">
-                <TerminalViewer
-                  output={appLogs || (isAppStarting ? "Starting application...\n" : "")}
-                  className="w-full h-full"
-                  onInput={(data) => {
-                    // Send input to the app process if needed
-                    if (appPid && isAppRunning) {
-                      fetch("/api/app-logs", {
+            <IdeasTab
+              selectedRepo={selectedRepo}
+              selectedFile={selectedFile}
+              renderWorkEditor={renderWorkEditor}
+              onIdeaSelect={handleIdeaSelect}
+              onCreateIdea={({ state }) =>
+                openWorkDraft({ kind: "idea", state })
+              }
+              onBack={() => setSelectedFile(null)}
+              onRename={
+                selectedRepo
+                  ? async (newTitle: string) => {
+                      const res = await fetch("/api/ideas", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ pid: appPid, input: data }),
-                      }).catch((error) => {
-                        console.error("Failed to send input:", error);
+                        body: JSON.stringify({
+                          repo: selectedRepo,
+                          action: "rename",
+                          path: selectedFile!.path,
+                          newTitle,
+                        }),
                       });
+                      const data = await res.json();
+                      if (!res.ok)
+                        throw new Error(data.error || "Failed to rename idea");
+                      const next = {
+                        path: data.path as string,
+                        content: data.content as string,
+                      };
+                      setSelectedFile(next);
+                      return next;
                     }
-                  }}
-                />
-              </div>
-            </div>
-          ) : viewMode === "browser" ? (
-            <div className="flex flex-1 overflow-hidden">
-              <div className="flex flex-1 bg-background overflow-hidden relative flex-col border-r border-border">
-                <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
-                  <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
-                    <Globe className="w-3 h-3 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={iframeUrl}
-                      onChange={(e) => setIframeUrl(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const val = e.currentTarget.value;
-                          if (isElectron) {
-                            window.electronAPI!.browserView.loadUrl(val);
-                          } else {
-                            setIframeUrl("");
-                            setTimeout(() => setIframeUrl(val), 0);
-                          }
-                        }
-                      }}
-                      className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"
-                      placeholder="Enter URL..."
-                    />
-                  </div>
-                </div>
-                {isElectron ? (
-                  /* Electron: WebContentsView is overlaid by main process; this div is the sizing placeholder */
-                  <div
-                    ref={browserViewPlaceholderRef}
-                    className="flex-1 w-full bg-white"
-                  >
-                    {!iframeUrl && (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        Enter a URL to preview the application
-                      </div>
-                    )}
-                  </div>
-                ) : iframeUrl ? (
-                  <iframe 
-                    src={iframeUrl} 
-                    ref={browserIframeRef}
-                    className="flex-1 w-full border-none bg-white"
-                    title="App Browser"
-                    allow="camera; microphone; display-capture"
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
-                  />
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                    Enter a URL to preview the application
-                  </div>
-                )}
-              </div>
-              {/* Inject capture script into iframe (non-Electron only) */}
-              {!isElectron && <IframeCaptureInjector iframeRef={browserIframeRef} />}
-              <BrowserRightPanel 
-                repo={selectedRepo || ""} 
-                onRequestCapture={
-                  requestEmbeddedCapture
-                }
-                projectPath={
-                  selectedRepo
-                    ? repositories.find(
-                        (r) =>
-                          r.name === selectedRepo,
-                      )?.path
-                    : undefined
-                }
-                iframeRef={isElectron ? undefined : browserIframeRef}
-                electronBrowserView={
-                  isElectron
-                    ? window.electronAPI!.browserView
-                    : undefined
-                }
-                onTaskCreated={() => {
-                   // Optional: toast or feedback could be added here
-                }}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 bg-background">
-              {selectedFile ? (
-                renderWorkEditor({
-                  onBack: () =>
-                    setSelectedFile(
-                      null,
-                    ),
-                  onRename:
-                    viewMode ===
-                      "kanban" &&
-                    selectedRepo
-                      ? async (
-                          newTitle: string,
-                        ) => {
-                          const res =
-                            await fetch(
-                              "/api/tasks",
-                              {
-                                method:
-                                  "POST",
-                                headers:
-                                  {
-                                    "Content-Type":
-                                      "application/json",
-                                  },
-                                body: JSON.stringify(
-                                  {
-                                    repo: selectedRepo,
-                                    action:
-                                      "rename",
-                                    path: selectedFile.path,
-                                    newTitle,
-                                  },
-                                ),
-                              },
-                            );
-
-                          const data =
-                            await res.json();
-                          if (!res.ok)
-                            throw new Error(
-                              data.error ||
-                                "Failed to rename task",
-                            );
-
-                          const next = {
-                            path: data.path as string,
-                            content:
-                              data.content as string,
-                          };
-                          setSelectedFile(
-                            next,
-                          );
-                          return next;
-                        }
-                      : undefined,
+                  : undefined
+              }
+            />
+          ) : viewMode === "epics" ? (
+            <EpicsTab
+              selectedRepo={selectedRepo}
+              selectedFile={selectedFile}
+              renderWorkEditor={renderWorkEditor}
+              onEpicSelect={handleEpicSelect}
+              onCreateEpic={({ state }) =>
+                openWorkDraft({ kind: "epic", state })
+              }
+              onBack={() => setSelectedFile(null)}
+              onRename={
+                selectedRepo
+                  ? async (newTitle: string) => {
+                      const res = await fetch("/api/epics", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          repo: selectedRepo,
+                          action: "rename",
+                          path: selectedFile!.path,
+                          newTitle,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok)
+                        throw new Error(data.error || "Failed to rename epic");
+                      const next = {
+                        path: data.path as string,
+                        content: data.content as string,
+                      };
+                      setSelectedFile(next);
+                      return next;
+                    }
+                  : undefined
+              }
+            />
+          ) : viewMode === "review" ? (
+            <ReviewTab
+              fileTree={fileTree}
+              currentPath={currentPath}
+              basePath={basePath}
+              selectedFile={selectedFile}
+              selectedRepo={selectedRepo}
+              onFileSelect={(node) =>
+                setSelectedFile({
+                  path: node.path,
+                  content: node.content || "",
                 })
-              ) : selectedRepo ? (
-                <TaskKanban
-                  repo={selectedRepo}
-                  onTaskSelect={
-                    handleTaskSelect
-                  }
-                  onCreateTask={({
-                    state,
-                  }) =>
-                    openWorkDraft({
-                      kind: "task",
-                      state,
-                    })
-                  }
-                />
-              ) : null}
-            </div>
+              }
+              onRefresh={loadFileTree}
+              onSaveFile={async ({ content }) => {
+                const res = await fetch("/api/files", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    repo: selectedRepo,
+                    path: selectedFile!.path,
+                    content,
+                  }),
+                });
+                if (!res.ok) throw new Error("Failed to save file");
+                setSelectedFile({ ...selectedFile!, content });
+              }}
+            />
+          ) : viewMode === "logs" ? (
+            <LogsTab
+              appLogs={appLogs}
+              isAppStarting={isAppStarting}
+              appPid={appPid}
+              isAppRunning={isAppRunning}
+            />
+          ) : viewMode === "browser" ? (
+            <BrowserTab
+              iframeUrl={iframeUrl}
+              isElectron={isElectron}
+              isScreenshotMode={isScreenshotMode}
+              selectedRepo={selectedRepo}
+              repositories={repositories}
+              browserIframeRef={browserIframeRef}
+              browserViewPlaceholderRef={browserViewPlaceholderRef}
+              onIframeUrlChange={setIframeUrl}
+              onRequestCapture={requestEmbeddedCapture}
+              onScreenshotModeChange={setIsScreenshotMode}
+              onTaskCreated={() => {
+                /* Optional: toast */
+              }}
+            />
+          ) : (
+            <TasksTab
+              selectedRepo={selectedRepo}
+              selectedFile={selectedFile}
+              renderWorkEditor={renderWorkEditor}
+              onTaskSelect={handleTaskSelect}
+              onCreateTask={({ state }) =>
+                openWorkDraft({ kind: "task", state })
+              }
+              onBack={() => setSelectedFile(null)}
+              onRename={
+                viewMode === "kanban" && selectedRepo
+                  ? async (newTitle: string) => {
+                      const res = await fetch("/api/tasks", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          repo: selectedRepo,
+                          action: "rename",
+                          path: selectedFile!.path,
+                          newTitle,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok)
+                        throw new Error(data.error || "Failed to rename task");
+                      const next = {
+                        path: data.path as string,
+                        content: data.content as string,
+                      };
+                      setSelectedFile(next);
+                      return next;
+                    }
+                  : undefined
+              }
+            />
           )}
         </div>
       </div>
