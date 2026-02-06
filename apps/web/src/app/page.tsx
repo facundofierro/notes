@@ -40,8 +40,11 @@ export default function Home() {
     workEditorEditing,
     setWorkEditorEditing,
     agentTools,
+    setAgentTools,
     iframeUrl,
     setIframeUrl,
+    isIframeInsecure,
+    setIsIframeInsecure,
     projectConfig,
     setProjectConfig,
     workDocIsDraft,
@@ -61,6 +64,7 @@ export default function Home() {
     isAppStarting,
     setIsAppStarting,
     logStreamPid,
+    setLogStreamPid,
     currentProjectPath,
     currentProjectConfig,
     isElectron,
@@ -156,12 +160,12 @@ export default function Home() {
     const unsubNav = api.onNavigated((url, isInsecure) => {
       electronLoadedUrlRef.current = url;
       setIframeUrl(url);
-      state.setIsIframeInsecure(!!isInsecure);
+      setIsIframeInsecure(!!isInsecure);
     });
     return () => {
       unsubNav();
     };
-  }, [isElectron, setIframeUrl, state]);
+  }, [isElectron, setIframeUrl, setIsIframeInsecure]);
 
   const visibleItems = React.useMemo(() => {
     const defaultItems: ViewMode[] = [
@@ -198,16 +202,16 @@ export default function Home() {
       .then((data) => {
         if (cancelled) return;
         const tools = (data.tools || []) as Array<{ name: string; displayName: string; available: boolean }>;
-        state.setAgentTools(tools);
+        setAgentTools(tools);
       })
       .catch(() => {
         if (cancelled) return;
-        state.setAgentTools([]);
+        setAgentTools([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [state.setAgentTools]);
+  }, [setAgentTools]);
 
   React.useEffect(() => {
     if (!selectedRepo) return;
@@ -220,9 +224,9 @@ export default function Home() {
 
   // Clear log streaming when repo changes
   React.useEffect(() => {
-    state.setLogStreamPid(null);
-    state.setAppLogs("");
-  }, [selectedRepo, state]);
+    setLogStreamPid(null);
+    setAppLogs("");
+  }, [selectedRepo, setLogStreamPid, setAppLogs]);
 
   // Fetch project configuration
   React.useEffect(() => {
@@ -275,7 +279,7 @@ export default function Home() {
     if (normalize(iframeUrl) !== normalize(targetUrl)) {
       setIframeUrl(targetUrl);
     }
-  }, [viewMode, selectedRepo, currentProjectConfig?.url]);
+  }, [viewMode, selectedRepo, currentProjectConfig?.url, iframeUrl, preservedIframeUrls, setIframeUrl]);
 
   // Refresh app status on project change or tab change to logs/browser
   const lastStatusRepoRef = React.useRef<string | null>(null);
@@ -305,6 +309,9 @@ export default function Home() {
         setIsAppRunning(data.isRunning);
         setIsAppManaged(data.isManaged);
         setAppPid(data.pid || null);
+        if (data.isManaged && data.pid && !logStreamPid) {
+          setLogStreamPid(data.pid);
+        }
       } catch {
         if (cancelled) return;
         setIsAppRunning(false);
@@ -325,7 +332,7 @@ export default function Home() {
       cancelled = true;
       window.removeEventListener("focus", handleFocus);
     };
-  }, [selectedRepo, viewMode, setIsAppRunning, setIsAppManaged, setAppPid]);
+  }, [selectedRepo, viewMode, setIsAppRunning, setIsAppManaged, setAppPid, logStreamPid, setLogStreamPid]);
 
   // Stream app logs
   React.useEffect(() => {
