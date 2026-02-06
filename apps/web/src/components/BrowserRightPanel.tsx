@@ -195,7 +195,7 @@ export function BrowserRightPanel({
     ]);
   };
 
-  const tryGetIframeDocument = () => {
+  const tryGetIframeDocument = React.useCallback(() => {
     if (!iframeRef?.current) {
       setIframeAccessError(
         "Open a URL in the browser panel to enable element selection.",
@@ -221,9 +221,9 @@ export function BrowserRightPanel({
       );
       return null;
     }
-  };
+  }, [iframeRef]);
 
-  const ensureOverlay = (
+  const ensureOverlay = React.useCallback((
     doc: Document,
     kind: "hover" | "selected",
   ) => {
@@ -258,9 +258,9 @@ export function BrowserRightPanel({
       mountPoint.appendChild(overlay);
     }
     return overlay;
-  };
+  }, []);
 
-  const updateOverlayForElement = (
+  const updateOverlayForElement = React.useCallback((
     overlay: HTMLDivElement | null | undefined,
     element: Element | null,
   ) => {
@@ -285,7 +285,7 @@ export function BrowserRightPanel({
     overlay.style.left = `${rect.left}px`;
     overlay.style.width = `${rect.width}px`;
     overlay.style.height = `${rect.height}px`;
-  };
+  }, []);
 
   const syncElementState = (element: Element, doc: Document) => {
     const selector = getElementSelector(element);
@@ -360,7 +360,7 @@ export function BrowserRightPanel({
     lastCssTextRef.current = styleText;
   };
 
-  const insertPromptReference = (reference: string) => {
+  const insertPromptReference = React.useCallback((reference: string) => {
     const textarea = promptTextareaRef.current;
     const start = textarea?.selectionStart ?? null;
     const end = textarea?.selectionEnd ?? start;
@@ -381,7 +381,7 @@ export function BrowserRightPanel({
         textarea.selectionEnd = cursor;
       });
     }
-  };
+  }, []);
 
   const toggleElementPicker = (
     target: "properties" | "prompt",
@@ -390,10 +390,26 @@ export function BrowserRightPanel({
       setElementPickerMode(null);
       return;
     }
-    const doc = tryGetIframeDocument();
-    if (!doc) return;
     setElementPickerMode(target);
   };
+
+  const requestIframeElementPick = React.useCallback((pickId: string) => {
+    if (!iframeRef?.current?.contentWindow) {
+      setIframeAccessError(
+        "Unable to access iframe. Try reloading the page.",
+      );
+      return;
+    }
+
+    // Send pick request to iframe
+    iframeRef.current.contentWindow.postMessage(
+      {
+        type: "agelum:pick-request",
+        id: pickId,
+      },
+      "*",
+    );
+  }, [iframeRef]);
 
   const handleCaptureScreen = async () => {
     try {
@@ -441,58 +457,192 @@ export function BrowserRightPanel({
 
   useEffect(() => {
     if (!elementPickerMode) return;
+
+    const pickId = `pick-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    let isHandlingResponse = false;
+
+    // Try direct DOM access first
     const doc = tryGetIframeDocument();
-    if (!doc) {
-      setElementPickerMode(null);
-      return;
+    if (doc) {
+      // Direct access succeeded, use the iframe's DOM
+      const hoverOverlay = ensureOverlay(doc, "hover");
+      const selectedOverlay = ensureOverlay(doc, "selected");
+      highlightRefs.current.hover = hoverOverlay;
+      highlightRefs.current.selected = selectedOverlay;
+      const previousCursor = doc.body?.style.cursor || "";
+      if (doc.body) doc.body.style.cursor = "crosshair";
+
+      const handleMouseMove = (event: Event) => {
+        const target = event.target as Element | null;
+        if (!target) return;
+        if (target.getAttribute?.("data-agelum-overlay")) return;
+        updateOverlayForElement(hoverOverlay, target);
+      };
+
+      const handleClick = (event: Event) => {
+        const target = event.target as Element | null;
+        if (!target) return;
+        if (target.getAttribute?.("data-agelum-overlay")) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        syncElementState(target, doc);
+        updateOverlayForElement(selectedOverlay, target);
+
+        if (elementPickerMode === "prompt") {
+          const selector = getElementSelector(target);
+          insertPromptReference(selector);
+        }
+
+        setElementPickerMode(null);
+      };
+
+      doc.addEventListener("mousemove", handleMouseMove, true);
+      doc.addEventListener("click", handleClick, true);
+
+      return () => {
+        doc.removeEventListener(
+          "mousemove",
+          handleMouseMove,
+          true,
+        );
+        doc.removeEventListener("click", handleClick, true);
+        updateOverlayForElement(hoverOverlay, null);
+        if (doc.body) doc.body.style.cursor = previousCursor;
+      };
     }
 
-    const hoverOverlay = ensureOverlay(doc, "hover");
-    const selectedOverlay = ensureOverlay(doc, "selected");
-    highlightRefs.current.hover = hoverOverlay;
-    highlightRefs.current.selected = selectedOverlay;
-    const previousCursor = doc.body?.style.cursor || "";
-    if (doc.body) doc.body.style.cursor = "crosshair";
+    // Direct access failed, try postMessage + overlay approach for cross-origin iframes
+    setIframeAccessError(
+      "Using cross-origin element picker. Click an element in the preview.",
+    );
 
-    const handleMouseMove = (event: Event) => {
-      const target = event.target as Element | null;
-      if (!target) return;
-      if (target.getAttribute?.("data-agelum-overlay")) return;
-      updateOverlayForElement(hoverOverlay, target);
-    };
+    // Create a transparent overlay over the iframe for visual feedback and click capture
+    const iframeEl = iframeRef?.current;
+    let overlay: HTMLDivElement | null = null;
+    let responseTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    const handleClick = (event: Event) => {
-      const target = event.target as Element | null;
-      if (!target) return;
-      if (target.getAttribute?.("data-agelum-overlay")) return;
-      event.preventDefault();
-      event.stopPropagation();
+    const handlePickerMessage = (event: MessageEvent) => {
+      const { data } = event;
 
-      syncElementState(target, doc);
-      updateOverlayForElement(selectedOverlay, target);
+      if (!data || data.id !== pickId) return;
 
-      if (elementPickerMode === "prompt") {
-        const selector = getElementSelector(target);
-        insertPromptReference(selector);
+      if (data.type === "agelum:pick-response" && data.element) {
+        isHandlingResponse = true;
+        const elementInfo = data.element as ElementSelectionInfo;
+        setSelectedElementInfo(elementInfo);
+        selectedElementRef.current = null; // Can't keep ref for cross-origin elements
+
+        if (elementPickerMode === "prompt") {
+          insertPromptReference(elementInfo.selector);
+        }
+
+        setIframeAccessError(null);
+        setElementPickerMode(null);
+        cleanup();
+      } else if (data.type === "agelum:pick-cancel") {
+        isHandlingResponse = true;
+        setElementPickerMode(null);
+        setIframeAccessError(null);
+        cleanup();
       }
-
-      setElementPickerMode(null);
     };
 
-    doc.addEventListener("mousemove", handleMouseMove, true);
-    doc.addEventListener("click", handleClick, true);
-
-    return () => {
-      doc.removeEventListener(
-        "mousemove",
-        handleMouseMove,
-        true,
-      );
-      doc.removeEventListener("click", handleClick, true);
-      updateOverlayForElement(hoverOverlay, null);
-      if (doc.body) doc.body.style.cursor = previousCursor;
+    const cleanup = () => {
+      window.removeEventListener("message", handlePickerMessage);
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+      overlay = null;
+      if (responseTimeout) {
+        clearTimeout(responseTimeout);
+        responseTimeout = null;
+      }
     };
-  }, [elementPickerMode]);
+
+    if (iframeEl) {
+      overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.cursor = "crosshair";
+      overlay.style.zIndex = "2147483646";
+      overlay.style.background = "rgba(59, 130, 246, 0.05)";
+      overlay.style.transition = "background 0.15s";
+
+      const positionOverlay = () => {
+        if (!iframeEl || !overlay) return;
+        const rect = iframeEl.getBoundingClientRect();
+        overlay.style.top = `${rect.top}px`;
+        overlay.style.left = `${rect.left}px`;
+        overlay.style.width = `${rect.width}px`;
+        overlay.style.height = `${rect.height}px`;
+      };
+
+      positionOverlay();
+
+      const handleOverlayClick = (e: Event) => {
+        const mouseEvent = e as MouseEvent;
+        mouseEvent.preventDefault();
+        mouseEvent.stopPropagation();
+
+        if (!iframeEl) return;
+        const rect = iframeEl.getBoundingClientRect();
+        const x = mouseEvent.clientX - rect.left;
+        const y = mouseEvent.clientY - rect.top;
+
+        // Send coordinate-based pick to iframe
+        iframeEl.contentWindow?.postMessage(
+          {
+            type: "agelum:pick-at-point",
+            id: pickId,
+            x,
+            y,
+          },
+          "*",
+        );
+
+        // Also try click-based pick as fallback
+        requestIframeElementPick(pickId);
+
+        // Timeout if iframe doesn't respond
+        responseTimeout = setTimeout(() => {
+          if (!isHandlingResponse) {
+            setIframeAccessError(
+              "No response from the preview. The page may not support element picking.",
+            );
+            setElementPickerMode(null);
+            cleanup();
+          }
+        }, 3000);
+      };
+
+      overlay.addEventListener("click", handleOverlayClick);
+      window.addEventListener("resize", positionOverlay);
+      window.addEventListener("scroll", positionOverlay, true);
+      document.body.appendChild(overlay);
+
+      // Store resize/scroll handlers for cleanup
+      const _positionOverlay = positionOverlay;
+      const _handleOverlayClick = handleOverlayClick;
+
+      // Extend cleanup to remove overlay event listeners
+      const originalCleanup = cleanup;
+      const fullCleanup = () => {
+        originalCleanup();
+        window.removeEventListener("resize", _positionOverlay);
+        window.removeEventListener("scroll", _positionOverlay, true);
+      };
+
+      window.addEventListener("message", handlePickerMessage);
+
+      return fullCleanup;
+    }
+
+    // No iframe element available, just listen for messages
+    requestIframeElementPick(pickId);
+    window.addEventListener("message", handlePickerMessage);
+
+    return cleanup;
+  }, [elementPickerMode, requestIframeElementPick, tryGetIframeDocument, insertPromptReference, updateOverlayForElement, ensureOverlay]);
 
   useEffect(() => {
     if (!selectedElementInfo) {
@@ -508,7 +658,7 @@ export function BrowserRightPanel({
       ensureOverlay(doc, "selected"),
       selectedElementRef.current,
     );
-  }, [selectedElementInfo]);
+  }, [selectedElementInfo, tryGetIframeDocument, ensureOverlay, updateOverlayForElement]);
 
   useEffect(() => {
     return () => {

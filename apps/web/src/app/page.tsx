@@ -8,6 +8,7 @@ import EpicsKanban from "@/components/EpicsKanban";
 import IdeasKanban from "@/components/IdeasKanban";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { BrowserRightPanel } from "@/components/BrowserRightPanel";
+import { IframeCaptureInjector } from "@/components/IframeCaptureInjector";
 import { ProjectSelector } from "@/components/ProjectSelector";
 import { AgelumNotesLogo } from "@agelum/shadcn";
 import {
@@ -215,6 +216,8 @@ export default function Home() {
     "prompt" | "terminal" | "iframe"
   >("prompt");
   const [iframeUrl, setIframeUrl] =
+    React.useState<string>("");
+  const [preservedIframeUrl, setPreservedIframeUrl] =
     React.useState<string>("");
   const [
     projectConfig,
@@ -748,17 +751,23 @@ export default function Home() {
   }, [currentProjectPath]);
 
   // Sync iframeUrl with project url (only for browser view, not OpenCode)
+  // Preserve the iframe URL when switching away from browser view
   React.useEffect(() => {
-    // Only set iframe URL to project URL when on browser tab
-    // Don't overwrite if it's an OpenCode URL (port 9988)
     if (viewMode === "browser") {
-      if (currentProjectConfig?.url) {
+      // When entering browser view, restore the preserved URL or load from config
+      if (preservedIframeUrl) {
+        setIframeUrl(preservedIframeUrl);
+      } else if (currentProjectConfig?.url) {
         setIframeUrl(currentProjectConfig.url);
+        setPreservedIframeUrl(currentProjectConfig.url);
       } else {
         setIframeUrl("");
       }
+    } else {
+      // When leaving browser view, preserve the current URL
+      setPreservedIframeUrl((prev) => iframeUrl || prev);
     }
-  }, [currentProjectConfig?.url, viewMode]);
+  }, [viewMode, currentProjectConfig?.url, iframeUrl]);
 
   // Poll app status
   React.useEffect(() => {
@@ -3950,7 +3959,8 @@ export default function Home() {
                     ref={browserIframeRef}
                     className="flex-1 w-full border-none bg-white"
                     title="App Browser"
-                    allow="camera; microphone; display-capture" // Enable display-capture for getDisplayMedia if supported in iframe
+                    allow="camera; microphone; display-capture"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
                   />
                 ) : (
                   <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -3958,6 +3968,8 @@ export default function Home() {
                   </div>
                 )}
               </div>
+              {/* Inject capture script into iframe */}
+              <IframeCaptureInjector iframeRef={browserIframeRef} />
               <BrowserRightPanel 
                 repo={selectedRepo || ""} 
                 onRequestCapture={
