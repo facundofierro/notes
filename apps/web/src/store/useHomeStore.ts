@@ -21,7 +21,14 @@ export interface ProjectState {
   iframeUrl: string;
   electronLoadedUrl: string;
   isIframeInsecure: boolean;
-  projectConfig: { url?: string; commands?: Record<string, string>; workflowId?: string } | null;
+  projectConfig: { 
+    url?: string; 
+    commands?: Record<string, string>; 
+    workflowId?: string;
+    browserPages?: string[];
+  } | null;
+  activeBrowserPageIndex: number;
+  browserPagesCurrentUrls: string[];
   isScreenshotMode: boolean;
   screenshot: string | null;
   annotations: Annotation[];
@@ -49,6 +56,8 @@ const createDefaultProjectState = (): ProjectState => ({
   electronLoadedUrl: "",
   isIframeInsecure: false,
   projectConfig: null,
+  activeBrowserPageIndex: 0,
+  browserPagesCurrentUrls: [],
   isScreenshotMode: false,
   screenshot: null,
   annotations: [],
@@ -89,6 +98,7 @@ export interface HomeState {
   
   // Project-Specific Setters (operates on selectedRepo)
   setProjectState: (updater: (prev: ProjectState) => Partial<ProjectState>) => void;
+  setProjectStateForRepo: (repo: string, updater: (prev: ProjectState) => Partial<ProjectState>) => void;
   setViewMode: (mode: ViewMode) => void;
   setSelectedFile: (file: { path: string; content: string } | null) => void;
   setIsSettingsOpen: (open: boolean) => void;
@@ -106,6 +116,7 @@ export interface HomeState {
   handleEpicSelect: (epic: any) => Promise<void>;
   handleIdeaSelect: (idea: any) => Promise<void>;
   saveFile: (opts: { path: string; content: string }) => Promise<void>;
+  saveProjectConfig: (config: any) => Promise<void>;
   openWorkDraft: (opts: { kind: "epic" | "task" | "idea"; state: string }) => void;
 }
 
@@ -169,19 +180,32 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   setIsElectron: (isElectron) => set({ isElectron }),
   setAgentTools: (agentTools) => set({ agentTools }),
 
-  setProjectState: (updater) => {
-    const { selectedRepo } = get();
-    if (!selectedRepo) return;
+  setProjectStateForRepo: (repo, updater) => {
+    if (!repo) return;
     set((state) => {
-      const currentState = state.projectStates[selectedRepo] || createDefaultProjectState();
-      const nextState = typeof updater === "function" ? updater(currentState) : updater;
+      const currentState = state.projectStates[repo] || createDefaultProjectState();
+      const updates = typeof updater === "function" ? updater(currentState) : updater;
+      
+      // Check if anything actually changed to avoid infinite loops
+      const hasChanges = Object.keys(updates).some(
+        (key) => (updates as any)[key] !== (currentState as any)[key]
+      );
+      
+      if (!hasChanges) return state;
+
       return {
         projectStates: {
           ...state.projectStates,
-          [selectedRepo]: { ...currentState, ...nextState }
+          [repo]: { ...currentState, ...updates }
         }
       };
     });
+  },
+
+  setProjectState: (updater) => {
+    const { selectedRepo } = get();
+    if (!selectedRepo) return;
+    get().setProjectStateForRepo(selectedRepo, updater);
   },
 
   setViewMode: (viewMode) => get().setProjectState(() => ({ viewMode })),
@@ -494,6 +518,37 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     get().setProjectState((prev) => ({
       selectedFile: prev.selectedFile ? { ...prev.selectedFile, content: opts.content } : null
     }));
+  },
+
+  saveProjectConfig: async (config) => {
+    const { selectedRepo, repositories, settings } = get();
+    if (!selectedRepo) return;
+
+    const repo = repositories.find((r) => r.name === selectedRepo);
+    const repoPath = repo?.path || settings.projects?.find((p) => p.name === selectedRepo)?.path;
+
+    if (!repoPath) {
+      console.error("Could not determine repository path for saving config");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/project/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: repoPath, config }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save project config");
+      const data = await res.json();
+      
+      get().setProjectState((prev) => ({
+        projectConfig: data.config
+      }));
+    } catch (error) {
+      console.error("Error saving project config:", error);
+      throw error;
+    }
   },
 
   openWorkDraft: (opts) => {

@@ -93,7 +93,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
   const {
     repositories,
     settings,
-    setProjectState,
+    setProjectStateForRepo,
   } = store;
 
   const { viewMode, logStreamPid, isAppStarting, projectConfig } = projectState;
@@ -118,11 +118,11 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!cancelled && data) {
-          setProjectState(prev => ({ ...prev, projectConfig: data.config || null }));
+          setProjectStateForRepo(repoName, prev => ({ ...prev, projectConfig: data.config || null }));
         }
       });
     return () => { cancelled = true; };
-  }, [currentProjectPath, setProjectState]);
+  }, [currentProjectPath, repoName, setProjectStateForRepo]);
 
   // Refresh app status for this project
   React.useEffect(() => {
@@ -132,7 +132,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
         const res = await fetch(`/api/app-status?repo=${repoName}`);
         const data = await res.json();
         if (cancelled) return;
-        setProjectState(prev => ({
+        setProjectStateForRepo(repoName, prev => ({
           ...prev,
           isAppRunning: data.isRunning,
           isAppManaged: data.isManaged,
@@ -149,7 +149,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       cancelled = true;
       window.removeEventListener("focus", handleFocus);
     };
-  }, [repoName, setProjectState]);
+  }, [repoName, setProjectStateForRepo]);
 
   // Stream logs for this project
   React.useEffect(() => {
@@ -160,18 +160,18 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
 
     const streamLogs = async () => {
       const ac = new AbortController();
-      setProjectState(prev => ({ ...prev, appLogsAbortController: ac }));
+      setProjectStateForRepo(repoName, prev => ({ ...prev, appLogsAbortController: ac }));
       try {
         const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, { signal: ac.signal });
         if (!res.ok || !res.body) {
-          setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n", isAppStarting: false }));
+          setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n", isAppStarting: false }));
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         
-        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setProjectState(prev => ({ ...prev, isAppStarting: false })); }, 2000);
+        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setProjectStateForRepo(repoName, prev => ({ ...prev, isAppStarting: false })); }, 2000);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -184,20 +184,20 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
               try {
                 const data = JSON.parse(line);
                 if (data.output) {
-                  setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + data.output, isAppStarting: !currentProjectConfig?.url && data.output ? false : prev.isAppStarting }));
+                  setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + data.output, isAppStarting: !currentProjectConfig?.url && data.output ? false : prev.isAppStarting }));
                   hasLoggedRecently = true;
                 }
               } catch {
-                setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + line + "\n", isAppStarting: !currentProjectConfig?.url ? false : prev.isAppStarting }));
+                setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + line + "\n", isAppStarting: !currentProjectConfig?.url ? false : prev.isAppStarting }));
                 hasLoggedRecently = true;
               }
             }
           }
         }
-        setProjectState(prev => ({ ...prev, isAppStarting: false }));
+        setProjectStateForRepo(repoName, prev => ({ ...prev, isAppStarting: false }));
       } catch (error: any) {
         if (error.name !== "AbortError" && !cancelled) {
-          setProjectState(prev => ({ ...prev, appLogs: prev.appLogs + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`, isAppStarting: false }));
+          setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`, isAppStarting: false }));
         }
       }
     };
@@ -207,7 +207,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       cancelled = true;
       if (startTimeoutId !== null) window.clearTimeout(startTimeoutId);
     };
-  }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectState]);
+  }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectStateForRepo]);
 
   return (
     <div className="flex overflow-hidden flex-1">

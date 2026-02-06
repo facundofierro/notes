@@ -12,6 +12,8 @@ import {
   Search,
   X,
   ChevronDown,
+  Globe,
+  Monitor,
 } from "lucide-react";
 import { usePromptBuilder, PromptBuilderOptions } from "@/hooks/usePromptBuilder";
 import { inferTestExecutionStatus } from "@/lib/test-output";
@@ -24,7 +26,7 @@ const TerminalViewer = dynamic(
 interface AIRightSidebarProps {
   selectedRepo: string | null;
   basePath: string;
-  agentTools: Array<{ name: string; displayName: string; available: boolean }>;
+  agentTools: Array<{ name: string; displayName: string; available: boolean; type?: string }>;
   viewMode: string;
   file?: { path: string } | null;
   workDocIsDraft?: boolean;
@@ -185,6 +187,48 @@ Error: ${error.message}`);
     const cwd = basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined;
 
     try {
+      if (agentTools.find(t => t.name === toolName)?.type === "web") {
+        setRightSidebarView("iframe");
+        setIframeUrl("");
+        setOpenCodeWebError("");
+        setIsOpenCodeWebLoading(true);
+        setOpenCodeWebLoadingLabel(`Starting ${toolName}...`);
+        setPendingOpenCodeWebMessage(null);
+
+        let apiPath = `/api/${toolName.toLowerCase().replace("-web", "")}`;
+        const params = new URLSearchParams();
+        let fullPath = "";
+        if (basePath && selectedRepo) {
+          const nextFullPath = `${basePath}/${selectedRepo}`.replace(/\/+/g, "/");
+          fullPath = nextFullPath;
+          params.set("path", nextFullPath);
+        }
+        if (trimmedPrompt) {
+          params.set("deferPrompt", "1");
+          params.set("createSession", "1");
+        }
+        const queryString = params.toString();
+        if (queryString) apiPath += `?${queryString}`;
+        
+        const res = await fetch(apiPath);
+        const data = await res.json();
+        if (data?.url) {
+          setIframeUrl(data.url);
+          setOpenCodeWebLoadingLabel(`Loading ${toolName}...`);
+          if (trimmedPrompt && data?.sessionId) {
+            setPendingOpenCodeWebMessage({
+              sessionId: data.sessionId,
+              prompt: trimmedPrompt,
+              path: fullPath || undefined,
+            });
+          }
+        } else {
+          setIsOpenCodeWebLoading(false);
+          setOpenCodeWebError(`Failed to open ${toolName}`);
+        }
+        return;
+      }
+
       const res = await fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -469,92 +513,80 @@ Cancelled` : "Cancelled");
           </div>
 
           <div className="flex overflow-auto flex-col flex-1 p-3 border-b border-border">
-            <div className="grid grid-cols-2 gap-2">
-              {agentTools.map(tool => {
-                const isActive = isTerminalRunning && terminalToolName === tool.name;
-                return (
-                  <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isActive ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                    <button onClick={() => isActive ? setRightSidebarView("terminal") : runTool(tool.name)} disabled={!tool.available || (!isActive && !promptText.trim())} className="flex-1 px-3 py-3 text-left group">
-                      <div className="flex gap-2 items-center mb-0.5"><div className="text-sm font-medium group-hover:text-white">{tool.displayName}</div>{isActive && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}</div>
-                      <div className="text-[10px] text-muted-foreground">{isActive ? "Continue" : "Run"}</div>
-                    </button>
-                    <div className="p-1 border-t bg-background border-border">
-                      <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
-                        <option value="">Default</option>
-                        {(toolModelsByTool[tool.name] || []).map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                );
-              })}
-              {(() => {
-                const isOpenCodeActive = isOpenCodeWebLoading || iframeUrl;
-                return (
-                  <div className={`flex overflow-hidden flex-col w-full rounded-lg border shadow-sm transition-all ${ isOpenCodeActive ? "shadow-lg border-blue-600/50 bg-blue-900/10" : "border-border bg-secondary hover:border-muted-foreground" }`}>
-                    <button
-                      onClick={async () => {
-                        if (isOpenCodeActive) {
-                          setRightSidebarView("iframe");
-                          return;
-                        }
-                        setRightSidebarView("iframe");
-                        setIframeUrl("");
-                        setOpenCodeWebError("");
-                        setIsOpenCodeWebLoading(true);
-                        setOpenCodeWebLoadingLabel("Starting OpenCode…");
-                        setPendingOpenCodeWebMessage(null);
-                        try {
-                          let apiPath = "/api/opencode";
-                          const params = new URLSearchParams();
-                          let fullPath = "";
-                          if (basePath && selectedRepo) {
-                            const nextFullPath = `${basePath}/${selectedRepo}`.replace(/\/+/g, "/");
-                            fullPath = nextFullPath;
-                            params.set("path", nextFullPath);
-                          }
-                          const trimmedPrompt = promptText.trim();
-                          if (trimmedPrompt) {
-                            params.set("deferPrompt", "1");
-                            params.set("createSession", "1");
-                          }
-                          const queryString = params.toString();
-                          if (queryString) apiPath += `?${queryString}`;
-                          const res = await fetch(apiPath);
-                          const data = await res.json();
-                          if (data?.url) {
-                            setIframeUrl(data.url);
-                            setOpenCodeWebLoadingLabel("Loading OpenCode Web…");
-                            if (trimmedPrompt && data?.sessionId) {
-                              setPendingOpenCodeWebMessage({
-                                sessionId: data.sessionId,
-                                prompt: trimmedPrompt,
-                                path: fullPath || undefined,
-                              });
-                            }
-                          } else {
-                            setIsOpenCodeWebLoading(false);
-                            setOpenCodeWebError("Failed to open OpenCode Web");
-                          }
-                        } catch {
-                          setIsOpenCodeWebLoading(false);
-                          setOpenCodeWebError("Failed to open OpenCode Web");
-                        }
-                      }}
-                      disabled={isOpenCodeWebLoading}
-                      className="flex-1 px-3 py-3 text-left group disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      <div className="flex gap-2 items-center mb-0.5">
-                        <div className="text-sm font-medium text-foreground group-hover:text-white">OpenCode Web</div>
-                        {isOpenCodeActive && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Left Column: CLI & Web */}
+              <div className="flex flex-col gap-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">CLI & Web</div>
+                {agentTools.filter(t => t.type === "cli" || t.type === "web").map(tool => {
+                  const isActive = isTerminalRunning && terminalToolName === tool.name;
+                  const getToolIcon = (type?: string) => {
+                    switch (type) {
+                      case "cli": return <Terminal className="w-3.5 h-3.5" />;
+                      case "web": return <Globe className="w-3.5 h-3.5" />;
+                      case "app": return <Monitor className="w-3.5 h-3.5" />;
+                      default: return <Terminal className="w-3.5 h-3.5" />;
+                    }
+                  };
+                  
+                  return (
+                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isActive ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
+                      <button onClick={() => isActive ? setRightSidebarView("terminal") : runTool(tool.name)} disabled={!tool.available || (!isActive && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
+                        <div className="flex gap-2 items-center mb-0.5 pr-5">
+                          <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
+                          {isActive && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+                        </div>
+                        <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
+                          {getToolIcon(tool.type)}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">{isActive ? "Continue" : "Run"}</div>
+                      </button>
+                      <div className="p-1 border-t bg-background border-border">
+                        <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
+                          <option value="">Default</option>
+                          {(toolModelsByTool[tool.name] || []).map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
                       </div>
-                      <div className="text-[10px] text-muted-foreground">{isOpenCodeWebLoading ? "Opening…" : isOpenCodeActive ? "Continue working" : "Click to open"}</div>
-                    </button>
-                    <div className="p-1 border-t bg-background border-border">
-                      <div className="w-full text-[10px] text-muted-foreground py-0.5 px-1">Web Interface</div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })}
+              </div>
+
+              {/* Right Column: Applications */}
+              <div className="flex flex-col gap-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">Applications</div>
+                {agentTools.filter(t => t.type === "app").map(tool => {
+                  const isActive = isTerminalRunning && terminalToolName === tool.name;
+                  const getToolIcon = (type?: string) => {
+                    switch (type) {
+                      case "cli": return <Terminal className="w-3.5 h-3.5" />;
+                      case "web": return <Globe className="w-3.5 h-3.5" />;
+                      case "app": return <Monitor className="w-3.5 h-3.5" />;
+                      default: return <Terminal className="w-3.5 h-3.5" />;
+                    }
+                  };
+                  
+                  return (
+                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isActive ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
+                      <button onClick={() => isActive ? setRightSidebarView("terminal") : runTool(tool.name)} disabled={!tool.available || (!isActive && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
+                        <div className="flex gap-2 items-center mb-0.5 pr-5">
+                          <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
+                          {isActive && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+                        </div>
+                        <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
+                          {getToolIcon(tool.type)}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">{isActive ? "Continue" : "Run"}</div>
+                      </button>
+                      <div className="p-1 border-t bg-background border-border">
+                        <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
+                          <option value="">Default</option>
+                          {(toolModelsByTool[tool.name] || []).map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

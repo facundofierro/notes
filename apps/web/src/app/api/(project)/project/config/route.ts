@@ -51,3 +51,37 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to read project config' }, { status: 500 });
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const { path: projectPath, config } = await request.json();
+
+    if (!projectPath) {
+      return NextResponse.json({ error: 'Project path is required' }, { status: 400 });
+    }
+
+    const agelumDir = path.join(projectPath, '.agelum');
+    if (!fs.existsSync(agelumDir)) {
+      fs.mkdirSync(agelumDir, { recursive: true });
+    }
+
+    const configPath = path.join(agelumDir, 'config.json');
+    
+    let existingConfig: any = {};
+    if (fs.existsSync(configPath)) {
+      try {
+        existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      } catch (e) {
+        console.error('Error parsing existing config:', e);
+      }
+    }
+
+    const newConfig = { ...existingConfig, ...config };
+    fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+
+    return NextResponse.json({ success: true, config: newConfig });
+  } catch (error) {
+    console.error('Error saving project config:', error);
+    return NextResponse.json({ error: 'Failed to save project config' }, { status: 500 });
+  }
+}

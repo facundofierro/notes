@@ -37,6 +37,8 @@ export async function GET(
       availableTools.push({
         name: key,
         displayName: tool.name,
+        type: tool.type,
+        supportedModels: tool.supportedModels,
         available: isAvailable,
       });
     }

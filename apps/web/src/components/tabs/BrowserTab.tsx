@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Globe, ShieldAlert } from "lucide-react";
+import { Globe, ShieldAlert, Plus, X } from "lucide-react";
 import { BrowserRightPanel } from "@/components/BrowserRightPanel";
 import { IframeCaptureInjector } from "@/components/IframeCaptureInjector";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
@@ -7,18 +7,17 @@ import { useHomeStore } from "@/store/useHomeStore";
 import { toast } from "@agelum/shadcn";
 
 export function BrowserTab({ repoName }: { repoName: string }) {
-  const store = useHomeStore();
-  const {
-    isElectron,
-    selectedRepo,
-    repositories,
-    preservedIframeUrls,
-    settings,
-    projectStates,
-  } = store;
+  const isElectron = useHomeStore(s => s.isElectron);
+  const selectedRepo = useHomeStore(s => s.selectedRepo);
+  const repositories = useHomeStore(s => s.repositories);
+  const settings = useHomeStore(s => s.settings);
+  const projectStates = useHomeStore(s => s.projectStates);
+  const setProjectStateForRepo = useHomeStore(s => s.setProjectStateForRepo);
+  const saveProjectConfig = useHomeStore(s => s.saveProjectConfig);
+  const preservedIframeUrls = useHomeStore(s => s.preservedIframeUrls);
 
   const isSelected = selectedRepo === repoName;
-  const projectState = projectStates[repoName] || store.getProjectState();
+  const projectState = projectStates[repoName] || useHomeStore.getState().getProjectState();
 
   const {
     iframeUrl,
@@ -30,77 +29,84 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     selectedAnnotationId,
     selectedTool,
     projectConfig,
+    activeBrowserPageIndex,
+    browserPagesCurrentUrls,
   } = projectState;
 
   const currentProjectConfig = React.useMemo(() => {
     return settings.projects?.find((p) => p.name === repoName) || projectConfig || null;
   }, [repoName, settings.projects, projectConfig]);
 
+  const browserPages = React.useMemo(() => {
+    const pages = [];
+    const mainUrl = currentProjectConfig?.url || "";
+    pages.push(mainUrl);
+    
+    if (currentProjectConfig?.browserPages) {
+      pages.push(...currentProjectConfig.browserPages);
+    }
+    
+    return pages;
+  }, [currentProjectConfig]);
+
+  const handleAddPage = async () => {
+    const url = window.prompt("Enter URL for new page:");
+    if (url) {
+      const existingPages = currentProjectConfig?.browserPages || [];
+      const newPages = [...existingPages, url];
+      await saveProjectConfig({ browserPages: newPages });
+      setProjectStateForRepo(repoName, () => ({ activeBrowserPageIndex: browserPages.length }));
+    }
+  };
+
+  const handleRemovePage = async (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    if (index === 0) return; // Cannot remove main URL
+    
+    const existingPages = currentProjectConfig?.browserPages || [];
+    const newPages = existingPages.filter((_, i) => i !== index - 1);
+    await saveProjectConfig({ browserPages: newPages });
+    
+    if (activeBrowserPageIndex >= index) {
+      setProjectStateForRepo(repoName, () => ({ activeBrowserPageIndex: Math.max(0, activeBrowserPageIndex - 1) }));
+    }
+  };
+
   const browserIframeRef = React.useRef<HTMLIFrameElement>(null);
   const browserViewPlaceholderRef = React.useRef<HTMLDivElement>(null);
   const lastRestoredRepoRef = React.useRef<string | null>(null);
 
-  const setProjectStateLocal = React.useCallback((updater: (prev: any) => any) => {
-    store.setProjectState((prev) => {
-      // If we are currently the selected repo, we can just use the store's setProjectState
-      // but wait, store.setProjectState already uses selectedRepo.
-      // We need to be careful if we want to update state for a background repo.
-      return updater(prev);
-    });
-  }, [store]);
-
-  // Use a more specific setter that targets THIS repo
-  const setThisProjectState = React.useCallback((updater: any) => {
-    store.setProjectState((prev) => {
-      if (selectedRepo === repoName) {
-        return typeof updater === "function" ? updater(prev) : updater;
-      }
-      // If not selected, we technically shouldn't be here or shouldn't be updating,
-      // but for consistency we might want to support it.
-      // However, store.setProjectState is tied to selectedRepo.
-      return prev; 
-    });
-  }, [store, selectedRepo, repoName]);
-
   const setIframeUrlLocal = React.useCallback((url: string) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ iframeUrl: url }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ iframeUrl: url }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setElectronLoadedUrlLocal = React.useCallback((url: string) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ electronLoadedUrl: url }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ electronLoadedUrl: url }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setIsIframeInsecureLocal = React.useCallback((isInsecure: boolean) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ isIframeInsecure: isInsecure }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ isIframeInsecure: isInsecure }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setScreenshotLocal = React.useCallback((sc: string | null) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ screenshot: sc }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ screenshot: sc }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setIsScreenshotModeLocal = React.useCallback((isMode: boolean) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ isScreenshotMode: isMode }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ isScreenshotMode: isMode }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setAnnotationsLocal = React.useCallback((ann: any) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState((prev) => ({ annotations: typeof ann === "function" ? ann(prev.annotations) : ann }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, (prev) => ({ annotations: typeof ann === "function" ? ann(prev.annotations) : ann }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setSelectedAnnotationIdLocal = React.useCallback((id: number | null) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ selectedAnnotationId: id }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ selectedAnnotationId: id }));
+  }, [repoName, setProjectStateForRepo]);
 
   const setSelectedToolLocal = React.useCallback((tool: any) => {
-    if (selectedRepo !== repoName) return;
-    store.setProjectState(() => ({ selectedTool: tool }));
-  }, [store, selectedRepo, repoName]);
+    setProjectStateForRepo(repoName, () => ({ selectedTool: tool }));
+  }, [repoName, setProjectStateForRepo]);
 
   const [screenshotDisplaySize, setScreenshotDisplaySize] = React.useState<{ width: number; height: number } | null>(null);
 
@@ -117,38 +123,49 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     const sync = async () => {
       const url = await window.electronAPI!.browserView.getUrl();
       if (url && url !== "about:blank") {
-        store.setProjectState((prev) => ({ 
+        setProjectStateForRepo(repoName, (prev) => ({ 
           electronLoadedUrl: url,
           iframeUrl: prev.iframeUrl || url 
         }));
       }
     };
     sync();
-  }, [isElectron, isSelected, store]);
+  }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
 
   // Restore or set initial URL when mounting or switching repo
   React.useEffect(() => {
     if (!isSelected) return;
 
     const repoChanged = repoName !== lastRestoredRepoRef.current;
-    if (!repoChanged && iframeUrl) return; // Already loaded/restored
-
     lastRestoredRepoRef.current = repoName;
 
-    const preserved = preservedIframeUrls[repoName];
-    const targetUrl = preserved || currentProjectConfig?.url || "";
+    const sessionUrl = browserPagesCurrentUrls[activeBrowserPageIndex];
+    const targetUrl = sessionUrl || browserPages[activeBrowserPageIndex] || "";
 
     if (targetUrl && targetUrl !== iframeUrl) {
       setIframeUrlLocal(targetUrl);
     }
-  }, [isSelected, repoName, currentProjectConfig?.url, preservedIframeUrls, setIframeUrlLocal, iframeUrl]);
+  }, [isSelected, repoName, browserPages, activeBrowserPageIndex, browserPagesCurrentUrls, setIframeUrlLocal, iframeUrl]);
 
-  // Save current URL to preservedUrls whenever it changes
+  // Save current URL to session URLs whenever it changes
   React.useEffect(() => {
     if (isSelected && iframeUrl) {
-      store.preservedIframeUrls[repoName] = iframeUrl; // Using the store ref to avoid direct state change for this background record
+      setProjectStateForRepo(repoName, (prev) => {
+        const nextUrls = [...prev.browserPagesCurrentUrls];
+        // Ensure array is large enough
+        while (nextUrls.length < browserPages.length) {
+          nextUrls.push("");
+        }
+        if (nextUrls[activeBrowserPageIndex] !== iframeUrl) {
+          nextUrls[activeBrowserPageIndex] = iframeUrl;
+          return { browserPagesCurrentUrls: nextUrls };
+        }
+        return prev;
+      });
+      // Still keep preservedIframeUrls for backward compatibility or global tracking
+      preservedIframeUrls[repoName] = iframeUrl;
     }
-  }, [isSelected, repoName, iframeUrl, store.preservedIframeUrls]);
+  }, [isSelected, repoName, iframeUrl, activeBrowserPageIndex, browserPages.length, setProjectStateForRepo, preservedIframeUrls]);
 
   // Sync WebContentsView bounds with placeholder div
   React.useEffect(() => {
@@ -200,7 +217,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     if (!isElectron || !isSelected) return;
     const api = window.electronAPI!.browserView;
     const unsubNav = api.onNavigated((url, isInsecure) => {
-      store.setProjectState(() => ({
+      setProjectStateForRepo(repoName, () => ({
         electronLoadedUrl: url,
         iframeUrl: url,
         isIframeInsecure: !!isInsecure
@@ -219,7 +236,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       unsubNav();
       unsubFail();
     };
-  }, [isElectron, isSelected, store]);
+  }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -238,6 +255,43 @@ export function BrowserTab({ repoName }: { repoName: string }) {
 
   return (
     <div className="flex flex-1 overflow-hidden" id="browser-view-main">
+      {/* Left Narrow Sidebar */}
+      <div className="w-12 border-r border-border bg-secondary/20 flex flex-col items-center py-4 gap-4">
+        {browserPages.map((url, idx) => (
+          <div key={idx} className="relative group">
+            <button 
+              onClick={() => {
+                const targetUrl = browserPagesCurrentUrls[idx] || url;
+                setProjectStateForRepo(repoName, () => ({ 
+                  activeBrowserPageIndex: idx,
+                  iframeUrl: targetUrl
+                }));
+              }}
+              className={`p-2 rounded-lg transition-colors ${activeBrowserPageIndex === idx ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
+              title={idx === 0 ? "Project Page" : url}
+            >
+              <Globe className="w-5 h-5" />
+            </button>
+            {idx > 0 && (
+              <button
+                onClick={(e) => handleRemovePage(e, idx)}
+                className="absolute -top-1 -right-1 p-0.5 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        ))}
+
+        <button 
+          onClick={handleAddPage}
+          className="p-2 rounded-lg text-muted-foreground hover:bg-accent transition-colors"
+          title="Add Page"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      </div>
+
       <div
         className="flex flex-1 bg-background overflow-hidden relative flex-col border-r border-border"
         id="browser-container"
@@ -271,19 +325,30 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                   </div>
                 )}
               </div>
-            ) : iframeUrl ? (
-              <iframe
-                src={iframeUrl}
-                ref={browserIframeRef}
-                className="flex-1 w-full border-none bg-white"
-                title="App Browser"
-                allow="camera; microphone; display-capture"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
-              />
             ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                Enter a URL to preview the application
-              </div>
+              browserPages.map((pageUrl, idx) => {
+                const currentUrl = browserPagesCurrentUrls[idx] || pageUrl;
+                const effectiveUrl = activeBrowserPageIndex === idx ? iframeUrl : currentUrl;
+                
+                return (
+                  <div key={idx} className={activeBrowserPageIndex === idx ? "flex-1 flex flex-col" : "hidden"}>
+                    {effectiveUrl ? (
+                      <iframe
+                        src={effectiveUrl}
+                        ref={activeBrowserPageIndex === idx ? browserIframeRef : undefined}
+                        className="flex-1 w-full border-none bg-white"
+                        title={`App Browser ${idx}`}
+                        allow="camera; microphone; display-capture"
+                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+                      />
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                        Enter a URL to preview the application
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </>
         ) : (

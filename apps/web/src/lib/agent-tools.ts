@@ -6,39 +6,94 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
-export const AGENT_TOOLS = {
+export type AgentToolType = "cli" | "web" | "app";
+
+export interface AgentTool {
+  name: string;
+  command: string;
+  type: AgentToolType;
+  modelFlag?: string | null;
+  listModelsCommand?: string | null;
+  promptFlag?: string | null;
+  supportedModels?: string[];
+}
+
+export const AGENT_TOOLS: Record<string, AgentTool> = {
   opencode: {
-    name: "OpenCode",
+    name: "OpenCode CLI",
     command: "opencode",
+    type: "cli",
     modelFlag: "--model",
-    listModelsCommand:
-      "opencode models list",
+    listModelsCommand: "opencode models list",
     promptFlag: "--prompt",
+    supportedModels: ["gpt-4o", "claude-3-5-sonnet", "gemini-1.5-pro"],
+  },
+  "opencode-web": {
+    name: "OpenCode Web",
+    command: "opencode",
+    type: "web",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: null,
   },
   cursor: {
     name: "Cursor",
     command: "cursor-agent",
+    type: "app",
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "-p",
+    supportedModels: ["claude-3-5-sonnet", "gpt-4o"],
   },
   trae: {
     name: "Trae",
     command: "trae-cli",
+    type: "app",
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "run",
+    supportedModels: ["claude-3-5-sonnet", "gpt-4o"],
   },
   claude: {
     name: "Claude Code",
     command: "claude",
+    type: "cli",
     modelFlag: null,
     listModelsCommand: null,
     promptFlag: "-p",
+    supportedModels: ["claude-3-5-sonnet"],
+  },
+  gemini: {
+    name: "Gemini Code",
+    command: "gemini",
+    type: "cli",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "-p",
+    supportedModels: ["gemini-1.5-pro", "gemini-1.5-flash"],
+  },
+  kimi: {
+    name: "Kimi",
+    command: "kimi",
+    type: "cli",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "-p",
+    supportedModels: ["kimi-v1"],
+  },
+  grok: {
+    name: "Grok",
+    command: "grok",
+    type: "cli",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "-p",
+    supportedModels: ["grok-1"],
   },
   antigravity: {
     name: "Antigravity",
     command: "antigravity",
+    type: "app",
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "run",
@@ -46,6 +101,7 @@ export const AGENT_TOOLS = {
   vscode: {
     name: "VS Code",
     command: "code",
+    type: "app",
     modelFlag: null,
     listModelsCommand: null,
     promptFlag: "-",
@@ -53,21 +109,30 @@ export const AGENT_TOOLS = {
   windsurf: {
     name: "Windsurf",
     command: "windsurf",
+    type: "app",
     modelFlag: null,
     listModelsCommand: null,
     promptFlag: "-",
   },
-  warp: {
-    name: "Warp",
+  "warp-cli": {
+    name: "Warp CLI",
     command: "warp-cli",
+    type: "cli",
     modelFlag: null,
     listModelsCommand: null,
     promptFlag: "run",
   },
+  "warp-app": {
+    name: "Warp App",
+    command: "warp",
+    type: "app",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: null,
+  },
 } as const;
 
-export type AgentToolName =
-  keyof typeof AGENT_TOOLS;
+export type AgentToolName = keyof typeof AGENT_TOOLS;
 
 export async function isCommandAvailable(
   command: string,
