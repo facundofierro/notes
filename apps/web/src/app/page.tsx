@@ -81,8 +81,8 @@ export default function Home() {
         onOpenChange={setIsSettingsOpen}
         onSave={fetchSettings}
         initialTab={settingsTab as any}
-        projectName={selectedRepo || undefined}
-        projectPath={currentProjectPath || undefined}
+        projectName={["project-config", "project-commands", "project-preview"].includes(settingsTab) ? selectedRepo || undefined : undefined}
+        projectPath={["project-config", "project-commands", "project-preview"].includes(settingsTab) ? currentProjectPath || undefined : undefined}
       />
     </div>
   );

@@ -143,15 +143,6 @@ export function Header() {
                 <Terminal className="w-4 h-4" />
               </button>
             )}
-            {isAppRunning && isAppManaged && (
-              <button 
-                onClick={() => { setViewMode("logs"); }} 
-                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors" 
-                title="View Logs"
-              >
-                <ScrollText className="w-4 h-4" />
-              </button>
-            )}
             <div className="relative">
               <button 
                 onClick={() => setIsAppActionsMenuOpen(!isAppActionsMenuOpen)} 
@@ -196,9 +187,9 @@ export function Header() {
               )}
             </div>
             <button 
-              onClick={() => { setSettingsTab("project-config"); setIsSettingsOpen(true); }} 
+              onClick={() => { setSettingsTab("defaults"); setIsSettingsOpen(true); }} 
               className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors" 
-              title="Project Settings"
+              title="General Settings"
             >
               <Settings2 className="w-4 h-4" />
             </button>
