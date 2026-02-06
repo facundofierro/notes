@@ -116,54 +116,56 @@ export function ScreenshotViewer({
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-secondary/50 border-b border-border">
-        <div className="flex items-center gap-4">
-          <h3 className="text-sm font-medium text-foreground">Screenshot</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onToolSelect("modify")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
-                selectedTool === "modify"
-                  ? "bg-orange-500/20 border-orange-500 text-orange-600"
-                  : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
-              }`}
-              title="Modify - Draw a box around content to change"
-            >
-              <Square className="w-3 h-3" />
-              <span>Modify</span>
-            </button>
-            <button
-              onClick={() => onToolSelect("arrow")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
-                selectedTool === "arrow"
-                  ? "bg-blue-500/20 border-blue-500 text-blue-600"
-                  : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
-              }`}
-              title="Arrow - Draw an arrow to point"
-            >
-              <ArrowRight className="w-3 h-3" />
-              <span>Arrow</span>
-            </button>
-            <button
-              onClick={() => onToolSelect("remove")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
-                selectedTool === "remove"
-                  ? "bg-red-500/20 border-red-500 text-red-600"
-                  : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
-              }`}
-              title="Remove - Mark content to delete"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Remove</span>
-            </button>
-          </div>
+      <div className="grid grid-cols-3 items-center px-4 py-2 bg-secondary/50 border-b border-border">
+        <h3 className="text-sm font-medium text-foreground">Screenshot</h3>
+        
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => onToolSelect("modify")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+              selectedTool === "modify"
+                ? "bg-orange-500/30 border-orange-500 text-orange-400 shadow-sm"
+                : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
+            }`}
+            title="Modify - Draw a box around content to change"
+          >
+            <Square className="w-3 h-3" />
+            <span>Modify</span>
+          </button>
+          <button
+            onClick={() => onToolSelect("arrow")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+              selectedTool === "arrow"
+                ? "bg-blue-500/30 border-blue-500 text-blue-400 shadow-sm"
+                : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
+            }`}
+            title="Arrow - Draw an arrow to point"
+          >
+            <ArrowRight className="w-3 h-3" />
+            <span>Arrow</span>
+          </button>
+          <button
+            onClick={() => onToolSelect("remove")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+              selectedTool === "remove"
+                ? "bg-red-500/30 border-red-500 text-red-400 shadow-sm"
+                : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
+            }`}
+            title="Remove - Mark content to delete"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>Remove</span>
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1 hover:bg-secondary rounded-full"
-        >
-          <X className="w-4 h-4" />
-        </button>
+
+        <div className="flex justify-end">
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1 hover:bg-secondary rounded-full"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Screenshot Canvas */}
@@ -267,26 +269,36 @@ export function ScreenshotViewer({
 
           {/* Annotation badges */}
           {annotations.map((ann) => {
-            let badgeX, badgeY;
-            if (ann.type === "arrow" && ann.endX !== undefined && ann.endY !== undefined) {
-              badgeX = ann.endX + 15;
-              badgeY = ann.endY - 15;
-            } else {
-              badgeX = (ann.x || 0) + (ann.width || 0) + 15;
-              badgeY = (ann.y || 0) - 15;
+            const isSelected = selectedAnnotationId === ann.id;
+            const badgeX = ann.x || 0;
+            const badgeY = ann.y || 0;
+
+            let bgColor = "bg-slate-700";
+            let glowColor = "rgba(0,0,0,0.3)";
+
+            if (ann.type === "modify") {
+              bgColor = "bg-orange-500";
+              glowColor = "rgba(245, 158, 11, 0.8)";
+            } else if (ann.type === "remove") {
+              bgColor = "bg-red-600";
+              glowColor = "rgba(220, 38, 38, 0.8)";
+            } else if (ann.type === "arrow") {
+              bgColor = "bg-blue-600";
+              glowColor = "rgba(37, 99, 235, 0.8)";
             }
 
             return (
               <div
                 key={`badge-${ann.id}`}
-                className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-[10px] border-2 font-medium pointer-events-auto cursor-pointer transition-all ${
-                  selectedAnnotationId === ann.id
-                    ? "bg-white text-black border-white scale-110"
-                    : "bg-black text-white border-white"
+                className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-[10px] border-2 border-white text-white font-bold pointer-events-auto cursor-pointer transition-all -translate-x-1/2 -translate-y-1/2 ${bgColor} ${
+                  isSelected ? "scale-110 z-10" : "hover:scale-105"
                 }`}
                 style={{
                   left: badgeX,
                   top: badgeY,
+                  boxShadow: isSelected
+                    ? `0 0 12px 4px ${glowColor}`
+                    : `0 2px 4px rgba(0,0,0,0.3)`,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -306,8 +318,8 @@ export function ScreenshotViewer({
                   key={`label-${ann.id}`}
                   className="absolute bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-sm whitespace-nowrap pointer-events-none font-medium"
                   style={{
-                    left: ann.x,
-                    top: (ann.y || 0) - 22,
+                    left: (ann.x || 0) + 12,
+                    top: (ann.y || 0) - 25,
                   }}
                 >
                   REMOVE THIS

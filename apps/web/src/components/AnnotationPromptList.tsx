@@ -1,5 +1,5 @@
 import React from "react";
-import { Square, ArrowRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Annotation, AnnotationType } from "@/types/entities";
 
 interface AnnotationPromptListProps {
@@ -21,27 +21,21 @@ export function AnnotationPromptList({
     switch (type) {
       case "modify":
         return {
-          icon: Square,
-          label: "Modify",
-          color: "text-orange-500",
+          badgeBg: "bg-orange-500",
           bgColor: "bg-orange-500/10",
           borderColor: "border-orange-500/30",
         };
       case "arrow":
         return {
-          icon: ArrowRight,
-          label: "Arrow",
-          color: "text-blue-500",
-          bgColor: "bg-blue-500/10",
-          borderColor: "border-blue-500/30",
+          badgeBg: "bg-blue-600",
+          bgColor: "bg-blue-600/10",
+          borderColor: "border-blue-600/30",
         };
       case "remove":
         return {
-          icon: Trash2,
-          label: "Remove",
-          color: "text-red-500",
-          bgColor: "bg-red-500/10",
-          borderColor: "border-red-500/30",
+          badgeBg: "bg-red-600",
+          bgColor: "bg-red-600/10",
+          borderColor: "border-red-600/30",
         };
     }
   };
@@ -62,7 +56,6 @@ export function AnnotationPromptList({
       </div>
       {annotations.map((ann) => {
         const typeInfo = getTypeInfo(ann.type);
-        const Icon = typeInfo.icon;
         const isSelected = selectedAnnotationId === ann.id;
 
         return (
@@ -79,19 +72,18 @@ export function AnnotationPromptList({
             <div className="flex items-center gap-2 p-2">
               {/* Badge */}
               <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${
-                  isSelected
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-background text-foreground border-border"
-                }`}
+                className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-white transition-all shadow-sm ${typeInfo.badgeBg}`}
               >
                 {ann.id}
               </div>
 
-              {/* Type Icon & Label */}
-              <div className={`flex items-center gap-1.5 flex-1 ${typeInfo.color}`}>
-                <Icon className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">{typeInfo.label}</span>
+              {/* Prompt Preview (when not selected) */}
+              <div className="flex-1 min-w-0">
+                {!isSelected && (
+                  <p className={`text-[11px] truncate ${ann.prompt ? "text-foreground" : "text-muted-foreground italic"}`}>
+                    {ann.prompt || "No instructions..."}
+                  </p>
+                )}
               </div>
 
               {/* Delete Button */}
@@ -108,7 +100,7 @@ export function AnnotationPromptList({
             </div>
 
             {/* Prompt Area */}
-            {isSelected ? (
+            {isSelected && (
               <div className="px-2 pb-2 pt-1 border-t border-border/50">
                 <textarea
                   autoFocus
@@ -120,11 +112,7 @@ export function AnnotationPromptList({
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
-            ) : ann.prompt ? (
-              <div className="px-3 pb-2 text-[11px] text-muted-foreground line-clamp-2">
-                {ann.prompt}
-              </div>
-            ) : null}
+            )}
           </div>
         );
       })}
