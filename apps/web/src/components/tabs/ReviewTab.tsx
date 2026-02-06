@@ -11,7 +11,6 @@ interface FileNode {
 }
 
 interface ReviewTabProps {
-  fileTree: FileNode | null;
   currentPath: string;
   basePath: string;
   selectedFile: {
@@ -22,22 +21,48 @@ interface ReviewTabProps {
   onFileSelect: (
     node: FileNode,
   ) => void;
-  onRefresh: () => void;
-  onSaveFile: (opts: {
-    content: string;
-  }) => Promise<void>;
+  onSelectedFileChange: (file: { path: string; content: string } | null) => void;
 }
 
 export function ReviewTab({
-  fileTree,
   currentPath,
   basePath,
   selectedFile,
   selectedRepo,
   onFileSelect,
-  onRefresh,
-  onSaveFile,
+  onSelectedFileChange,
 }: ReviewTabProps) {
+  const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
+
+  const loadFileTree = React.useCallback(() => {
+    if (selectedRepo) {
+      fetch(`/api/files?repo=${selectedRepo}&path=work/review`)
+        .then((res) => res.json())
+        .then((data) => {
+          setFileTree(data.tree);
+        });
+    }
+  }, [selectedRepo]);
+
+  React.useEffect(() => {
+    loadFileTree();
+  }, [loadFileTree]);
+
+  const handleSaveFile = async ({ content }: { content: string }) => {
+    if (!selectedRepo || !selectedFile) return;
+    const res = await fetch("/api/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        repo: selectedRepo,
+        path: selectedFile.path,
+        content,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to save file");
+    onSelectedFileChange({ ...selectedFile, content });
+  };
+
   return (
     <div className="flex flex-1 overflow-hidden bg-background">
       <FileBrowser
@@ -45,13 +70,14 @@ export function ReviewTab({
         onFileSelect={onFileSelect}
         currentPath={currentPath}
         basePath={basePath}
-        onRefresh={onRefresh}
+        onRefresh={loadFileTree}
       />
       {selectedFile ? (
         <div className="flex relative flex-1 min-w-0">
           <FileViewer
             file={selectedFile}
-            onSave={onSaveFile}
+            onSave={handleSaveFile}
+            onFileSaved={loadFileTree}
           />
         </div>
       ) : (

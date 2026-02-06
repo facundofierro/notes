@@ -26,15 +26,13 @@ interface TestsSetupStatus {
 }
 
 interface TestsTabProps {
-  fileTree: FileNode | null;
+  selectedRepo: string | null;
   currentPath: string;
   basePath: string;
   selectedFile: {
     path: string;
     content: string;
   } | null;
-  testsSetupStatus: TestsSetupStatus | null;
-  isSetupLogsVisible: boolean;
   renderWorkEditor: (opts: {
     onBack: () => void;
     onRename?: (
@@ -43,39 +41,130 @@ interface TestsTabProps {
       path: string;
       content: string;
     } | void>;
+    onRefresh?: () => void;
   }) => React.ReactNode;
   onFileSelect: (
     node: FileNode,
   ) => void;
-  onRefresh: () => void;
   onRunTest: (path: string) => void;
-  onSetupLogsVisibleChange: (
-    visible: boolean,
-  ) => void;
   onBack: () => void;
-  onRename?: (
-    newTitle: string,
-  ) => Promise<{
-    path: string;
-    content: string;
-  } | void>;
+  onSelectedFileChange: (file: { path: string; content: string } | null) => void;
 }
 
 export function TestsTab({
-  fileTree,
+  selectedRepo,
   currentPath,
   basePath,
   selectedFile,
-  testsSetupStatus,
-  isSetupLogsVisible,
   renderWorkEditor,
   onFileSelect,
-  onRefresh,
   onRunTest,
-  onSetupLogsVisibleChange,
   onBack,
-  onRename,
+  onSelectedFileChange,
 }: TestsTabProps) {
+  const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
+  const [testsSetupStatus, setTestsSetupStatus] = React.useState<TestsSetupStatus | null>(null);
+  const [isSetupLogsVisible, setIsSetupLogsVisible] = React.useState(true);
+
+  const loadFileTree = React.useCallback(() => {
+    if (selectedRepo) {
+      fetch(`/api/files?repo=${selectedRepo}&path=work/tests`)
+        .then((res) => res.json())
+        .then((data) => {
+          setFileTree(data.tree);
+          const nextStatus = data.setupStatus ?? null;
+          setTestsSetupStatus(nextStatus);
+          if (nextStatus && (nextStatus.state !== "ready" || nextStatus.error)) {
+            setIsSetupLogsVisible(true);
+          }
+        });
+    }
+  }, [selectedRepo]);
+
+  React.useEffect(() => {
+    loadFileTree();
+  }, [loadFileTree]);
+
+  const handleRename = async (newTitle: string) => {
+    if (!selectedFile) return;
+    const oldPath = selectedFile.path;
+    const dir = oldPath.split("/").slice(0, -1).join("/");
+    const fileName = oldPath.split("/").pop() || "";
+    const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
+    const newPath =
+      ext &&
+      newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+        ? `${dir}/${newTitle}`
+        : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
+    const res = await fetch("/api/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: oldPath,
+        newPath: newPath,
+        action: "rename",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok)
+      throw new Error(data.error || "Failed to rename file");
+    const next = { path: data.path, content: selectedFile.content };
+    onSelectedFileChange(next);
+    loadFileTree();
+    return next;
+  };
+// ... status polling effect ...
+  // Status polling
+  React.useEffect(() => {
+    if (!selectedRepo) return;
+    const setupState = testsSetupStatus?.state;
+    if (!setupState) return;
+    if (setupState === "ready" || setupState === "error") return;
+
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/tests/status?repo=${selectedRepo}`);
+        const data = (await res.json()) as {
+          status: TestsSetupStatus;
+        };
+        if (cancelled) return;
+        setTestsSetupStatus(data.status);
+
+        if (!data.status) {
+          if (intervalId !== null) {
+            window.clearInterval(intervalId);
+            intervalId = null;
+          }
+          return;
+        }
+
+        if (data.status.state === "ready" || data.status.state === "error") {
+          if (intervalId !== null) {
+            window.clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+
+        if (data.status.state === "ready" && !data.status.error) return;
+        setIsSetupLogsVisible(true);
+      } catch {
+        if (cancelled) return;
+        setTestsSetupStatus(null);
+      }
+    };
+
+    intervalId = window.setInterval(poll, 1500);
+    poll();
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== null) window.clearInterval(intervalId);
+    };
+  }, [selectedRepo, testsSetupStatus?.state]);
+
   return (
     <>
       <FileBrowser
@@ -83,7 +172,7 @@ export function TestsTab({
         currentPath={currentPath}
         onFileSelect={onFileSelect}
         basePath={basePath}
-        onRefresh={onRefresh}
+        onRefresh={loadFileTree}
         onRunFolder={onRunTest}
         viewMode="tests"
       />
@@ -127,7 +216,7 @@ export function TestsTab({
               </div>
               <button
                 onClick={() =>
-                  onSetupLogsVisibleChange(
+                  setIsSetupLogsVisible(
                     !isSetupLogsVisible,
                   )
                 }
@@ -164,7 +253,8 @@ export function TestsTab({
           (selectedFile ? (
             renderWorkEditor({
               onBack,
-              onRename,
+              onRename: handleRename,
+              onRefresh: loadFileTree,
             })
           ) : (
             <div className="flex flex-1 justify-center items-center text-gray-500">
