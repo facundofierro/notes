@@ -19,6 +19,7 @@ export interface ProjectState {
   testOutput: string;
   isTestRunning: boolean;
   iframeUrl: string;
+  electronLoadedUrl: string;
   isIframeInsecure: boolean;
   projectConfig: { url?: string; commands?: Record<string, string>; workflowId?: string } | null;
   isScreenshotMode: boolean;
@@ -45,6 +46,7 @@ const createDefaultProjectState = (): ProjectState => ({
   testOutput: "",
   isTestRunning: false,
   iframeUrl: "",
+  electronLoadedUrl: "",
   isIframeInsecure: false,
   projectConfig: null,
   isScreenshotMode: false,

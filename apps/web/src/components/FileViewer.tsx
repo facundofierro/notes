@@ -541,6 +541,62 @@ export default function FileViewer({
                   color: "#d1d5db",
                   fontSize: "14px",
                 }}
+                urlTransform={(src) => {
+                  // If the src is already absolute URL or a data URI, return as-is
+                  if (
+                    src.startsWith("http") ||
+                    src.startsWith("data:") ||
+                    src.startsWith("/api/")
+                  ) {
+                    return src;
+                  }
+
+                  // Check if this looks like an image path
+                  const imageExts = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico"];
+                  const isImage = imageExts.some((ext) => src.toLowerCase().endsWith(ext));
+
+                  if (!isImage) {
+                    return src;
+                  }
+
+                  // Get the directory of the current file
+                  const fileDir = file.path
+                    .split("/")
+                    .slice(0, -1)
+                    .join("/");
+
+                  // Resolve relative path to absolute filesystem path
+                  const combined =
+                    fileDir && fileDir !== ""
+                      ? `${fileDir}/${src}`
+                      : src;
+                  const isAbsolute = combined.startsWith("/");
+                  const resolvedPath =
+                    (isAbsolute ? "/" : "") +
+                    combined
+                      .split("/")
+                      .reduce(
+                        (
+                          acc: string[],
+                          part,
+                        ) => {
+                          if (part === "..") {
+                            acc.pop();
+                          } else if (
+                            part !== "." &&
+                            part !== ""
+                          ) {
+                            acc.push(part);
+                          }
+                          return acc;
+                        },
+                        [],
+                      )
+                      .join("/");
+
+                  // Route through the image API
+                  return `/api/image?path=${encodeURIComponent(resolvedPath)}`;
+                }}
               />
             </div>
           )

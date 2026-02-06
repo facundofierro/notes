@@ -103,11 +103,6 @@ function ensureEpicStructure(
     path.join(
       "work",
       "epics",
-      "priority",
-    ),
-    path.join(
-      "work",
-      "epics",
       "fixes",
     ),
     path.join(
@@ -231,7 +226,7 @@ async function readEpics(
           continue;
         const epic = parseEpicFile(
           path.join(stateDir, file),
-          state,
+          state === "priority" ? "fixes" : state,
         );
         if (epic)
           epicsByPath.set(

@@ -226,7 +226,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       ) : viewMode === "logs" ? (
         <LogsTab />
       ) : viewMode === "browser" ? (
-        <BrowserTab />
+        <BrowserTab repoName={repoName} />
       ) : (
         <TasksTab />
       )}

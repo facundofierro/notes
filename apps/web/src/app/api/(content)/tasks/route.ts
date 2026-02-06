@@ -127,11 +127,6 @@ function ensureAgelumStructure(
     path.join(
       "work",
       "tasks",
-      "priority",
-    ),
-    path.join(
-      "work",
-      "tasks",
       "pending",
     ),
     path.join("work", "tasks", "doing"),
@@ -417,7 +412,7 @@ async function readTasks(
       const stateTasks =
         readTasksRecursively(
           stateDir,
-          state,
+          state === "priority" ? "fixes" : state,
         );
       for (const task of stateTasks) {
         tasksByPath.set(

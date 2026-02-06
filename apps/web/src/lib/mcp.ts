@@ -31,7 +31,6 @@ const AGELUM_STRUCTURE = [
   "doc/plan",
   "doc/ideas",
   "work/tasks/backlog",
-  "work/tasks/priority",
   "work/tasks/fixes",
   "work/tasks/pending",
   "work/tasks/doing",
@@ -535,7 +534,7 @@ export function createAgelumMcpServer(
 
         switch (name) {
           case "create": {
-            const {
+            let {
               type,
               title,
               content = "",
@@ -554,6 +553,9 @@ export function createAgelumMcpServer(
               fileName?: string;
               epic?: string;
             };
+
+            // Redirect legacy 'priority' to 'fixes'
+            if (state === "priority") state = "fixes";
 
             const resolvedFileName =
               ensureMdExtension(
@@ -635,7 +637,7 @@ export function createAgelumMcpServer(
           }
 
           case "move": {
-            const {
+            let {
               type,
               title = "",
               priority,
@@ -654,6 +656,9 @@ export function createAgelumMcpServer(
               toState: TaskState;
               epic?: string;
             };
+
+            // Redirect legacy 'priority' to 'fixes'
+            if (toState === "priority") toState = "fixes";
 
             if (fromState === toState) {
               throw new Error(
@@ -683,7 +688,7 @@ export function createAgelumMcpServer(
 
             let sourceDir = path.join(
               agelumPath,
-              "tasks",
+              "work/tasks",
               fromState,
             );
             if (epic) {
@@ -711,7 +716,7 @@ export function createAgelumMcpServer(
 
             let targetDir = path.join(
               agelumPath,
-              "tasks",
+              "work/tasks",
               toState,
             );
             if (epic) {
@@ -759,7 +764,7 @@ export function createAgelumMcpServer(
           }
 
           case "get": {
-            const {
+            let {
               type,
               title = "",
               state,
@@ -776,6 +781,9 @@ export function createAgelumMcpServer(
               fileName?: string;
               epic?: string;
             };
+
+            // Redirect legacy 'priority' to 'fixes'
+            if (state === "priority") state = "fixes";
 
             let resolvedFileName =
               fileName;
@@ -834,7 +842,7 @@ export function createAgelumMcpServer(
               if (state) {
                 searchPath = path.join(
                   agelumPath,
-                  "tasks",
+                  "work/tasks",
                   state,
                 );
                 if (epic) {
@@ -859,6 +867,9 @@ export function createAgelumMcpServer(
                 // Let's assume state is optional but we try to find it.
                 const states: TaskState[] =
                   [
+                    "backlog",
+                    "priority",
+                    "fixes",
                     "pending",
                     "doing",
                     "done",
@@ -870,7 +881,7 @@ export function createAgelumMcpServer(
                 for (const s of states) {
                   let dir = path.join(
                     agelumPath,
-                    "tasks",
+                    "work/tasks",
                     s,
                   );
                   if (epic)
