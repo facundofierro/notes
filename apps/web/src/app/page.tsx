@@ -1118,7 +1118,7 @@ export default function Home() {
       const res = await fetch("/api/app-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo: selectedRepo, action: "shell" }),
+        body: JSON.stringify({ repo: selectedRepo, action: "start" }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -1145,45 +1145,63 @@ export default function Home() {
   const handleOpenShell = React.useCallback(async () => {
     if (!selectedRepo) return;
     
-    const repoPath = currentProjectPath || "unknown";
+    const cwd = currentProjectPath || (basePath && selectedRepo
+      ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/")
+      : undefined);
     
-    setAppLogs(`\x1b[36m━━━ Opening Terminal: ${selectedRepo} ━━━\x1b[0m\n\x1b[90m  Cwd: ${repoPath}\x1b[0m\n\n`);
-    setIsAppStarting(true);
-    setViewMode("logs");
+    setTerminalToolName("Interactive Shell");
+    setTerminalOutput("");
+    setTerminalProcessId(null);
+    setIsTerminalRunning(true);
+    setRightSidebarView("terminal");
     
-    // Abort any existing log streaming
-    if (appLogsAbortControllerRef.current) {
-      appLogsAbortControllerRef.current.abort();
-    }
-    setLogStreamPid(null);
+    terminalAbortControllerRef.current = new AbortController();
+    const ac = terminalAbortControllerRef.current;
     
     try {
-      const res = await fetch("/api/app-status", {
+      const res = await fetch("/api/terminal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo: selectedRepo, action: "shell" }),
+        body: JSON.stringify({ cwd }),
+        signal: ac.signal,
       });
-      const data = await res.json();
-      if (!data.success) {
-        setAppLogs((prev) => prev + `\x1b[31mError: ${data.error || "Failed to open terminal"}\x1b[0m\n`);
-        setIsAppStarting(false);
+      
+      const processId = res.headers.get("X-Agent-Process-ID");
+      if (processId) {
+        setTerminalProcessId(processId);
+      }
+      
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setTerminalOutput("Failed to open terminal");
+        setIsTerminalRunning(false);
         return;
       }
       
-      if (data.pid) {
-        setAppPid(data.pid);
-        setIsAppRunning(true);
-        setIsAppManaged(true);
-        setLogStreamPid(data.pid);
-      } else {
-        setAppLogs((prev) => prev + "\x1b[31mError: Missing process id from shell response\x1b[0m\n");
-        setIsAppStarting(false);
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) {
+          setTerminalOutput((prev) => prev + chunk);
+        }
       }
-    } catch (error) {
-      setAppLogs((prev) => prev + `\x1b[31mError: ${error}\x1b[0m\n`);
-      setIsAppStarting(false);
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        setTerminalOutput(
+          (prev) => `${prev}\nError: ${error.message}`
+        );
+      }
+    } finally {
+      if (
+        terminalAbortControllerRef.current === ac
+      ) {
+        terminalAbortControllerRef.current = null;
+      }
+      setIsTerminalRunning(false);
     }
-  }, [selectedRepo, currentProjectPath]);
+  }, [selectedRepo, currentProjectPath, basePath]);
 
   const handleStopApp = React.useCallback(async () => {
     if (!selectedRepo) return;
@@ -1695,6 +1713,71 @@ export default function Home() {
           : "Cancelled",
       );
     }, []);
+
+  const openInteractiveTerminal =
+    React.useCallback(async () => {
+      if (!selectedRepo) return;
+      
+      const cwd = basePath && selectedRepo
+        ? `${basePath}/${selectedRepo}`.replace(
+            /\/+/g,
+            "/",
+          )
+        : undefined;
+      
+      setTerminalToolName("Interactive Terminal");
+      setTerminalOutput("");
+      setTerminalProcessId(null);
+      setIsTerminalRunning(true);
+      setRightSidebarView("terminal");
+      
+      terminalAbortControllerRef.current = new AbortController();
+      const ac = terminalAbortControllerRef.current;
+      
+      try {
+        const res = await fetch("/api/terminal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cwd }),
+          signal: ac.signal,
+        });
+        
+        const processId = res.headers.get("X-Agent-Process-ID");
+        if (processId) {
+          setTerminalProcessId(processId);
+        }
+        
+        const reader = res.body?.getReader();
+        if (!reader) {
+          setTerminalOutput("Failed to open terminal");
+          setIsTerminalRunning(false);
+          return;
+        }
+        
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          if (chunk) {
+            setTerminalOutput((prev) => prev + chunk);
+          }
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          setTerminalOutput(
+            (prev) => `${prev}\nError: ${error.message}`
+          );
+        }
+      } finally {
+        if (
+          terminalAbortControllerRef.current === ac
+        ) {
+          terminalAbortControllerRef.current = null;
+        }
+        setIsTerminalRunning(false);
+      }
+    }, [selectedRepo, basePath]);
 
   const handleTerminalInput =
     React.useCallback(
@@ -2531,10 +2614,18 @@ export default function Home() {
                     ? "Running…"
                     : "Run test"}
                 </button>
+              ) : viewMode === "ai" || workDocIsDraft ? (
+                <button
+                  onClick={openInteractiveTerminal}
+                  disabled={isTerminalRunning}
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-secondary hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-foreground"
+                  title="Open interactive terminal"
+                >
+                  <Terminal className="w-3.5 h-3.5" />
+                  Terminal
+                </button>
               ) : (
-                !workDocIsDraft &&
-                viewMode !== "ai" && (
-                  <div className="flex flex-1 p-1 rounded-lg border border-border bg-background">
+                <div className="flex flex-1 p-1 rounded-lg border border-border bg-background">
                     <button
                       onClick={() =>
                         setDocAiMode(
@@ -2585,7 +2676,6 @@ export default function Home() {
                         : "Start"}
                     </button>
                   </div>
-                )
               )}
 
               <div className="flex relative flex-1 justify-end items-center">
