@@ -19,6 +19,7 @@ interface Task {
   state:
     | "backlog"
     | "priority"
+    | "fixes"
     | "pending"
     | "doing"
     | "done";
@@ -36,7 +37,7 @@ const columns: KanbanColumnType[] = [
     order: 0,
   },
   {
-    id: "priority",
+    id: "fixes",
     title: "Fixes",
     color: "red",
     order: 1,

@@ -28,7 +28,8 @@ export interface Task {
   description: string;
   state:
     | "backlog"
-    | "priority"
+    | "priority" // Legacy
+    | "fixes"
     | "pending"
     | "doing"
     | "done";
@@ -45,6 +46,7 @@ export interface Epic {
   state:
     | "backlog"
     | "priority"
+    | "fixes"
     | "pending"
     | "doing"
     | "done";

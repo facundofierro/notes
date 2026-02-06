@@ -10,7 +10,8 @@ interface Epic {
   description: string;
   state:
     | "backlog"
-    | "priority"
+    | "priority" // Legacy
+    | "fixes"
     | "pending"
     | "doing"
     | "done";
@@ -103,6 +104,11 @@ function ensureEpicStructure(
       "work",
       "epics",
       "priority",
+    ),
+    path.join(
+      "work",
+      "epics",
+      "fixes",
     ),
     path.join(
       "work",
@@ -204,6 +210,7 @@ async function readEpics(
   const states = [
     "backlog",
     "priority",
+    "fixes",
     "pending",
     "doing",
     "done",
@@ -257,6 +264,7 @@ async function createEpic(
     (data.state as
       | "backlog"
       | "priority"
+      | "fixes"
       | "pending"
       | "doing"
       | "done") || "backlog";
@@ -581,7 +589,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const {
+    let {
       repo,
       action,
       epicId,
@@ -591,6 +599,10 @@ export async function POST(
       agentMode,
       agent,
     } = body;
+
+    // Redirect legacy 'priority' to 'fixes'
+    if (toState === "priority") toState = "fixes";
+    if (data && data.state === "priority") data.state = "fixes";
 
     if (!repo) {
       return NextResponse.json(
@@ -646,6 +658,7 @@ export async function POST(
             (data?.state as
               | "backlog"
               | "priority"
+              | "fixes"
               | "pending"
               | "doing"
               | "done") || "backlog";

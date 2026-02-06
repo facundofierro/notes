@@ -158,6 +158,8 @@ export function BrowserRightPanel({
   // Prompt mode state
   const [promptText, setPromptText] = useState("");
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [generalPrompt, setGeneralPrompt] = useState("");
+  const [selectedGeneralPrompt, setSelectedGeneralPrompt] = useState(false);
 
   // Element selection / properties mode state
   const [elementPickerMode, setElementPickerMode] = useState<"properties" | "prompt" | null>(null);
@@ -1178,26 +1180,32 @@ export function BrowserRightPanel({
       if (mode === "screen") {
         taskTitle = `UI Fixes - ${new Date().toLocaleString()}`;
         taskBody = `Source: Browser Screenshot\n\n`;
+        
+        if (generalPrompt) {
+          taskBody += `## General Instructions\n${generalPrompt}\n\n`;
+        }
+
         if (imageRelativePath) {
           taskBody += `![Screenshot](${imageRelativePath})\n\n`;
         }
+        
         taskBody += `## Annotations\n\n`;
         if (annotations.length === 0) {
           taskBody += `No annotations were added.\n\n`;
         } else {
-          taskBody += `| # | Action | Prompt |\n| - | - | - |\n`;
           annotations.forEach((ann) => {
-            const action =
-              ann.type === "remove"
-                ? "REMOVE"
-                : ann.type === "arrow"
-                  ? "ARROW"
-                  : "MODIFY";
-            const safePrompt = (ann.prompt || "")
-              .replace(/\n/g, " ")
-              .replace(/\|/g, "\\|")
-              .trim() || "No details provided.";
-            taskBody += `| ${ann.id} | ${action} | ${safePrompt} |\n`;
+            const colorName = ann.type === "remove" ? "red" : ann.type === "arrow" ? "blue" : "orange";
+            const shapeName = ann.type === "arrow" ? "arrow" : "square";
+            const promptValue = ann.prompt || "";
+            
+            let actionPhrase = "we want to do this modification:";
+            if (ann.type === "remove") {
+              actionPhrase = "we need to remove these components.";
+            } else if (ann.type === "arrow") {
+              actionPhrase = "we need to move that.";
+            }
+
+            taskBody += `${ann.id}. Where is the ${colorName} ${shapeName} with number ${ann.id} ${actionPhrase} <<${promptValue || "No instructions provided."}>>\n`;
           });
           taskBody += `\n`;
         }
@@ -1237,15 +1245,20 @@ export function BrowserRightPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
            repo,
-           title: taskTitle,
-           description: taskBody,
-           state: "priority"
+           action: "create",
+           data: {
+             title: taskTitle,
+             description: taskBody,
+             state: "fixes"
+           }
         })
       });
       
       if (res.ok) {
         resetScreenState();
         setPromptText("");
+        setGeneralPrompt("");
+        setSelectedGeneralPrompt(false);
         setChanges([]);
         setSelectedElementInfo(null);
         selectedElementRef.current = null;
@@ -1260,10 +1273,14 @@ export function BrowserRightPanel({
         setElementPickerMode(null);
         setIframeAccessError(null);
         onTaskCreated?.();
+      } else {
+        const errData = await res.json();
+        console.error("Failed to create task:", errData);
+        throw new Error(errData.error || "Failed to create task");
       }
 
     } catch (e) {
-      console.error("Failed to create task", e);
+      console.error("Error in handleCreateTask:", e);
     } finally {
       setIsCreatingTask(false);
     }
@@ -1325,15 +1342,59 @@ export function BrowserRightPanel({
                 </button>
               </div>
             ) : (
-              <AnnotationPromptList
-                annotations={annotations}
-                selectedAnnotationId={selectedAnnotationId}
-                onSelectAnnotation={onSelectAnnotation}
-                onUpdatePrompt={(id, prompt) => {
-                  onAnnotationsChange?.(annotations.map(a => a.id === id ? { ...a, prompt } : a));
-                }}
-                onDeleteAnnotation={handleDeleteAnnotation}
-              />
+              <div className="space-y-4">
+                {/* General Prompt */}
+                <div 
+                  className={`border rounded-lg transition-all cursor-pointer ${
+                    selectedGeneralPrompt 
+                      ? "border-primary bg-secondary/30 shadow-sm" 
+                      : "border-border bg-secondary/10 hover:bg-secondary/20"
+                  }`}
+                  onClick={() => {
+                    setSelectedGeneralPrompt(!selectedGeneralPrompt);
+                    onSelectAnnotation?.(null);
+                  }}
+                >
+                  <div className="flex items-center gap-2 p-2">
+                    <div className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold bg-muted-foreground/30 text-foreground border-2 border-white/20">
+                      G
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {!selectedGeneralPrompt && (
+                        <p className={`text-[11px] truncate ${generalPrompt ? "text-foreground" : "text-muted-foreground italic"}`}>
+                          {generalPrompt || "General instructions (optional)..."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {selectedGeneralPrompt && (
+                    <div className="px-2 pb-2 pt-1 border-t border-border/50">
+                      <textarea
+                        autoFocus
+                        className="w-full text-xs p-2 rounded border border-border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Add general instructions for this task..."
+                        value={generalPrompt}
+                        onChange={(e) => setGeneralPrompt(e.target.value)}
+                        rows={3}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <AnnotationPromptList
+                  annotations={annotations}
+                  selectedAnnotationId={selectedAnnotationId}
+                  onSelectAnnotation={(id) => {
+                    onSelectAnnotation?.(id);
+                    if (id !== null) setSelectedGeneralPrompt(false);
+                  }}
+                  onUpdatePrompt={(id, prompt) => {
+                    onAnnotationsChange?.(annotations.map(a => a.id === id ? { ...a, prompt } : a));
+                  }}
+                  onDeleteAnnotation={handleDeleteAnnotation}
+                />
+              </div>
             )}
           </div>
         )}

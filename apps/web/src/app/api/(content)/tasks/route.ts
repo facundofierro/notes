@@ -11,7 +11,8 @@ interface Task {
   description: string;
   state:
     | "backlog"
-    | "priority"
+    | "priority" // Legacy
+    | "fixes"
     | "pending"
     | "doing"
     | "done";
@@ -135,6 +136,7 @@ function ensureAgelumStructure(
     ),
     path.join("work", "tasks", "doing"),
     path.join("work", "tasks", "done"),
+    path.join("work", "tasks", "fixes"),
     path.join("work", "tests"),
   ];
 
@@ -267,7 +269,8 @@ function parseTaskFile(
     | "priority"
     | "pending"
     | "doing"
-    | "done",
+    | "done"
+    | "fixes",
   epic?: string,
 ): Task | null {
   try {
@@ -326,7 +329,8 @@ function readTasksRecursively(
     | "priority"
     | "pending"
     | "doing"
-    | "done",
+    | "done"
+    | "fixes",
 ): Task[] {
   const tasks: Task[] = [];
 
@@ -401,6 +405,7 @@ async function readTasks(
     "pending",
     "doing",
     "done",
+    "fixes",
   ] as const;
 
   for (const tasksRoot of roots) {
@@ -450,7 +455,8 @@ async function createTask(
       | "priority"
       | "pending"
       | "doing"
-      | "done") || "pending";
+      | "done"
+      | "fixes") || "pending";
 
   const stateDir = path.join(
     primaryTasksRoot,
@@ -509,7 +515,8 @@ function buildNewTaskMarkdown(opts: {
     | "priority"
     | "pending"
     | "doing"
-    | "done";
+    | "done"
+    | "fixes";
   title: string;
   content: string;
 }): string {
@@ -557,7 +564,8 @@ async function createTaskFromContent(
       | "priority"
       | "pending"
       | "doing"
-      | "done") || "pending";
+      | "done"
+      | "fixes") || "pending";
 
   const stateDir = path.join(
     primaryTasksRoot,
@@ -889,7 +897,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const {
+    let {
       repo,
       action,
       taskId,
@@ -901,6 +909,10 @@ export async function POST(
       agentMode,
       agent,
     } = body;
+
+    // Redirect legacy 'priority' to 'fixes'
+    if (toState === "priority") toState = "fixes";
+    if (data && data.state === "priority") data.state = "fixes";
 
     if (!repo) {
       return NextResponse.json(
@@ -975,7 +987,8 @@ export async function POST(
               | "priority"
               | "pending"
               | "doing"
-              | "done") || "pending";
+              | "done"
+              | "fixes") || "pending";
           const stateDir = path.join(
             primaryTasksRoot,
             state,

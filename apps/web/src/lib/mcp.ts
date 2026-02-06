@@ -10,6 +10,9 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 // --- Types & Constants ---
 
 type TaskState =
+  | "backlog"
+  | "priority"
+  | "fixes"
   | "pending"
   | "doing"
   | "done";
@@ -27,6 +30,9 @@ const AGELUM_STRUCTURE = [
   "doc/docs",
   "doc/plan",
   "doc/ideas",
+  "work/tasks/backlog",
+  "work/tasks/priority",
+  "work/tasks/fixes",
   "work/tasks/pending",
   "work/tasks/doing",
   "work/tasks/done",
@@ -248,6 +254,9 @@ const tools: Record<string, Tool> = {
         state: {
           type: "string",
           enum: [
+            "backlog",
+            "priority",
+            "fixes",
             "pending",
             "doing",
             "done",
@@ -315,6 +324,9 @@ const tools: Record<string, Tool> = {
         fromState: {
           type: "string",
           enum: [
+            "backlog",
+            "priority",
+            "fixes",
             "pending",
             "doing",
             "done",
@@ -324,6 +336,9 @@ const tools: Record<string, Tool> = {
         toState: {
           type: "string",
           enum: [
+            "backlog",
+            "priority",
+            "fixes",
             "pending",
             "doing",
             "done",
@@ -372,6 +387,9 @@ const tools: Record<string, Tool> = {
         state: {
           type: "string",
           enum: [
+            "backlog",
+            "priority",
+            "fixes",
             "pending",
             "doing",
             "done",
