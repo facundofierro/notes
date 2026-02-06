@@ -1,5 +1,8 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
+import { WorkEditorTab } from "@/components/WorkEditorTab";
+import { HomeState } from "@/hooks/useHomeState";
+import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
 
 interface FileNode {
   name: string;
@@ -26,44 +29,17 @@ interface TestsSetupStatus {
 }
 
 interface TestsTabProps {
-  selectedRepo: string | null;
-  currentPath: string;
-  basePath: string;
-  selectedFile: {
-    path: string;
-    content: string;
-  } | null;
-  renderWorkEditor: (opts: {
-    onBack: () => void;
-    onRename?: (
-      newTitle: string,
-    ) => Promise<{
-      path: string;
-      content: string;
-    } | void>;
-    onRefresh?: () => void;
-  }) => React.ReactNode;
-  onFileSelect: (
-    node: FileNode,
-  ) => void;
-  onRunTest: (path: string) => void;
-  onBack: () => void;
-  onSelectedFileChange: (file: { path: string; content: string } | null) => void;
+  state: HomeState;
+  callbacks: ReturnType<typeof useHomeCallbacks>;
 }
 
-export function TestsTab({
-  selectedRepo,
-  currentPath,
-  basePath,
-  selectedFile,
-  renderWorkEditor,
-  onFileSelect,
-  onRunTest,
-  onBack,
-  onSelectedFileChange,
-}: TestsTabProps) {
+export function TestsTab({ state, callbacks }: TestsTabProps) {
+  const { selectedRepo, currentPath, basePath, selectedFile, setSelectedFile } =
+    state;
+  const { handleFileSelect, handleRunTest } = callbacks;
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
-  const [testsSetupStatus, setTestsSetupStatus] = React.useState<TestsSetupStatus | null>(null);
+  const [testsSetupStatus, setTestsSetupStatus] =
+    React.useState<TestsSetupStatus | null>(null);
   const [isSetupLogsVisible, setIsSetupLogsVisible] = React.useState(true);
 
   const loadFileTree = React.useCallback(() => {
@@ -92,8 +68,7 @@ export function TestsTab({
     const fileName = oldPath.split("/").pop() || "";
     const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
     const newPath =
-      ext &&
-      newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+      ext && newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
         ? `${dir}/${newTitle}`
         : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
     const res = await fetch("/api/file", {
@@ -106,14 +81,13 @@ export function TestsTab({
       }),
     });
     const data = await res.json();
-    if (!res.ok)
-      throw new Error(data.error || "Failed to rename file");
+    if (!res.ok) throw new Error(data.error || "Failed to rename file");
     const next = { path: data.path, content: selectedFile.content };
-    onSelectedFileChange(next);
+    setSelectedFile(next);
     loadFileTree();
     return next;
   };
-// ... status polling effect ...
+
   // Status polling
   React.useEffect(() => {
     if (!selectedRepo) return;
@@ -165,26 +139,24 @@ export function TestsTab({
     };
   }, [selectedRepo, testsSetupStatus?.state]);
 
+  const onBack = () => setSelectedFile(null);
+
   return (
     <>
       <FileBrowser
         fileTree={fileTree}
         currentPath={currentPath}
-        onFileSelect={onFileSelect}
+        onFileSelect={handleFileSelect}
         basePath={basePath}
         onRefresh={loadFileTree}
-        onRunFolder={onRunTest}
+        onRunFolder={handleRunTest}
         viewMode="tests"
       />
       <div className="flex overflow-hidden flex-col flex-1 min-h-0">
-        {testsSetupStatus &&
-        testsSetupStatus.state !==
-          "ready" ? (
+        {testsSetupStatus && testsSetupStatus.state !== "ready" ? (
           <div
             className={`bg-secondary border-b border-border min-h-0 ${
-              isSetupLogsVisible
-                ? "flex overflow-hidden flex-col flex-1"
-                : ""
+              isSetupLogsVisible ? "flex overflow-hidden flex-col flex-1" : ""
             }`}
           >
             <div className="flex flex-shrink-0 justify-between items-center px-3 py-2">
@@ -192,39 +164,25 @@ export function TestsTab({
                 Setup:{" "}
                 <span
                   className={`${
-                    testsSetupStatus.state ===
-                    "error"
+                    testsSetupStatus.state === "error"
                       ? "text-red-400"
                       : "text-yellow-300"
                   } ${
-                    testsSetupStatus.state ===
-                    "installing"
+                    testsSetupStatus.state === "installing"
                       ? "animate-pulse"
                       : ""
                   }`}
                 >
-                  {
-                    testsSetupStatus.state
-                  }
-                  {testsSetupStatus.state ===
-                    "installing" &&
-                    "..."}
+                  {testsSetupStatus.state}
+                  {testsSetupStatus.state === "installing" && "..."}
                 </span>
-                {testsSetupStatus.error
-                  ? ` — ${testsSetupStatus.error}`
-                  : ""}
+                {testsSetupStatus.error ? ` — ${testsSetupStatus.error}` : ""}
               </div>
               <button
-                onClick={() =>
-                  setIsSetupLogsVisible(
-                    !isSetupLogsVisible,
-                  )
-                }
+                onClick={() => setIsSetupLogsVisible(!isSetupLogsVisible)}
                 className="px-2 py-1 text-xs rounded transition-colors text-foreground hover:text-white hover:bg-accent"
               >
-                {isSetupLogsVisible
-                  ? "Hide logs"
-                  : "Show logs"}
+                {isSetupLogsVisible ? "Hide logs" : "Show logs"}
               </button>
             </div>
             {isSetupLogsVisible ? (
@@ -232,14 +190,12 @@ export function TestsTab({
                 <div
                   ref={(el) => {
                     if (el) {
-                      el.scrollTop =
-                        el.scrollHeight;
+                      el.scrollTop = el.scrollHeight;
                     }
                   }}
                   className="overflow-auto flex-1 p-3 min-h-0 font-mono text-xs whitespace-pre-wrap bg-black rounded text-foreground"
                 >
-                  {testsSetupStatus.log ||
-                    `State: ${testsSetupStatus.state}`}
+                  {testsSetupStatus.log || `State: ${testsSetupStatus.state}`}
                 </div>
               </div>
             ) : null}
@@ -247,19 +203,19 @@ export function TestsTab({
         ) : null}
 
         {(!testsSetupStatus ||
-          testsSetupStatus.state ===
-            "ready" ||
+          testsSetupStatus.state === "ready" ||
           !isSetupLogsVisible) &&
           (selectedFile ? (
-            renderWorkEditor({
-              onBack,
-              onRename: handleRename,
-              onRefresh: loadFileTree,
-            })
+            <WorkEditorTab
+              state={state}
+              callbacks={callbacks}
+              onBack={onBack}
+              onRename={handleRename}
+              onRefresh={loadFileTree}
+            />
           ) : (
             <div className="flex flex-1 justify-center items-center text-gray-500">
-              Select a test file to view
-              and edit
+              Select a test file to view and edit
             </div>
           ))}
       </div>

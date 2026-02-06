@@ -206,7 +206,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [state]);
+  }, [state.setAgentTools]);
 
   React.useEffect(() => {
     if (!selectedRepo) return;
@@ -245,42 +245,77 @@ export default function Home() {
   }, [currentProjectPath, setProjectConfig]);
 
   // Sync iframeUrl with project url
-  const isEnteringBrowserView = React.useRef(false);
-  const [preservedIframeUrl, setPreservedIframeUrl] = React.useState<string>("");
+  const lastUrlRepoRef = React.useRef<string | null>(null);
+  const [preservedIframeUrls, setPreservedIframeUrls] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
-    if (viewMode === "browser" && !isEnteringBrowserView.current) {
-      isEnteringBrowserView.current = true;
-      if (preservedIframeUrl) setIframeUrl(preservedIframeUrl);
-      else if (currentProjectConfig?.url) {
-        setIframeUrl(currentProjectConfig.url);
-        setPreservedIframeUrl(currentProjectConfig.url);
-      } else setIframeUrl("");
-    } else if (viewMode !== "browser") {
-      setPreservedIframeUrl((prev) => iframeUrl || prev);
-      isEnteringBrowserView.current = false;
+    if (!selectedRepo) return;
+
+    // Save current URL when leaving browser mode
+    if (viewMode !== "browser") {
+      if (iframeUrl) {
+        setPreservedIframeUrls((prev) => ({ ...prev, [selectedRepo]: iframeUrl }));
+      }
+      return;
     }
-  }, [viewMode, iframeUrl, preservedIframeUrl, currentProjectConfig?.url, setIframeUrl]);
 
-  // Poll app status
+    // If we are in browser mode
+    const repoChanged = selectedRepo !== lastUrlRepoRef.current;
+    lastUrlRepoRef.current = selectedRepo;
+
+    if (repoChanged) {
+      // On repo change, prefer the new project's default URL
+      const targetUrl = currentProjectConfig?.url || "";
+      setIframeUrl(targetUrl);
+      // Also update preserved URL for this repo
+      if (targetUrl) {
+        setPreservedIframeUrls((prev) => ({ ...prev, [selectedRepo]: targetUrl }));
+      }
+    } else {
+      // On entering browser mode (not from repo change)
+      const preserved = preservedIframeUrls[selectedRepo];
+      const targetUrl = preserved || currentProjectConfig?.url || "";
+      if (iframeUrl !== targetUrl) {
+        setIframeUrl(targetUrl);
+      }
+    }
+  }, [
+    viewMode,
+    selectedRepo,
+    currentProjectConfig?.url,
+    preservedIframeUrls,
+    iframeUrl,
+    setIframeUrl,
+  ]);
+
+  // Refresh app status on project change or tab change to logs/browser
+  const lastStatusRepoRef = React.useRef<string | null>(null);
+  const lastStatusViewModeRef = React.useRef<ViewMode | null>(null);
+
   React.useEffect(() => {
-    if (!selectedRepo || !currentProjectConfig?.url) {
+    if (!selectedRepo) {
       setIsAppRunning(false);
       setIsAppManaged(false);
       setAppPid(null);
       return;
     }
+
+    const isTargetView = viewMode === "logs" || viewMode === "browser";
+    const repoChanged = selectedRepo !== lastStatusRepoRef.current;
+    const viewChangedToTarget = isTargetView && viewMode !== lastStatusViewModeRef.current;
+
+    lastStatusRepoRef.current = selectedRepo;
+    lastStatusViewModeRef.current = viewMode;
+
     let cancelled = false;
     const checkStatus = async () => {
       try {
         const res = await fetch(`/api/app-status?repo=${selectedRepo}`);
         const data = await res.json();
         if (cancelled) return;
-        if (data.isRunning !== isAppRunning || data.isManaged !== isAppManaged || (data.pid || null) !== appPid) {
-          setIsAppRunning(data.isRunning);
-          setIsAppManaged(data.isManaged);
-          setAppPid(data.pid || null);
-        }
+        setIsAppRunning(data.isRunning);
+        setIsAppManaged(data.isManaged);
+        setAppPid(data.pid || null);
       } catch {
         if (cancelled) return;
         setIsAppRunning(false);
@@ -288,14 +323,20 @@ export default function Home() {
         setAppPid(null);
       }
     };
-    checkStatus();
-    const handleFocus = () => checkStatus();
-    window.addEventListener('focus', handleFocus);
+
+    if (repoChanged || viewChangedToTarget) {
+      checkStatus();
+    }
+
+    const handleFocus = () => {
+      if (isTargetView) checkStatus();
+    };
+    window.addEventListener("focus", handleFocus);
     return () => {
       cancelled = true;
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener("focus", handleFocus);
     };
-  }, [selectedRepo, currentProjectConfig?.url, isAppRunning, isAppManaged, appPid, setIsAppRunning, setIsAppManaged, setAppPid]);
+  }, [selectedRepo, viewMode, setIsAppRunning, setIsAppManaged, setAppPid]);
 
   // Stream app logs
   React.useEffect(() => {
@@ -351,24 +392,8 @@ export default function Home() {
     };
     streamLogs();
 
-    const readinessInterval = window.setInterval(async () => {
-      if (cancelled) return;
-      if (isAppStarting && currentProjectConfig?.url) {
-        try {
-          const checkRes = await fetch(`/api/app-status?repo=${selectedRepo}`);
-          const status = await checkRes.json();
-          if (status.isUrlReady) {
-            setIsAppStarting(false);
-            setIframeUrl(currentProjectConfig.url);
-            setViewMode("browser");
-          }
-        } catch (error) { console.error("Readiness check error:", error); }
-      }
-    }, 2000);
-
     return () => {
       cancelled = true;
-      window.clearInterval(readinessInterval);
       if (startTimeoutId !== null) window.clearTimeout(startTimeoutId);
       if (appLogsAbortControllerRef.current) {
         appLogsAbortControllerRef.current.abort();
@@ -377,100 +402,128 @@ export default function Home() {
     };
   }, [logStreamPid, selectedRepo, currentProjectConfig?.url, isAppStarting, setAppLogs, setIsAppStarting, setIframeUrl, setViewMode, appLogsAbortControllerRef]);
 
-  const renderWorkEditor = (opts: {
-    onBack: () => void;
-    onRename?: (newTitle: string) => Promise<{ path: string; content: string } | void>;
-    onRefresh?: () => void;
-  }) => {
-    if (!selectedFile) return null;
     return (
-      <WorkEditor
-        file={selectedFile}
-        onFileChange={setSelectedFile}
-        onBack={opts.onBack}
-        onRename={opts.onRename}
-        onRefresh={opts.onRefresh}
-        viewMode={viewMode}
-        selectedRepo={selectedRepo}
-        basePath={basePath}
-        agentTools={agentTools}
-        workEditorEditing={workEditorEditing}
-        onWorkEditorEditingChange={setWorkEditorEditing}
-        workDocIsDraft={workDocIsDraft}
-        testViewMode={testViewMode}
-        onTestViewModeChange={setTestViewMode}
-        testOutput={testOutput}
-        isTestRunning={isTestRunning}
-        onRunTest={handleRunTest}
-      />
-    );
-  };
 
-  return (
-    <div className="flex flex-col w-full h-full">
-      <Header
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        visibleItems={visibleItems}
-        repositories={repositories}
-        selectedRepo={selectedRepo}
-        setSelectedRepo={setSelectedRepo}
-        isAppRunning={isAppRunning}
-        handleStartApp={handleStartApp}
-        handleStopApp={handleStopApp}
-        isAppManaged={isAppManaged}
-        handleRestartApp={handleRestartApp}
-        handleInstallDeps={handleInstallDeps}
-        handleBuildApp={handleBuildApp}
-        setSettingsTab={setSettingsTab}
-        setIsSettingsOpen={setIsSettingsOpen}
-      />
+      <div className="flex flex-col w-full h-full">
 
-      <div className="flex overflow-hidden flex-col flex-1">
-        <div className="flex overflow-hidden flex-1">
-          {viewMode === "docs" ? (
-            <DocsTab selectedRepo={selectedRepo} currentPath={currentPath} basePath={basePath} selectedFile={selectedFile} renderWorkEditor={renderWorkEditor} onFileSelect={handleFileSelect} onBack={() => setSelectedFile(null)} onSelectedFileChange={setSelectedFile} />
-          ) : viewMode === "ai" ? (
-            <AITab selectedRepo={selectedRepo} currentPath={currentPath} basePath={basePath} selectedFile={selectedFile} renderWorkEditor={renderWorkEditor} onFileSelect={handleFileSelect} onBack={() => setSelectedFile(null)} onSelectedFileChange={setSelectedFile} />
-          ) : viewMode === "tests" ? (
-            <TestsTab selectedRepo={selectedRepo} currentPath={currentPath} basePath={basePath} selectedFile={selectedFile} renderWorkEditor={renderWorkEditor} onFileSelect={handleFileSelect} onRunTest={handleRunTest} onBack={() => setSelectedFile(null)} onSelectedFileChange={setSelectedFile} />
-          ) : viewMode === "ideas" ? (
-            <IdeasTab selectedRepo={selectedRepo} selectedFile={selectedFile} renderWorkEditor={renderWorkEditor} onIdeaSelect={handleIdeaSelect} onCreateIdea={({ state: s }) => openWorkDraft({ kind: "idea", state: s })} onBack={() => setSelectedFile(null)} onRename={selectedRepo ? async (newTitle: string) => {
-              const res = await fetch("/api/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repo: selectedRepo, action: "rename", path: selectedFile!.path, newTitle }) });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || "Failed to rename idea");
-              const next = { path: data.path as string, content: data.content as string };
-              setSelectedFile(next);
-              return next;
-            } : undefined} />
-          ) : viewMode === "epics" ? (
-            <EpicsTab selectedRepo={selectedRepo} selectedFile={selectedFile} renderWorkEditor={renderWorkEditor} onEpicSelect={handleEpicSelect} onCreateEpic={({ state: s }) => openWorkDraft({ kind: "epic", state: s })} onBack={() => setSelectedFile(null)} onRename={selectedRepo ? async (newTitle: string) => {
-              const res = await fetch("/api/epics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repo: selectedRepo, action: "rename", path: selectedFile!.path, newTitle }) });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || "Failed to rename epic");
-              const next = { path: data.path as string, content: data.content as string };
-              setSelectedFile(next);
-              return next;
-            } : undefined} />
-          ) : viewMode === "review" ? (
-            <ReviewTab currentPath={currentPath} basePath={basePath} selectedFile={selectedFile} selectedRepo={selectedRepo} onFileSelect={(node) => setSelectedFile({ path: node.path, content: node.content || "" })} onSelectedFileChange={setSelectedFile} />
-          ) : viewMode === "logs" ? (
-            <LogsTab appLogs={appLogs} isAppStarting={isAppStarting} appPid={appPid} isAppRunning={isAppRunning} />
-          ) : viewMode === "browser" ? (
-            <BrowserTab iframeUrl={iframeUrl} isElectron={isElectron} isScreenshotMode={isScreenshotMode} selectedRepo={selectedRepo} repositories={repositories} browserIframeRef={browserIframeRef} browserViewPlaceholderRef={browserViewPlaceholderRef} onIframeUrlChange={setIframeUrl} onRequestCapture={requestEmbeddedCapture} onScreenshotModeChange={setIsScreenshotMode} onTaskCreated={() => {}} />
-          ) : (
-            <TasksTab selectedRepo={selectedRepo} selectedFile={selectedFile} renderWorkEditor={renderWorkEditor} onTaskSelect={handleTaskSelect} onCreateTask={({ state: s }) => openWorkDraft({ kind: "task", state: s })} onBack={() => setSelectedFile(null)} onRename={viewMode === "kanban" && selectedRepo ? async (newTitle: string) => {
-              const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repo: selectedRepo, action: "rename", path: selectedFile!.path, newTitle }) });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || "Failed to rename task");
-              const next = { path: data.path as string, content: data.content as string };
-              setSelectedFile(next);
-              return next;
-            } : undefined} />
-          )}
+        <Header
+
+          viewMode={viewMode}
+
+          setViewMode={setViewMode}
+
+          visibleItems={visibleItems}
+
+          repositories={repositories}
+
+          selectedRepo={selectedRepo}
+
+          setSelectedRepo={setSelectedRepo}
+
+          isAppRunning={isAppRunning}
+
+          handleStartApp={handleStartApp}
+
+          handleStopApp={handleStopApp}
+
+          isAppManaged={isAppManaged}
+
+          handleRestartApp={handleRestartApp}
+
+          handleInstallDeps={handleInstallDeps}
+
+          handleBuildApp={handleBuildApp}
+
+          setSettingsTab={setSettingsTab}
+
+          setIsSettingsOpen={setIsSettingsOpen}
+
+        />
+
+  
+
+        <div className="flex overflow-hidden flex-col flex-1">
+
+          <div className="flex overflow-hidden flex-1">
+
+            {viewMode === "docs" ? (
+
+              <DocsTab state={state} callbacks={callbacks} />
+
+            ) : viewMode === "ai" ? (
+
+              <AITab state={state} callbacks={callbacks} />
+
+            ) : viewMode === "tests" ? (
+
+              <TestsTab state={state} callbacks={callbacks} />
+
+            ) : viewMode === "ideas" ? (
+
+              <IdeasTab state={state} callbacks={callbacks} />
+
+            ) : viewMode === "epics" ? (
+
+              <EpicsTab state={state} callbacks={callbacks} />
+
+            ) : viewMode === "review" ? (
+
+              <ReviewTab state={state} callbacks={callbacks} />
+
+            ) : viewMode === "logs" ? (
+
+              <LogsTab state={state} />
+
+            ) : viewMode === "browser" ? (
+
+              <BrowserTab
+
+                state={state}
+
+                callbacks={callbacks}
+
+                browserViewPlaceholderRef={browserViewPlaceholderRef}
+
+              />
+
+            ) : (
+
+              <TasksTab state={state} callbacks={callbacks} />
+
+            )}
+
+          </div>
+
         </div>
+
+        <SettingsDialog
+
+          open={isSettingsOpen}
+
+          onOpenChange={setIsSettingsOpen}
+
+          onSave={handleSettingsSave}
+
+          initialTab={settingsTab}
+
+          projectName={selectedRepo || undefined}
+
+          projectPath={
+
+            selectedRepo
+
+              ? repositories.find((r) => r.name === selectedRepo)?.path
+
+              : undefined
+
+          }
+
+        />
+
       </div>
-      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} onSave={handleSettingsSave} initialTab={settingsTab} projectName={selectedRepo || undefined} projectPath={selectedRepo ? repositories.find((r) => r.name === selectedRepo)?.path : undefined} />
-    </div>
-  );
-}
+
+    );
+
+  }
+
+  

@@ -1,64 +1,44 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
+import { HomeState } from "@/hooks/useHomeState";
 
 const TerminalViewer = dynamic(
-  () =>
-    import("@/components/TerminalViewer").then(
-      (mod) => mod.TerminalViewer,
-    ),
+  () => import("@/components/TerminalViewer").then((mod) => mod.TerminalViewer),
   { ssr: false },
 );
 
 interface LogsTabProps {
-  appLogs: string;
-  isAppStarting: boolean;
-  appPid: number | null;
-  isAppRunning: boolean;
-  onInput?: (data: string) => void;
+  state: HomeState;
 }
 
-export function LogsTab({
-  appLogs,
-  isAppStarting,
-  appPid,
-  isAppRunning,
-  onInput,
-}: LogsTabProps) {
+export function LogsTab({ state }: LogsTabProps) {
+  const { appLogs, isAppStarting, appPid, isAppRunning } = state;
+
   const handleInput = React.useCallback(
     (data: string) => {
       if (appPid && isAppRunning) {
         fetch("/api/app-logs", {
           method: "POST",
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             pid: appPid,
             input: data,
           }),
         }).catch((error) => {
-          console.error(
-            "Failed to send input:",
-            error,
-          );
+          console.error("Failed to send input:", error);
         });
       }
-      onInput?.(data);
     },
-    [appPid, isAppRunning, onInput],
+    [appPid, isAppRunning],
   );
 
   return (
     <div className="flex flex-1 overflow-hidden flex-col bg-background">
       <div className="flex-1 min-h-0 bg-black">
         <TerminalViewer
-          output={
-            appLogs ||
-            (isAppStarting
-              ? "Starting application...\n"
-              : "")
-          }
+          output={appLogs || (isAppStarting ? "Starting application...\n" : "")}
           className="w-full h-full"
           onInput={handleInput}
         />

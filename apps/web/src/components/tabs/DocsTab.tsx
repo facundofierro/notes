@@ -1,5 +1,8 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
+import { WorkEditorTab } from "@/components/WorkEditorTab";
+import { HomeState } from "@/hooks/useHomeState";
+import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
 
 interface FileNode {
   name: string;
@@ -10,40 +13,14 @@ interface FileNode {
 }
 
 interface DocsTabProps {
-  selectedRepo: string | null;
-  currentPath: string;
-  basePath: string;
-  selectedFile: {
-    path: string;
-    content: string;
-  } | null;
-  renderWorkEditor: (opts: {
-    onBack: () => void;
-    onRename?: (
-      newTitle: string,
-    ) => Promise<{
-      path: string;
-      content: string;
-    } | void>;
-    onRefresh?: () => void;
-  }) => React.ReactNode;
-  onFileSelect: (
-    node: FileNode,
-  ) => void;
-  onBack: () => void;
-  onSelectedFileChange: (file: { path: string; content: string } | null) => void;
+  state: HomeState;
+  callbacks: ReturnType<typeof useHomeCallbacks>;
 }
 
-export function DocsTab({
-  selectedRepo,
-  currentPath,
-  basePath,
-  selectedFile,
-  renderWorkEditor,
-  onFileSelect,
-  onBack,
-  onSelectedFileChange,
-}: DocsTabProps) {
+export function DocsTab({ state, callbacks }: DocsTabProps) {
+  const { selectedRepo, currentPath, basePath, selectedFile, setSelectedFile } =
+    state;
+  const { handleFileSelect } = callbacks;
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
 
   const loadFileTree = React.useCallback(() => {
@@ -67,8 +44,7 @@ export function DocsTab({
     const fileName = oldPath.split("/").pop() || "";
     const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
     const newPath =
-      ext &&
-      newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+      ext && newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
         ? `${dir}/${newTitle}`
         : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
     const res = await fetch("/api/file", {
@@ -81,35 +57,37 @@ export function DocsTab({
       }),
     });
     const data = await res.json();
-    if (!res.ok)
-      throw new Error(data.error || "Failed to rename file");
+    if (!res.ok) throw new Error(data.error || "Failed to rename file");
     const next = { path: data.path, content: selectedFile.content };
-    onSelectedFileChange(next);
+    setSelectedFile(next);
     loadFileTree();
     return next;
   };
+
+  const onBack = () => setSelectedFile(null);
 
   return (
     <>
       <FileBrowser
         fileTree={fileTree}
         currentPath={currentPath}
-        onFileSelect={onFileSelect}
+        onFileSelect={handleFileSelect}
         basePath={basePath}
         onRefresh={loadFileTree}
         viewMode="docs"
       />
       <div className="flex overflow-hidden flex-1 bg-background">
         {selectedFile ? (
-          renderWorkEditor({
-            onBack,
-            onRename: handleRename,
-            onRefresh: loadFileTree,
-          })
+          <WorkEditorTab
+            state={state}
+            callbacks={callbacks}
+            onBack={onBack}
+            onRename={handleRename}
+            onRefresh={loadFileTree}
+          />
         ) : (
           <div className="flex flex-1 justify-center items-center text-muted-foreground">
-            Select a file to view and
-            edit
+            Select a file to view and edit
           </div>
         )}
       </div>

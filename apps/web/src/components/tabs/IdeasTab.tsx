@@ -1,55 +1,57 @@
 import * as React from "react";
 import IdeasKanban from "@/components/IdeasKanban";
+import { WorkEditorTab } from "@/components/WorkEditorTab";
+import { HomeState } from "@/hooks/useHomeState";
+import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
 
 interface IdeasTabProps {
-  selectedRepo: string | null;
-  selectedFile: {
-    path: string;
-    content: string;
-  } | null;
-  renderWorkEditor: (opts: {
-    onBack: () => void;
-    onRename?: (
-      newTitle: string,
-    ) => Promise<{
-      path: string;
-      content: string;
-    } | void>;
-  }) => React.ReactNode;
-  onIdeaSelect: (idea: any) => void;
-  onCreateIdea: (opts: {
-    state: string;
-  }) => void;
-  onBack: () => void;
-  onRename?: (
-    newTitle: string,
-  ) => Promise<{
-    path: string;
-    content: string;
-  } | void>;
+  state: HomeState;
+  callbacks: ReturnType<typeof useHomeCallbacks>;
 }
 
-export function IdeasTab({
-  selectedRepo,
-  selectedFile,
-  renderWorkEditor,
-  onIdeaSelect,
-  onCreateIdea,
-  onBack,
-  onRename,
-}: IdeasTabProps) {
+export function IdeasTab({ state, callbacks }: IdeasTabProps) {
+  const { selectedRepo, selectedFile, setSelectedFile } = state;
+  const { handleIdeaSelect, openWorkDraft } = callbacks;
+
+  const onBack = () => setSelectedFile(null);
+
+  const onRename = selectedRepo
+    ? async (newTitle: string) => {
+        const res = await fetch("/api/ideas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repo: selectedRepo,
+            action: "rename",
+            path: selectedFile!.path,
+            newTitle,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to rename idea");
+        const next = {
+          path: data.path as string,
+          content: data.content as string,
+        };
+        setSelectedFile(next);
+        return next;
+      }
+    : undefined;
+
   return (
     <div className="flex-1 bg-background">
       {selectedFile ? (
-        renderWorkEditor({
-          onBack,
-          onRename,
-        })
+        <WorkEditorTab
+          state={state}
+          callbacks={callbacks}
+          onBack={onBack}
+          onRename={onRename}
+        />
       ) : selectedRepo ? (
         <IdeasKanban
           repo={selectedRepo}
-          onIdeaSelect={onIdeaSelect}
-          onCreateIdea={onCreateIdea}
+          onIdeaSelect={handleIdeaSelect}
+          onCreateIdea={({ state: s }) => openWorkDraft({ kind: "idea", state: s })}
         />
       ) : null}
     </div>

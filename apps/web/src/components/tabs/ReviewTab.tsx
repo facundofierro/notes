@@ -1,6 +1,8 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
+import { HomeState } from "@/hooks/useHomeState";
+import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
 
 interface FileNode {
   name: string;
@@ -11,27 +13,14 @@ interface FileNode {
 }
 
 interface ReviewTabProps {
-  currentPath: string;
-  basePath: string;
-  selectedFile: {
-    path: string;
-    content: string;
-  } | null;
-  selectedRepo: string | null;
-  onFileSelect: (
-    node: FileNode,
-  ) => void;
-  onSelectedFileChange: (file: { path: string; content: string } | null) => void;
+  state: HomeState;
+  callbacks: ReturnType<typeof useHomeCallbacks>;
 }
 
-export function ReviewTab({
-  currentPath,
-  basePath,
-  selectedFile,
-  selectedRepo,
-  onFileSelect,
-  onSelectedFileChange,
-}: ReviewTabProps) {
+export function ReviewTab({ state, callbacks }: ReviewTabProps) {
+  const { selectedRepo, currentPath, basePath, selectedFile, setSelectedFile } =
+    state;
+  const { handleFileSelect } = callbacks;
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
 
   const loadFileTree = React.useCallback(() => {
@@ -60,14 +49,14 @@ export function ReviewTab({
       }),
     });
     if (!res.ok) throw new Error("Failed to save file");
-    onSelectedFileChange({ ...selectedFile, content });
+    setSelectedFile({ ...selectedFile, content });
   };
 
   return (
     <div className="flex flex-1 overflow-hidden bg-background">
       <FileBrowser
         fileTree={fileTree}
-        onFileSelect={onFileSelect}
+        onFileSelect={handleFileSelect}
         currentPath={currentPath}
         basePath={basePath}
         onRefresh={loadFileTree}

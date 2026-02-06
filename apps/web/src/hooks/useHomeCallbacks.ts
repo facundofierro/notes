@@ -4,7 +4,36 @@ import { useTestsManager } from "./useTestsManager";
 import { HomeState } from "./useHomeState";
 
 export function useHomeCallbacks(state: HomeState) {
-  const { refetchSettings } = state;
+  const {
+    setRepositories,
+    setBasePath,
+    setSelectedRepo,
+    setSelectedFile,
+    setWorkEditorEditing,
+    setWorkDocIsDraft,
+    setAppLogs,
+    setIsAppStarting,
+    setViewMode,
+    setLogStreamPid,
+    setAppPid,
+    setIsAppRunning,
+    setIsAppManaged,
+    setIframeUrl,
+    setTestOutput,
+    setIsTestRunning,
+    setTestViewMode,
+    refetchSettings,
+    selectedRepo,
+    repositories,
+    basePath,
+    currentProject,
+    currentProjectConfig,
+    currentProjectPath,
+    appLogsAbortControllerRef,
+    testOutput,
+    isTestRunning,
+    viewMode,
+  } = state;
   const browserIframeRef = React.useRef<HTMLIFrameElement>(null);
 
   const joinFsPath = React.useCallback(
@@ -24,17 +53,17 @@ export function useHomeCallbacks(state: HomeState) {
           name: string;
           path: string;
         }[];
-        state.setRepositories(nextRepos);
-        if (data.basePath) state.setBasePath(data.basePath);
+        setRepositories(nextRepos);
+        if (data.basePath) setBasePath(data.basePath);
 
         if (nextRepos.length > 0) {
           const saved = window.localStorage.getItem("agelum.selectedRepo");
           const nextSelected =
             saved && nextRepos.some((r) => r.name === saved) ? saved : nextRepos[0].name;
-          state.setSelectedRepo(nextSelected);
+          setSelectedRepo(nextSelected);
         }
       });
-  }, [state]);
+  }, [setRepositories, setBasePath, setSelectedRepo]);
 
   const handleSettingsSave = React.useCallback(() => {
     fetchRepositories();
@@ -43,10 +72,10 @@ export function useHomeCallbacks(state: HomeState) {
 
   const openWorkDraft = React.useCallback(
     (opts: { kind: "epic" | "task" | "idea"; state: string }) => {
-      if (!state.selectedRepo) return;
+      if (!selectedRepo) return;
 
-      const repo = state.repositories.find((r) => r.name === state.selectedRepo);
-      const repoPath = repo?.path || (state.basePath ? joinFsPath(state.basePath, state.selectedRepo) : null);
+      const repo = repositories.find((r) => r.name === selectedRepo);
+      const repoPath = repo?.path || (basePath ? joinFsPath(basePath, selectedRepo) : null);
 
       if (!repoPath) {
         console.error("Could not determine repository path");
@@ -73,43 +102,43 @@ state: ${opts.state}
 
 `;
 
-      state.setSelectedFile({
+      setSelectedFile({
         path: draftPath,
         content,
       });
-      state.setWorkEditorEditing(true);
-      state.setWorkDocIsDraft(true);
+      setWorkEditorEditing(true);
+      setWorkDocIsDraft(true);
     },
-    [state, joinFsPath]
+    [selectedRepo, repositories, basePath, joinFsPath, setSelectedFile, setWorkEditorEditing, setWorkDocIsDraft]
   );
 
   const { handleStartApp, handleStopApp, handleRestartApp } = useAppLifecycle({
-    selectedRepo: state.selectedRepo,
-    currentProjectConfig: state.currentProjectConfig,
-    currentProjectPath: state.currentProjectPath,
-    appLogsAbortControllerRef: state.appLogsAbortControllerRef,
-    setAppLogs: state.setAppLogs,
-    setIsAppStarting: state.setIsAppStarting,
-    setViewMode: state.setViewMode,
-    setLogStreamPid: state.setLogStreamPid,
-    setAppPid: state.setAppPid,
-    setIsAppRunning: state.setIsAppRunning,
-    setIsAppManaged: state.setIsAppManaged,
-    setIframeUrl: state.setIframeUrl,
+    selectedRepo: selectedRepo,
+    currentProjectConfig: currentProjectConfig,
+    currentProjectPath: currentProjectPath,
+    appLogsAbortControllerRef: appLogsAbortControllerRef,
+    setAppLogs: setAppLogs,
+    setIsAppStarting: setIsAppStarting,
+    setViewMode: setViewMode,
+    setLogStreamPid: setLogStreamPid,
+    setAppPid: setAppPid,
+    setIsAppRunning: setIsAppRunning,
+    setIsAppManaged: setIsAppManaged,
+    setIframeUrl: setIframeUrl,
   });
 
   const { handleRunTest } = useTestsManager({
-    selectedRepo: state.selectedRepo,
-    testOutput: state.testOutput,
-    setTestOutput: state.setTestOutput,
-    isTestRunning: state.isTestRunning,
-    setIsTestRunning: state.setIsTestRunning,
-    setTestViewMode: state.setTestViewMode,
+    selectedRepo: selectedRepo,
+    testOutput: testOutput,
+    setTestOutput: setTestOutput,
+    isTestRunning: isTestRunning,
+    setIsTestRunning: setIsTestRunning,
+    setTestViewMode: setTestViewMode,
     setPromptDrafts: () => {}, // Mocked out since we moved prompt drafts
     testsSetupStatus: null,
     setTestsSetupStatus: () => {},
     setIsSetupLogsVisible: () => {},
-    viewMode: state.viewMode,
+    viewMode: viewMode,
     testsSetupState: null,
   });
 
@@ -130,11 +159,11 @@ state: ${opts.state}
         throw new Error("Failed to save file");
       }
 
-      state.setSelectedFile((prev: { path: string; content: string } | null) =>
+      setSelectedFile((prev: { path: string; content: string } | null) =>
         prev ? { ...prev, content: opts.content } : null
       );
     },
-    [state]
+    [setSelectedFile]
   );
 
   const handleFileSelect = React.useCallback(
@@ -143,120 +172,120 @@ state: ${opts.state}
         const content = await fetch(
           `/api/file?path=${encodeURIComponent(node.path)}`
         ).then((res) => res.json());
-        state.setSelectedFile({
+        setSelectedFile({
           path: node.path,
           content: content.content || "",
         });
-        state.setWorkEditorEditing(false);
-        state.setWorkDocIsDraft(false);
+        setWorkEditorEditing(false);
+        setWorkDocIsDraft(false);
       }
     },
-    [state]
+    [setSelectedFile, setWorkEditorEditing, setWorkDocIsDraft]
   );
 
   const handleTaskSelect = React.useCallback(
     (task: any) => {
-      if (!state.selectedRepo || !task.id) return;
+      if (!selectedRepo || !task.id) return;
 
       const fallbackPath =
-        state.basePath && state.selectedRepo
-          ? `${state.basePath}/${state.selectedRepo}/.agelum/work/tasks/${task.state}/${task.epic ? `${task.epic}/` : ""}${task.id}.md`
+        basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}/.agelum/work/tasks/${task.state}/${task.epic ? `${task.epic}/` : ""}${task.id}.md`
           : "";
 
       const filePath = task.path || fallbackPath;
       if (!filePath) return;
 
-      state.setWorkEditorEditing(false);
-      state.setWorkDocIsDraft(false);
+      setWorkEditorEditing(false);
+      setWorkDocIsDraft(false);
       fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
         .then((res) => res.json())
         .then((data) => {
-          state.setSelectedFile({
+          setSelectedFile({
             path: filePath,
             content: data.content || "",
           });
         });
     },
-    [state]
+    [selectedRepo, basePath, setWorkEditorEditing, setWorkDocIsDraft, setSelectedFile]
   );
 
   const handleEpicSelect = React.useCallback(
     (epic: any) => {
-      if (!state.selectedRepo || !epic.id) return;
+      if (!selectedRepo || !epic.id) return;
 
       const fallbackPath =
-        state.basePath && state.selectedRepo
-          ? `${state.basePath}/${state.selectedRepo}/.agelum/work/epics/${epic.state}/${epic.id}.md`
+        basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}/.agelum/work/epics/${epic.state}/${epic.id}.md`
           : "";
 
       const filePath = epic.path || fallbackPath;
       if (!filePath) return;
 
-      state.setWorkEditorEditing(false);
-      state.setWorkDocIsDraft(false);
+      setWorkEditorEditing(false);
+      setWorkDocIsDraft(false);
       fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
         .then((res) => res.json())
         .then((data) => {
-          state.setSelectedFile({
+          setSelectedFile({
             path: filePath,
             content: data.content || "",
           });
         });
     },
-    [state]
+    [selectedRepo, basePath, setWorkEditorEditing, setWorkDocIsDraft, setSelectedFile]
   );
 
   const handleIdeaSelect = React.useCallback(
     (idea: any) => {
-      if (!state.selectedRepo || !idea.id) return;
+      if (!selectedRepo || !idea.id) return;
 
       const fallbackPath =
-        state.basePath && state.selectedRepo
-          ? `${state.basePath}/${state.selectedRepo}/.agelum/doc/ideas/${idea.state}/${idea.id}.md`
+        basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}/.agelum/doc/ideas/${idea.state}/${idea.id}.md`
           : "";
 
       const filePath = idea.path || fallbackPath;
       if (!filePath) return;
 
-      state.setWorkEditorEditing(false);
-      state.setWorkDocIsDraft(false);
+      setWorkEditorEditing(false);
+      setWorkDocIsDraft(false);
       fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
         .then((res) => res.json())
         .then((data) => {
-          state.setSelectedFile({
+          setSelectedFile({
             path: filePath,
             content: data.content || "",
           });
         });
     },
-    [state]
+    [selectedRepo, basePath, setWorkEditorEditing, setWorkDocIsDraft, setSelectedFile]
   );
 
   const handleInstallDeps = React.useCallback(async () => {
-    if (!state.selectedRepo || !state.currentProject) return;
+    if (!selectedRepo || !currentProject) return;
     const installCmd = "pnpm install";
     await fetch("/api/system/command", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        repo: state.selectedRepo,
+        repo: selectedRepo,
         command: installCmd,
       }),
     });
-  }, [state]);
+  }, [selectedRepo, currentProject]);
 
   const handleBuildApp = React.useCallback(async () => {
-    if (!state.selectedRepo || !state.currentProject) return;
-    const buildCmd = state.currentProject.commands?.build || "pnpm build";
+    if (!selectedRepo || !currentProject) return;
+    const buildCmd = currentProject.commands?.build || "pnpm build";
     await fetch("/api/system/command", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        repo: state.selectedRepo,
+        repo: selectedRepo,
         command: buildCmd,
       }),
     });
-  }, [state]);
+  }, [selectedRepo, currentProject]);
   
   const requestEmbeddedCapture = React.useCallback(() => {
     if (window.electronAPI?.browserView) {
