@@ -7,7 +7,6 @@ import {
   Button,
 } from "@agelum/shadcn";
 import {
-  useSettings,
   UserSettings,
 } from "@/hooks/use-settings";
 import {
@@ -27,6 +26,7 @@ import { SettingsTests } from "./settings/SettingsTests";
 import { SettingsDefaults } from "./settings/SettingsDefaults";
 import { SettingsWorkflows } from "./settings/SettingsWorkflows";
 import { ProjectSettings } from "./settings/ProjectSettings";
+import { useHomeStore } from "@/store/useHomeStore";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -57,11 +57,12 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const {
     settings,
-    isLoading,
-    error,
+    isSettingsLoading: isLoading,
+    settingsError: error,
     updateSettings,
     resetSettings,
-  } = useSettings();
+  } = useHomeStore();
+
   const [
     localSettings,
     setLocalSettings,
@@ -150,7 +151,7 @@ export function SettingsDialog({
       onOpenChange(false);
       onSave?.();
     } catch (error) {
-      // Error is handled in the hook
+      // Error is handled in the store
     }
   };
 
@@ -159,7 +160,7 @@ export function SettingsDialog({
       await resetSettings();
       setHasChanges(false);
     } catch (error) {
-      // Error is handled in the hook
+      // Error is handled in the store
     }
   };
 

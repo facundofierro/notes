@@ -1,24 +1,11 @@
 import React from "react";
-import { Square, ArrowRight, Trash2, ChevronDown, ChevronRight } from "lucide-react";
-
-type AnnotationType = "modify" | "arrow" | "remove";
-
-interface Annotation {
-  id: number;
-  type: AnnotationType;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  endX?: number;
-  endY?: number;
-  prompt: string;
-}
+import { Square, ArrowRight, Trash2 } from "lucide-react";
+import { Annotation, AnnotationType } from "@/types/entities";
 
 interface AnnotationPromptListProps {
   annotations: Annotation[];
-  selectedAnnotationId: number | null;
-  onSelectAnnotation: (id: number) => void;
+  selectedAnnotationId: number | null | undefined;
+  onSelectAnnotation?: (id: number | null) => void;
   onUpdatePrompt: (id: number, prompt: string) => void;
   onDeleteAnnotation: (id: number) => void;
 }
@@ -30,25 +17,6 @@ export function AnnotationPromptList({
   onUpdatePrompt,
   onDeleteAnnotation,
 }: AnnotationPromptListProps) {
-  const [expandedIds, setExpandedIds] = React.useState<Set<number>>(new Set());
-
-  React.useEffect(() => {
-    // Auto-expand selected annotation
-    if (selectedAnnotationId !== null && !expandedIds.has(selectedAnnotationId)) {
-      setExpandedIds(new Set([...expandedIds, selectedAnnotationId]));
-    }
-  }, [selectedAnnotationId, expandedIds]);
-
-  const toggleExpand = (id: number) => {
-    const newExpanded = new Set(expandedIds);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedIds(newExpanded);
-  };
-
   const getTypeInfo = (type: AnnotationType) => {
     switch (type) {
       case "modify":
@@ -95,43 +63,20 @@ export function AnnotationPromptList({
       {annotations.map((ann) => {
         const typeInfo = getTypeInfo(ann.type);
         const Icon = typeInfo.icon;
-        const isExpanded = expandedIds.has(ann.id);
         const isSelected = selectedAnnotationId === ann.id;
 
         return (
           <div
             key={ann.id}
-            className={`border rounded-lg transition-all ${
+            className={`border rounded-lg transition-all cursor-pointer ${
               isSelected
                 ? `${typeInfo.borderColor} border-2 ${typeInfo.bgColor}`
-                : "border-border bg-secondary/20"
+                : "border-border bg-secondary/20 hover:bg-secondary/40"
             }`}
+            onClick={() => onSelectAnnotation?.(ann.id)}
           >
             {/* Header */}
-            <div
-              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-secondary/50 transition-colors"
-              onClick={() => {
-                onSelectAnnotation(ann.id);
-                if (!isExpanded) {
-                  toggleExpand(ann.id);
-                }
-              }}
-            >
-              {/* Expand/Collapse Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleExpand(ann.id);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-3 h-3" />
-                ) : (
-                  <ChevronRight className="w-3 h-3" />
-                )}
-              </button>
-
+            <div className="flex items-center gap-2 p-2">
               {/* Badge */}
               <div
                 className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${
@@ -162,21 +107,24 @@ export function AnnotationPromptList({
               </button>
             </div>
 
-            {/* Expanded Content */}
-            {isExpanded && (
+            {/* Prompt Area */}
+            {isSelected ? (
               <div className="px-2 pb-2 pt-1 border-t border-border/50">
                 <textarea
+                  autoFocus
                   className="w-full text-xs p-2 rounded border border-border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="Add instructions for this annotation..."
+                  placeholder="Add instructions..."
                   value={ann.prompt}
                   onChange={(e) => onUpdatePrompt(ann.id, e.target.value)}
                   rows={3}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
-            )}
+            ) : ann.prompt ? (
+              <div className="px-3 pb-2 text-[11px] text-muted-foreground line-clamp-2">
+                {ann.prompt}
+              </div>
+            ) : null}
           </div>
         );
       })}

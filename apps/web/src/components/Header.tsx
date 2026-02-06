@@ -17,43 +17,71 @@ import {
 import { AgelumNotesLogo } from "@agelum/shadcn";
 import { ProjectSelector } from "@/components/ProjectSelector";
 import { VIEW_MODE_CONFIG, ViewMode } from "@/lib/view-config";
+import { useHomeStore } from "@/store/useHomeStore";
 
-interface HeaderProps {
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
-  visibleItems: (ViewMode | "separator")[];
-  repositories: { name: string; path: string; folderConfigId?: string }[];
-  selectedRepo: string | null;
-  setSelectedRepo: (repo: string) => void;
-  isAppRunning: boolean;
-  handleStartApp: () => void;
-  handleStopApp: () => void;
-  isAppManaged: boolean;
-  handleRestartApp: () => void;
-  handleInstallDeps: () => void;
-  handleBuildApp: () => void;
-  setSettingsTab: (tab: any) => void;
-  setIsSettingsOpen: (open: boolean) => void;
-}
+export function Header() {
+  const store = useHomeStore();
+  const {
+    viewMode,
+    setViewMode,
+    selectedRepo,
+    setSelectedRepo,
+    repositories,
+    isAppRunning,
+    handleStartApp,
+    handleStopApp,
+    isAppManaged,
+    handleRestartApp,
+    setSettingsTab,
+    setIsSettingsOpen,
+    settings
+  } = store;
 
-export function Header({
-  viewMode,
-  setViewMode,
-  visibleItems,
-  repositories,
-  selectedRepo,
-  setSelectedRepo,
-  isAppRunning,
-  handleStartApp,
-  handleStopApp,
-  isAppManaged,
-  handleRestartApp,
-  handleInstallDeps,
-  handleBuildApp,
-  setSettingsTab,
-  setIsSettingsOpen,
-}: HeaderProps) {
   const [isAppActionsMenuOpen, setIsAppActionsMenuOpen] = React.useState(false);
+
+  const visibleItems = React.useMemo(() => {
+    const defaultItems: ViewMode[] = [
+      "ideas",
+      "docs",
+      "separator",
+      "epics",
+      "kanban",
+      "tests",
+      "review",
+      "separator",
+      "ai",
+      "logs",
+      "browser",
+    ];
+
+    if (!selectedRepo || !settings.projects) return defaultItems;
+    const project = settings.projects.find((p) => p.name === selectedRepo);
+    const workflowId = project?.workflowId || settings.defaultWorkflowId;
+    if (!workflowId) return defaultItems;
+    const workflow = settings.workflows?.find((w) => w.id === workflowId);
+    if (!workflow) return defaultItems;
+    return workflow.items as ViewMode[];
+  }, [selectedRepo, settings]);
+
+  const handleInstallDeps = React.useCallback(async () => {
+    if (!selectedRepo) return;
+    await fetch("/api/system/command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo: selectedRepo, command: "pnpm install" }),
+    });
+  }, [selectedRepo]);
+
+  const handleBuildApp = React.useCallback(async () => {
+    if (!selectedRepo) return;
+    const project = settings.projects?.find((p) => p.name === selectedRepo);
+    const buildCmd = project?.commands?.build || "pnpm build";
+    await fetch("/api/system/command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo: selectedRepo, command: buildCmd }),
+    });
+  }, [selectedRepo, settings.projects]);
 
   return (
     <div className="flex justify-between items-center px-4 py-2 border-b bg-secondary border-border">
@@ -109,7 +137,7 @@ export function Header({
             )}
             {!isAppRunning && (
               <button 
-                onClick={() => { /* needs openInteractiveTerminal which moved to WorkEditor */ }} 
+                onClick={() => { /* Terminal logic can be added to store if needed */ }} 
                 className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" 
                 title="Open Terminal"
               >
@@ -118,7 +146,7 @@ export function Header({
             )}
             {isAppRunning && isAppManaged && (
               <button 
-                onClick={() => { /* needs rightSidebarView update which moved to WorkEditor */ }} 
+                onClick={() => { setViewMode("logs"); }} 
                 className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors" 
                 title="View Logs"
               >

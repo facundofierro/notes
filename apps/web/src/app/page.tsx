@@ -12,119 +12,63 @@ import { AITab } from "@/components/tabs/AITab";
 import { LogsTab } from "@/components/tabs/LogsTab";
 import { BrowserTab } from "@/components/tabs/BrowserTab";
 import { Header } from "@/components/Header";
-import { useSettings } from "@/hooks/use-settings";
-import { VIEW_MODE_CONFIG, ViewMode } from "@/lib/view-config";
-import { useHomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
-import { WorkEditor } from "@/components/WorkEditor";
+import { useHomeStore } from "@/store/useHomeStore";
 
 export default function Home() {
-  const { settings } = useSettings();
-  const state = useHomeState();
-  const callbacks = useHomeCallbacks(state);
-
+  const store = useHomeStore();
   const {
-    repositories,
+    fetchSettings,
+    fetchRepositories,
     selectedRepo,
-    setSelectedRepo,
-    currentPath,
-    selectedFile,
-    setSelectedFile,
-    basePath,
     viewMode,
-    setViewMode,
-    testViewMode,
-    setTestViewMode,
-    testOutput,
-    isTestRunning,
-    workEditorEditing,
-    setWorkEditorEditing,
-    agentTools,
+    setSelectedFile,
     setAgentTools,
-    iframeUrl,
-    setIframeUrl,
-    isIframeInsecure,
-    setIsIframeInsecure,
+    setLogStreamPid,
+    setAppLogs,
+    currentPath,
+    repositories,
+    settings,
     projectConfig,
     setProjectConfig,
-    workDocIsDraft,
-    setWorkDocIsDraft,
+    setIsElectron,
     isSettingsOpen,
     setIsSettingsOpen,
     settingsTab,
-    setSettingsTab,
-    isAppRunning,
     setIsAppRunning,
-    isAppManaged,
     setIsAppManaged,
-    appPid,
     setAppPid,
-    appLogs,
-    setAppLogs,
+    logStreamPid,
     isAppStarting,
     setIsAppStarting,
-    logStreamPid,
-    setLogStreamPid,
-    currentProjectPath,
-    currentProjectConfig,
-    isElectron,
-    setIsElectron,
-    appLogsAbortControllerRef,
-    isScreenshotMode,
-    setIsScreenshotMode,
-  } = state;
+    appLogsAbortController,
+    setAppLogsAbortController,
+  } = store;
 
-  const {
-    fetchRepositories,
-    handleSettingsSave,
-    openWorkDraft,
-    handleStartApp,
-    handleStopApp,
-    handleRestartApp,
-    handleRunTest,
-    handleFileSelect,
-    handleTaskSelect,
-    handleEpicSelect,
-    handleIdeaSelect,
-    browserIframeRef,
-    handleInstallDeps,
-    handleBuildApp,
-    requestEmbeddedCapture,
-  } = callbacks;
+  const currentProjectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      settings.projects?.find((p) => p.name === selectedRepo)?.path ||
+      null
+    );
+  }, [repositories, selectedRepo, settings.projects]);
+
+  const currentProjectConfig = React.useMemo(() => {
+    return settings.projects?.find((p) => p.name === selectedRepo) || projectConfig || null;
+  }, [selectedRepo, settings.projects, projectConfig]);
+
+  // Initial data fetching
+  React.useEffect(() => {
+    fetchSettings();
+    fetchRepositories();
+  }, [fetchSettings, fetchRepositories]);
 
   // Detect Electron environment on mount
   React.useEffect(() => {
     setIsElectron(!!window.electronAPI?.browserView);
   }, [setIsElectron]);
 
-  const visibleItems = React.useMemo(() => {
-    const defaultItems: ViewMode[] = [
-      "ideas",
-      "docs",
-      "separator",
-      "epics",
-      "kanban",
-      "tests",
-      "review",
-      "separator",
-      "ai",
-      "logs",
-      "browser",
-    ];
-
-    if (!selectedRepo || !settings.projects) return defaultItems;
-    const project = settings.projects.find((p) => p.name === selectedRepo);
-    const workflowId = project?.workflowId || settings.defaultWorkflowId;
-    if (!workflowId) return defaultItems;
-    const workflow = settings.workflows?.find((w) => w.id === workflowId);
-    if (!workflow) return defaultItems;
-    return workflow.items;
-  }, [selectedRepo, settings]);
-
-  React.useEffect(() => {
-    fetchRepositories();
-  }, [fetchRepositories]);
-
+  // Fetch agent tools
   React.useEffect(() => {
     let cancelled = false;
     fetch("/api/agents?action=tools")
@@ -138,16 +82,16 @@ export default function Home() {
         if (cancelled) return;
         setAgentTools([]);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [setAgentTools]);
 
+  // Save selected repo to local storage
   React.useEffect(() => {
     if (!selectedRepo) return;
     window.localStorage.setItem("agelum.selectedRepo", selectedRepo);
   }, [selectedRepo]);
 
+  // Clear selected file on view or repo change
   React.useEffect(() => {
     setSelectedFile(null);
   }, [viewMode, selectedRepo, setSelectedFile]);
@@ -181,7 +125,7 @@ export default function Home() {
 
   // Refresh app status on project change or tab change to logs/browser
   const lastStatusRepoRef = React.useRef<string | null>(null);
-  const lastStatusViewModeRef = React.useRef<ViewMode | null>(null);
+  const lastStatusViewModeRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!selectedRepo) {
@@ -240,8 +184,8 @@ export default function Home() {
     let startTimeoutId: number | null = null;
 
     const streamLogs = async () => {
-      appLogsAbortControllerRef.current = new AbortController();
-      const ac = appLogsAbortControllerRef.current;
+      const ac = new AbortController();
+      setAppLogsAbortController(ac);
       try {
         const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, { signal: ac.signal });
         if (!res.ok || !res.body) {
@@ -289,135 +233,49 @@ export default function Home() {
     return () => {
       cancelled = true;
       if (startTimeoutId !== null) window.clearTimeout(startTimeoutId);
-      if (appLogsAbortControllerRef.current) {
-        appLogsAbortControllerRef.current.abort();
-        appLogsAbortControllerRef.current = null;
+      if (appLogsAbortController) {
+        appLogsAbortController.abort();
+        setAppLogsAbortController(null);
       }
     };
-  }, [logStreamPid, selectedRepo, currentProjectConfig?.url, isAppStarting, setAppLogs, setIsAppStarting, setIframeUrl, setViewMode, appLogsAbortControllerRef]);
+  }, [logStreamPid, selectedRepo, currentProjectConfig?.url, isAppStarting, setAppLogs, setIsAppStarting, appLogsAbortController, setAppLogsAbortController]);
 
-    return (
+  return (
+    <div className="flex flex-col w-full h-full">
+      <Header />
 
-      <div className="flex flex-col w-full h-full">
-
-        <Header
-
-          viewMode={viewMode}
-
-          setViewMode={setViewMode}
-
-          visibleItems={visibleItems}
-
-          repositories={repositories}
-
-          selectedRepo={selectedRepo}
-
-          setSelectedRepo={setSelectedRepo}
-
-          isAppRunning={isAppRunning}
-
-          handleStartApp={handleStartApp}
-
-          handleStopApp={handleStopApp}
-
-          isAppManaged={isAppManaged}
-
-          handleRestartApp={handleRestartApp}
-
-          handleInstallDeps={handleInstallDeps}
-
-          handleBuildApp={handleBuildApp}
-
-          setSettingsTab={setSettingsTab}
-
-          setIsSettingsOpen={setIsSettingsOpen}
-
-        />
-
-  
-
-        <div className="flex overflow-hidden flex-col flex-1">
-
-          <div className="flex overflow-hidden flex-1">
-
-            {viewMode === "docs" ? (
-
-              <DocsTab state={state} callbacks={callbacks} />
-
-            ) : viewMode === "ai" ? (
-
-              <AITab state={state} callbacks={callbacks} />
-
-            ) : viewMode === "tests" ? (
-
-              <TestsTab state={state} callbacks={callbacks} />
-
-            ) : viewMode === "ideas" ? (
-
-              <IdeasTab state={state} callbacks={callbacks} />
-
-            ) : viewMode === "epics" ? (
-
-              <EpicsTab state={state} callbacks={callbacks} />
-
-            ) : viewMode === "review" ? (
-
-              <ReviewTab state={state} callbacks={callbacks} />
-
-            ) : viewMode === "logs" ? (
-
-              <LogsTab state={state} />
-
-                        ) : viewMode === "browser" ? (
-
-                          <BrowserTab
-
-                            state={state}
-
-                            callbacks={callbacks}
-
-                          />
-
-                        ) : (
-
-            
-
-              <TasksTab state={state} callbacks={callbacks} />
-
-            )}
-
-          </div>
-
+      <div className="flex overflow-hidden flex-col flex-1">
+        <div className="flex overflow-hidden flex-1">
+          {viewMode === "docs" ? (
+            <DocsTab />
+          ) : viewMode === "ai" ? (
+            <AITab />
+          ) : viewMode === "tests" ? (
+            <TestsTab />
+          ) : viewMode === "ideas" ? (
+            <IdeasTab />
+          ) : viewMode === "epics" ? (
+            <EpicsTab />
+          ) : viewMode === "review" ? (
+            <ReviewTab />
+          ) : viewMode === "logs" ? (
+            <LogsTab />
+          ) : viewMode === "browser" ? (
+            <BrowserTab />
+          ) : (
+            <TasksTab />
+          )}
         </div>
-
-        <SettingsDialog
-
-          open={isSettingsOpen}
-
-          onOpenChange={setIsSettingsOpen}
-
-          onSave={handleSettingsSave}
-
-          initialTab={settingsTab}
-
-          projectName={selectedRepo || undefined}
-
-          projectPath={
-
-            selectedRepo
-
-              ? repositories.find((r) => r.name === selectedRepo)?.path
-
-              : undefined
-
-          }
-
-        />
-
       </div>
 
-    );
-
-  }
-
-  
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        onSave={fetchSettings}
+        initialTab={settingsTab}
+        projectName={selectedRepo || undefined}
+        projectPath={currentProjectPath || undefined}
+      />
+    </div>
+  );
+}

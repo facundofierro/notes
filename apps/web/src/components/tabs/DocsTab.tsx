@@ -1,8 +1,7 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import { WorkEditorTab } from "@/components/WorkEditorTab";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { useHomeStore } from "@/store/useHomeStore";
 
 interface FileNode {
   name: string;
@@ -12,15 +11,16 @@ interface FileNode {
   content?: string;
 }
 
-interface DocsTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
-}
-
-export function DocsTab({ state, callbacks }: DocsTabProps) {
-  const { selectedRepo, currentPath, basePath, selectedFile, setSelectedFile } =
-    state;
-  const { handleFileSelect } = callbacks;
+export function DocsTab() {
+  const { 
+    selectedRepo, 
+    currentPath, 
+    basePath, 
+    selectedFile, 
+    setSelectedFile,
+    handleFileSelect
+  } = useHomeStore();
+  
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
 
   const loadFileTree = React.useCallback(() => {
@@ -79,8 +79,6 @@ export function DocsTab({ state, callbacks }: DocsTabProps) {
       <div className="flex overflow-hidden flex-1 bg-background">
         {selectedFile ? (
           <WorkEditorTab
-            state={state}
-            callbacks={callbacks}
             onBack={onBack}
             onRename={handleRename}
             onRefresh={loadFileTree}

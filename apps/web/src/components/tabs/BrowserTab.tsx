@@ -2,19 +2,12 @@ import * as React from "react";
 import { Globe, ShieldAlert } from "lucide-react";
 import { BrowserRightPanel } from "@/components/BrowserRightPanel";
 import { IframeCaptureInjector } from "@/components/IframeCaptureInjector";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { ScreenshotViewer } from "@/components/ScreenshotViewer";
+import { useHomeStore } from "@/store/useHomeStore";
 import { toast } from "@agelum/shadcn";
 
-interface BrowserTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
-}
-
-export function BrowserTab({
-  state,
-  callbacks,
-}: BrowserTabProps) {
+export function BrowserTab() {
+  const store = useHomeStore();
   const {
     iframeUrl,
     setIframeUrl,
@@ -23,17 +16,37 @@ export function BrowserTab({
     isElectron,
     isScreenshotMode,
     setIsScreenshotMode,
+    screenshot,
+    setScreenshot,
+    annotations,
+    setAnnotations,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+    selectedTool,
+    setSelectedTool,
     selectedRepo,
     repositories,
     preservedIframeUrls,
     setPreservedIframeUrls,
-    currentProjectConfig,
-  } = state;
-  const { browserIframeRef, requestEmbeddedCapture } = callbacks;
+    settings,
+    projectConfig
+  } = store;
 
+  const currentProjectConfig = React.useMemo(() => {
+    return settings.projects?.find((p) => p.name === selectedRepo) || projectConfig || null;
+  }, [selectedRepo, settings.projects, projectConfig]);
+
+  const browserIframeRef = React.useRef<HTMLIFrameElement>(null);
   const browserViewPlaceholderRef = React.useRef<HTMLDivElement>(null);
   const electronLoadedUrlRef = React.useRef<string>("");
   const lastRestoredRepoRef = React.useRef<string | null>(null);
+
+  const requestEmbeddedCapture = React.useCallback(async () => {
+    if (window.electronAPI?.browserView) {
+      return window.electronAPI.browserView.capture();
+    }
+    return null;
+  }, []);
 
   // Restore or set initial URL when mounting or switching repo
   React.useEffect(() => {
@@ -150,48 +163,65 @@ export function BrowserTab({
       <div
         className="flex flex-1 bg-background overflow-hidden relative flex-col border-r border-border"
         id="browser-container"
-        style={{
-          display: isScreenshotMode ? "none" : "flex",
-        }}
       >
-        <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
-          <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
-            {isIframeInsecure ? (
-              <ShieldAlert className="w-3 h-3 text-destructive" title="Insecure connection (Certificate Error)" />
+        {!screenshot ? (
+          <>
+            <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
+              <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
+                {isIframeInsecure ? (
+                  <div title="Insecure connection (Certificate Error)">
+                    <ShieldAlert className="w-3 h-3 text-destructive" />
+                  </div>
+                ) : (
+                  <Globe className="w-3 h-3 text-muted-foreground" />
+                )}
+                <input
+                  type="text"
+                  value={iframeUrl}
+                  onChange={(e) => setIframeUrl(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"
+                  placeholder="Enter URL..."
+                />
+              </div>
+            </div>
+            {isElectron ? (
+              <div ref={browserViewPlaceholderRef} className="flex-1 w-full bg-white">
+                {!iframeUrl && (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Enter a URL to preview the application
+                  </div>
+                )}
+              </div>
+            ) : iframeUrl ? (
+              <iframe
+                src={iframeUrl}
+                ref={browserIframeRef}
+                className="flex-1 w-full border-none bg-white"
+                title="App Browser"
+                allow="camera; microphone; display-capture"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+              />
             ) : (
-              <Globe className="w-3 h-3 text-muted-foreground" />
-            )}
-            <input
-              type="text"
-              value={iframeUrl}
-              onChange={(e) => setIframeUrl(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"
-              placeholder="Enter URL..."
-            />
-          </div>
-        </div>
-        {isElectron ? (
-          <div ref={browserViewPlaceholderRef} className="flex-1 w-full bg-white">
-            {!iframeUrl && (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
                 Enter a URL to preview the application
               </div>
             )}
-          </div>
-        ) : iframeUrl ? (
-          <iframe
-            src={iframeUrl}
-            ref={browserIframeRef}
-            className="flex-1 w-full border-none bg-white"
-            title="App Browser"
-            allow="camera; microphone; display-capture"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
-          />
+          </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Enter a URL to preview the application
-          </div>
+          <ScreenshotViewer
+            screenshot={screenshot}
+            annotations={annotations}
+            onAnnotationsChange={setAnnotations}
+            selectedAnnotationId={selectedAnnotationId}
+            onSelectAnnotation={setSelectedAnnotationId}
+            onClose={() => {
+              setScreenshot(null);
+              setIsScreenshotMode(false);
+            }}
+            selectedTool={selectedTool}
+            onToolSelect={setSelectedTool}
+          />
         )}
       </div>
       {!isElectron && <IframeCaptureInjector iframeRef={browserIframeRef} />}
@@ -207,7 +237,16 @@ export function BrowserTab({
         electronBrowserView={
           isElectron ? window.electronAPI!.browserView : undefined
         }
+        isScreenshotMode={isScreenshotMode}
         onScreenshotModeChange={setIsScreenshotMode}
+        screenshot={screenshot}
+        onScreenshotChange={setScreenshot}
+        annotations={annotations}
+        onAnnotationsChange={setAnnotations}
+        selectedAnnotationId={selectedAnnotationId}
+        onSelectAnnotation={setSelectedAnnotationId}
+        selectedTool={selectedTool}
+        onToolSelect={setSelectedTool}
         onTaskCreated={() => {}}
       />
     </div>

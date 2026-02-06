@@ -2,12 +2,9 @@
 
 import * as React from "react";
 import { WorkEditor } from "./WorkEditor";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { useHomeStore } from "@/store/useHomeStore";
 
 interface WorkEditorTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
   onBack: () => void;
   onRename?: (
     newTitle: string,
@@ -16,8 +13,6 @@ interface WorkEditorTabProps {
 }
 
 export function WorkEditorTab({
-  state,
-  callbacks,
   onBack,
   onRename,
   onRefresh,
@@ -36,9 +31,8 @@ export function WorkEditorTab({
     setTestViewMode,
     testOutput,
     isTestRunning,
-  } = state;
-
-  const { handleRunTest } = callbacks;
+    handleRunTest,
+  } = useHomeStore();
 
   if (!selectedFile) return null;
 

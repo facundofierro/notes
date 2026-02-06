@@ -1,17 +1,16 @@
 import * as React from "react";
 import TaskKanban from "@/components/TaskKanban";
 import { WorkEditorTab } from "@/components/WorkEditorTab";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { useHomeStore } from "@/store/useHomeStore";
 
-interface TasksTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
-}
-
-export function TasksTab({ state, callbacks }: TasksTabProps) {
-  const { selectedRepo, selectedFile, setSelectedFile } = state;
-  const { handleTaskSelect, openWorkDraft } = callbacks;
+export function TasksTab() {
+  const { 
+    selectedRepo, 
+    selectedFile, 
+    setSelectedFile, 
+    handleTaskSelect, 
+    openWorkDraft 
+  } = useHomeStore();
 
   const onBack = () => setSelectedFile(null);
 
@@ -42,8 +41,6 @@ export function TasksTab({ state, callbacks }: TasksTabProps) {
     <div className="flex-1 bg-background">
       {selectedFile ? (
         <WorkEditorTab
-          state={state}
-          callbacks={callbacks}
           onBack={onBack}
           onRename={onRename}
         />

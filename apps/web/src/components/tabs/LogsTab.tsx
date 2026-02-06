@@ -1,18 +1,14 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { HomeState } from "@/hooks/useHomeState";
+import { useHomeStore } from "@/store/useHomeStore";
 
 const TerminalViewer = dynamic(
   () => import("@/components/TerminalViewer").then((mod) => mod.TerminalViewer),
   { ssr: false },
 );
 
-interface LogsTabProps {
-  state: HomeState;
-}
-
-export function LogsTab({ state }: LogsTabProps) {
-  const { appLogs, isAppStarting, appPid, isAppRunning } = state;
+export function LogsTab() {
+  const { appLogs, isAppStarting, appPid, isAppRunning } = useHomeStore();
 
   const handleInput = React.useCallback(
     (data: string) => {

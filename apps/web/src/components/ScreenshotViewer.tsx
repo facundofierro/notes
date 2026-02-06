@@ -1,19 +1,6 @@
 import React, { useRef } from "react";
 import { Square, Trash2, ArrowRight, X, CheckCircle2 } from "lucide-react";
-
-type AnnotationType = "modify" | "arrow" | "remove";
-
-export interface Annotation {
-  id: number;
-  type: AnnotationType;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  endX?: number;
-  endY?: number;
-  prompt: string;
-}
+import { Annotation, AnnotationType } from "@/types/entities";
 
 interface ScreenshotViewerProps {
   screenshot: string;
@@ -129,11 +116,51 @@ export function ScreenshotViewer({
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-secondary/50 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground">Screenshot</h3>
+      <div className="flex items-center justify-between px-4 py-2 bg-secondary/50 border-b border-border">
+        <div className="flex items-center gap-4">
+          <h3 className="text-sm font-medium text-foreground">Screenshot</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onToolSelect("modify")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+                selectedTool === "modify"
+                  ? "bg-orange-500/20 border-orange-500 text-orange-600"
+                  : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
+              }`}
+              title="Modify - Draw a box around content to change"
+            >
+              <Square className="w-3 h-3" />
+              <span>Modify</span>
+            </button>
+            <button
+              onClick={() => onToolSelect("arrow")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+                selectedTool === "arrow"
+                  ? "bg-blue-500/20 border-blue-500 text-blue-600"
+                  : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
+              }`}
+              title="Arrow - Draw an arrow to point"
+            >
+              <ArrowRight className="w-3 h-3" />
+              <span>Arrow</span>
+            </button>
+            <button
+              onClick={() => onToolSelect("remove")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+                selectedTool === "remove"
+                  ? "bg-red-500/20 border-red-500 text-red-600"
+                  : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
+              }`}
+              title="Remove - Mark content to delete"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Remove</span>
+            </button>
+          </div>
+        </div>
         <button
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors p-1 hover:bg-secondary rounded-full"
         >
           <X className="w-4 h-4" />
         </button>
@@ -152,7 +179,7 @@ export function ScreenshotViewer({
             ref={screenshotImageRef}
             src={screenshot}
             alt="Screenshot"
-            className="max-w-full max-h-[calc(100vh-280px)] w-auto h-auto block"
+            className="max-w-full max-h-full w-auto h-auto block"
             draggable={false}
           />
 
@@ -289,48 +316,6 @@ export function ScreenshotViewer({
             }
             return null;
           })}
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-secondary/50 border-t border-border flex-wrap">
-        <div className="flex gap-2">
-          <button
-            onClick={() => onToolSelect("modify")}
-            className={`flex items-center gap-1 px-3 py-2 rounded border text-xs transition-all ${
-              selectedTool === "modify"
-                ? "bg-orange-500/20 border-orange-500 text-orange-600"
-                : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
-            }`}
-            title="Modify - Draw a box around content to change"
-          >
-            <Square className="w-3 h-3" />
-            <span>Modify</span>
-          </button>
-          <button
-            onClick={() => onToolSelect("arrow")}
-            className={`flex items-center gap-1 px-3 py-2 rounded border text-xs transition-all ${
-              selectedTool === "arrow"
-                ? "bg-blue-500/20 border-blue-500 text-blue-600"
-                : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
-            }`}
-            title="Arrow - Draw an arrow to point"
-          >
-            <ArrowRight className="w-3 h-3" />
-            <span>Arrow</span>
-          </button>
-          <button
-            onClick={() => onToolSelect("remove")}
-            className={`flex items-center gap-1 px-3 py-2 rounded border text-xs transition-all ${
-              selectedTool === "remove"
-                ? "bg-red-500/20 border-red-500 text-red-600"
-                : "bg-background border-border text-muted-foreground hover:bg-secondary/50"
-            }`}
-            title="Remove - Mark content to delete"
-          >
-            <Trash2 className="w-3 h-3" />
-            <span>Remove</span>
-          </button>
         </div>
       </div>
     </div>

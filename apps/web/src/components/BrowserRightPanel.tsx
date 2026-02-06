@@ -10,10 +10,10 @@ import {
   Code,
   History,
 } from "lucide-react";
-import { ScreenshotViewer } from "./ScreenshotViewer";
 import { AnnotationPromptList } from "./AnnotationPromptList";
 import dynamic from "next/dynamic";
 import type { EditorProps } from "@monaco-editor/react";
+import { Annotation, AnnotationType } from "@/types/entities";
 
 interface BrowserRightPanelProps {
   repo: string;
@@ -22,23 +22,19 @@ interface BrowserRightPanelProps {
   projectPath?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   electronBrowserView?: ElectronBrowserViewAPI;
+  isScreenshotMode?: boolean;
   onScreenshotModeChange?: (isActive: boolean) => void;
+  screenshot?: string | null;
+  onScreenshotChange?: (screenshot: string | null) => void;
+  annotations?: Annotation[];
+  onAnnotationsChange?: (annotations: Annotation[]) => void;
+  selectedAnnotationId?: number | null;
+  onSelectAnnotation?: (id: number | null) => void;
+  selectedTool?: AnnotationType | null;
+  onToolSelect?: (tool: AnnotationType | null) => void;
 }
 
 type Mode = "screen" | "properties" | "prompt";
-type AnnotationType = "modify" | "arrow" | "remove";
-
-interface Annotation {
-  id: number;
-  type: AnnotationType;
-  x: number;
-  y: number;
-  width?: number; // for modify and remove
-  height?: number; // for modify and remove
-  endX?: number; // for arrow
-  endY?: number; // for arrow
-  prompt: string;
-}
 
 interface ChangeEntry {
   id: string;
@@ -137,16 +133,22 @@ export function BrowserRightPanel({
   projectPath,
   iframeRef,
   electronBrowserView,
+  isScreenshotMode,
   onScreenshotModeChange,
+  screenshot,
+  onScreenshotChange,
+  annotations = [],
+  onAnnotationsChange,
+  selectedAnnotationId,
+  onSelectAnnotation,
+  selectedTool,
+  onToolSelect,
 }: BrowserRightPanelProps) {
   const [mode, setMode] = useState<Mode>("screen");
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [selectedTool, setSelectedTool] = useState<AnnotationType | null>(null);
+  
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [nextId, setNextId] = useState(1);
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<number | null>(null);
   const [showAnnotationModal, setShowAnnotationModal] = useState(false);
   
   // Ref for the image container to calculate relative coordinates
@@ -183,10 +185,10 @@ export function BrowserRightPanel({
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const resetScreenState = () => {
-    setScreenshot(null);
-    setAnnotations([]);
-    setSelectedTool(null);
-    setSelectedAnnotationId(null);
+    onScreenshotChange?.(null);
+    onAnnotationsChange?.([]);
+    onToolSelect?.(null);
+    onSelectAnnotation?.(null);
     setNextId(1);
     setIsDrawing(false);
     setStartPos({ x: 0, y: 0 });
@@ -466,10 +468,10 @@ export function BrowserRightPanel({
       if (onRequestCapture) {
         const directCapture = await onRequestCapture();
         if (directCapture) {
-          setScreenshot(directCapture);
-          setAnnotations([]);
+          onScreenshotChange?.(directCapture);
+          onAnnotationsChange?.([]);
           setNextId(1);
-          setSelectedAnnotationId(null);
+          onSelectAnnotation?.(null);
           onScreenshotModeChange?.(true);
           return;
         }
@@ -491,15 +493,15 @@ export function BrowserRightPanel({
       ctx?.drawImage(bitmap, 0, 0);
       
       const dataUrl = canvas.toDataURL('image/png');
-      setScreenshot(dataUrl);
+      onScreenshotChange?.(dataUrl);
       
       // Stop sharing
       track.stop();
       
       // Reset state
-      setAnnotations([]);
+      onAnnotationsChange?.([]);
       setNextId(1);
-      setSelectedAnnotationId(null);
+      onSelectAnnotation?.(null);
       onScreenshotModeChange?.(true);
       
     } catch (err) {
@@ -925,10 +927,8 @@ export function BrowserRightPanel({
   };
 
   const handleDeleteAnnotation = (id: number) => {
-    setAnnotations((prev) =>
-      prev.filter((a) => a.id !== id),
-    );
-    if (selectedAnnotationId === id) setSelectedAnnotationId(null);
+    onAnnotationsChange?.(annotations.filter((a) => a.id !== id));
+    if (selectedAnnotationId === id) onSelectAnnotation?.(null);
   };
 
   const handleCreateTask = async () => {
@@ -1279,35 +1279,6 @@ export function BrowserRightPanel({
   const isTabDisabled = (nextMode: Mode) =>
     nextMode !== mode && isModeLocked;
 
-  // Show screenshot viewer if screenshot is active
-  if (screenshot) {
-    return (
-      <div className="flex flex-col h-full bg-background border-l border-border w-[300px]">
-        <ScreenshotViewer
-          screenshot={screenshot}
-          annotations={annotations}
-          onAnnotationsChange={setAnnotations}
-          selectedAnnotationId={selectedAnnotationId}
-          onSelectAnnotation={setSelectedAnnotationId}
-          onClose={resetScreenState}
-          selectedTool={selectedTool}
-          onToolSelect={setSelectedTool}
-        />
-        {/* Footer Action */}
-        <div className="p-4 border-t border-border bg-secondary/10">
-          <button
-            onClick={handleCreateTask}
-            disabled={isCreatingTask}
-            className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isCreatingTask ? "Creating..." : "Create Task"}
-            {!isCreatingTask && <CheckCircle2 className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-background border-l border-border w-[300px]">
       {/* Tabs */}
@@ -1357,9 +1328,9 @@ export function BrowserRightPanel({
               <AnnotationPromptList
                 annotations={annotations}
                 selectedAnnotationId={selectedAnnotationId}
-                onSelectAnnotation={setSelectedAnnotationId}
+                onSelectAnnotation={onSelectAnnotation}
                 onUpdatePrompt={(id, prompt) => {
-                  setAnnotations(annotations.map(a => a.id === id ? { ...a, prompt } : a));
+                  onAnnotationsChange?.(annotations.map(a => a.id === id ? { ...a, prompt } : a));
                 }}
                 onDeleteAnnotation={handleDeleteAnnotation}
               />

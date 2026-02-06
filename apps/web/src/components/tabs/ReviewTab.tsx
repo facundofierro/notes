@@ -2,8 +2,7 @@ import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
 import { AIRightSidebar } from "@/components/AIRightSidebar";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { useHomeStore } from "@/store/useHomeStore";
 import { 
   Folder, 
   GitBranch, 
@@ -12,8 +11,7 @@ import {
   X, 
   Layers, 
   Search,
-  ChevronRight,
-  Sparkles
+  ChevronRight
 } from "lucide-react";
 
 interface FileNode {
@@ -24,11 +22,6 @@ interface FileNode {
   content?: string;
 }
 
-interface ReviewTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
-}
-
 type LeftSidebarView = "files" | "changes" | "prs";
 
 interface TabItem {
@@ -37,7 +30,7 @@ interface TabItem {
   icon?: any;
 }
 
-export function ReviewTab({ state, callbacks }: ReviewTabProps) {
+export function ReviewTab() {
   const { 
     selectedRepo, 
     currentPath, 
@@ -49,9 +42,12 @@ export function ReviewTab({ state, callbacks }: ReviewTabProps) {
     workDocIsDraft,
     testViewMode,
     testOutput,
-    isTestRunning
-  } = state;
-  const { handleFileSelect, handleRunTest } = callbacks;
+    isTestRunning,
+    handleFileSelect,
+    handleRunTest,
+    saveFile
+  } = useHomeStore();
+
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [leftSidebarView, setLeftSidebarView] = React.useState<LeftSidebarView>("files");
   const [tabs, setTabs] = React.useState<TabItem[]>([
@@ -74,19 +70,9 @@ export function ReviewTab({ state, callbacks }: ReviewTabProps) {
     loadFileTree();
   }, [loadFileTree]);
 
-  const handleSaveFile = async ({ content }: { content: string }) => {
-    if (!selectedRepo || !selectedFile) return;
-    const res = await fetch("/api/files", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        repo: selectedRepo,
-        path: selectedFile.path,
-        content,
-      }),
-    });
-    if (!res.ok) throw new Error("Failed to save file");
-    setSelectedFile({ ...selectedFile, content });
+  const handleSaveFileShim = async ({ content }: { content: string }) => {
+    if (!selectedFile) return;
+    await saveFile({ path: selectedFile.path, content });
   };
 
   const removeTab = (e: React.MouseEvent, id: string) => {
@@ -252,7 +238,7 @@ export function ReviewTab({ state, callbacks }: ReviewTabProps) {
             <div className="flex flex-col h-full">
                <FileViewer
                   file={selectedFile}
-                  onSave={handleSaveFile}
+                  onSave={handleSaveFileShim}
                   onFileSaved={loadFileTree}
                />
             </div>

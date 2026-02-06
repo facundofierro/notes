@@ -1,17 +1,16 @@
 import * as React from "react";
 import EpicsKanban from "@/components/EpicsKanban";
 import { WorkEditorTab } from "@/components/WorkEditorTab";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { useHomeStore } from "@/store/useHomeStore";
 
-interface EpicsTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
-}
-
-export function EpicsTab({ state, callbacks }: EpicsTabProps) {
-  const { selectedRepo, selectedFile, setSelectedFile } = state;
-  const { handleEpicSelect, openWorkDraft } = callbacks;
+export function EpicsTab() {
+  const { 
+    selectedRepo, 
+    selectedFile, 
+    setSelectedFile,
+    handleEpicSelect,
+    openWorkDraft
+  } = useHomeStore();
 
   const onBack = () => setSelectedFile(null);
 
@@ -42,8 +41,6 @@ export function EpicsTab({ state, callbacks }: EpicsTabProps) {
     <div className="flex-1 bg-background">
       {selectedFile ? (
         <WorkEditorTab
-          state={state}
-          callbacks={callbacks}
           onBack={onBack}
           onRename={onRename}
         />

@@ -1,8 +1,8 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import { WorkEditorTab } from "@/components/WorkEditorTab";
-import { HomeState } from "@/hooks/useHomeState";
-import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
+import { useHomeStore } from "@/store/useHomeStore";
+import { TestsSetupStatus } from "@/types/entities";
 
 interface FileNode {
   name: string;
@@ -12,31 +12,17 @@ interface FileNode {
   content?: string;
 }
 
-type TestsSetupState =
-  | "missing"
-  | "initializing"
-  | "installing"
-  | "ready"
-  | "error";
+export function TestsTab() {
+  const { 
+    selectedRepo, 
+    currentPath, 
+    basePath, 
+    selectedFile, 
+    setSelectedFile,
+    handleFileSelect,
+    handleRunTest
+  } = useHomeStore();
 
-interface TestsSetupStatus {
-  state: TestsSetupState;
-  startedAt?: string;
-  updatedAt: string;
-  pid?: number;
-  log: string;
-  error?: string;
-}
-
-interface TestsTabProps {
-  state: HomeState;
-  callbacks: ReturnType<typeof useHomeCallbacks>;
-}
-
-export function TestsTab({ state, callbacks }: TestsTabProps) {
-  const { selectedRepo, currentPath, basePath, selectedFile, setSelectedFile } =
-    state;
-  const { handleFileSelect, handleRunTest } = callbacks;
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [testsSetupStatus, setTestsSetupStatus] =
     React.useState<TestsSetupStatus | null>(null);
@@ -207,8 +193,6 @@ export function TestsTab({ state, callbacks }: TestsTabProps) {
           !isSetupLogsVisible) &&
           (selectedFile ? (
             <WorkEditorTab
-              state={state}
-              callbacks={callbacks}
               onBack={onBack}
               onRename={handleRename}
               onRefresh={loadFileTree}
