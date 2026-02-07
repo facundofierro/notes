@@ -102,6 +102,27 @@ function getOrCreateBrowserView(win) {
     }
   });
 
+  // Setup debugger for network logs
+  try {
+    wc.debugger.attach("1.3");
+    wc.debugger.on("message", (event, method, params) => {
+      if (!win.isDestroyed()) {
+        if (method === "Network.requestWillBeSent") {
+          win.webContents.send("browser-view:network-request", params);
+        } else if (method === "Network.responseReceived") {
+          win.webContents.send("browser-view:network-response", params);
+        } else if (method === "Network.loadingFinished") {
+          win.webContents.send("browser-view:network-finished", params);
+        } else if (method === "Network.loadingFailed") {
+          win.webContents.send("browser-view:network-failed", params);
+        }
+      }
+    });
+    wc.debugger.sendCommand("Network.enable");
+  } catch (err) {
+    console.error("Failed to attach debugger:", err);
+  }
+
   return entry;
 }
 

@@ -227,9 +227,59 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       });
     });
 
+    const unsubRequest = api.onNetworkRequest((params: any) => {
+      setProjectStateForRepo(repoName, (prev) => {
+        const newLog = {
+          requestId: params.requestId,
+          method: params.request.method,
+          url: params.request.url,
+          timestamp: params.wallTime * 1000,
+          finished: false,
+        };
+        // Keep only last 100 logs
+        const logs = [...prev.networkLogs, newLog].slice(-100);
+        return { networkLogs: logs };
+      });
+    });
+
+    const unsubResponse = api.onNetworkResponse((params: any) => {
+      setProjectStateForRepo(repoName, (prev) => ({
+        networkLogs: prev.networkLogs.map((log) =>
+          log.requestId === params.requestId
+            ? {
+                ...log,
+                status: params.response.status,
+                type: params.type,
+                size: params.response.encodedDataLength,
+              }
+            : log
+        ),
+      }));
+    });
+
+    const unsubFinished = api.onNetworkFinished((params: any) => {
+      setProjectStateForRepo(repoName, (prev) => ({
+        networkLogs: prev.networkLogs.map((log) =>
+          log.requestId === params.requestId ? { ...log, finished: true } : log
+        ),
+      }));
+    });
+
+    const unsubNetworkFail = api.onNetworkFailed((params: any) => {
+      setProjectStateForRepo(repoName, (prev) => ({
+        networkLogs: prev.networkLogs.map((log) =>
+          log.requestId === params.requestId ? { ...log, finished: true, status: 0 } : log
+        ),
+      }));
+    });
+
     return () => {
       unsubNav();
       unsubFail();
+      unsubRequest();
+      unsubResponse();
+      unsubFinished();
+      unsubNetworkFail();
     };
   }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
 

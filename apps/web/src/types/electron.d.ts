@@ -27,6 +27,14 @@ declare global {
     onLoadingChanged: (callback: (loading: boolean) => void) => () => void;
     /** Listen for load failures. Returns an unsubscribe function. */
     onLoadFailed: (callback: (url: string, errorDescription: string, errorCode: number) => void) => () => void;
+    /** Listen for network requests. Returns an unsubscribe function. */
+    onNetworkRequest: (callback: (params: any) => void) => () => void;
+    /** Listen for network responses. Returns an unsubscribe function. */
+    onNetworkResponse: (callback: (params: any) => void) => () => void;
+    /** Listen for network finished. Returns an unsubscribe function. */
+    onNetworkFinished: (callback: (params: any) => void) => () => void;
+    /** Listen for network failed. Returns an unsubscribe function. */
+    onNetworkFailed: (callback: (params: any) => void) => () => void;
   }
 
   interface ElectronAPI {

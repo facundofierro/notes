@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { ViewMode } from "@/lib/view-config";
 import { UserSettings } from "@/hooks/use-settings";
-import { Annotation, AnnotationType, TestsSetupStatus } from "@/types/entities";
+import { Annotation, AnnotationType, TestsSetupStatus, NetworkLog } from "@/types/entities";
 import { inferTestExecutionStatus } from "@/lib/test-output";
 
 export interface TerminalState {
@@ -41,6 +41,7 @@ export interface ProjectState {
   annotations: Annotation[];
   selectedAnnotationId: number | null;
   selectedTool: AnnotationType | null;
+  networkLogs: NetworkLog[];
   workEditorEditing: boolean;
   workDocIsDraft: boolean;
   terminals: TerminalState[];
@@ -72,6 +73,7 @@ const createDefaultProjectState = (): ProjectState => ({
   annotations: [],
   selectedAnnotationId: null,
   selectedTool: null,
+  networkLogs: [],
   workEditorEditing: false,
   workDocIsDraft: false,
   terminals: [],
@@ -115,6 +117,7 @@ export interface HomeState {
   setSettingsTab: (tab: any) => void;
   setAppLogs: (updater: string | ((prev: string) => string)) => void;
   setIframeUrl: (url: string) => void;
+  clearNetworkLogs: () => void;
   addTerminal: (terminal: TerminalState) => void;
   removeTerminal: (id: string) => void;
   setActiveTerminalId: (id: string) => void;
@@ -232,6 +235,7 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   setViewMode: (viewMode) => get().setProjectState(() => ({ viewMode })),
   setSelectedFile: (selectedFile) => get().setProjectState(() => ({ selectedFile })),
   setIframeUrl: (iframeUrl) => get().setProjectState(() => ({ iframeUrl })),
+  clearNetworkLogs: () => get().setProjectState(() => ({ networkLogs: [] })),
   setIsSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
   setSettingsTab: (settingsTab) => set({ settingsTab }),
   setAppLogs: (updater) => {

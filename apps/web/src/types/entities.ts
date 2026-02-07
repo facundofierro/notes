@@ -81,3 +81,15 @@ export interface Annotation {
   endY?: number;
   prompt: string;
 }
+
+export interface NetworkLog {
+  requestId: string;
+  method: string;
+  url: string;
+  status?: number;
+  type?: string;
+  size?: number;
+  timestamp: number;
+  duration?: number;
+  finished: boolean;
+}

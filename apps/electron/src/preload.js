@@ -49,5 +49,29 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () =>
         ipcRenderer.removeListener("browser-view:load-failed", handler);
     },
+    onNetworkRequest: (callback) => {
+      const handler = (_event, params) => callback(params);
+      ipcRenderer.on("browser-view:network-request", handler);
+      return () =>
+        ipcRenderer.removeListener("browser-view:network-request", handler);
+    },
+    onNetworkResponse: (callback) => {
+      const handler = (_event, params) => callback(params);
+      ipcRenderer.on("browser-view:network-response", handler);
+      return () =>
+        ipcRenderer.removeListener("browser-view:network-response", handler);
+    },
+    onNetworkFinished: (callback) => {
+      const handler = (_event, params) => callback(params);
+      ipcRenderer.on("browser-view:network-finished", handler);
+      return () =>
+        ipcRenderer.removeListener("browser-view:network-finished", handler);
+    },
+    onNetworkFailed: (callback) => {
+      const handler = (_event, params) => callback(params);
+      ipcRenderer.on("browser-view:network-failed", handler);
+      return () =>
+        ipcRenderer.removeListener("browser-view:network-failed", handler);
+    },
   },
 });
