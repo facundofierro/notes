@@ -388,7 +388,7 @@ Cancelled` : "Cancelled");
     <div className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${ isWide ? "w-[50%]" : "w-[360px]" } ${className}`}>
         {/* Terminal View */}
         <div className={`flex overflow-hidden flex-col flex-1 h-full ${ rightSidebarView === "terminal" ? "" : "hidden" }`}>
-          <div className="flex-1 min-h-0 bg-black">
+          <div className="flex-1 min-h-0 bg-black relative">
             {terminalOutput || isTerminalRunning ? (
               <TerminalViewer 
                 output={terminalOutput || "Initializing..."} 

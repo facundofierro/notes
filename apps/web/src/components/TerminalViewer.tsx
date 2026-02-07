@@ -60,6 +60,7 @@ export function TerminalViewer({
       },
       convertEol: true, // Treat \n as \r\n
       disableStdin: false, // Allow input
+      scrollback: 10000,
     });
 
     term.onData((data) => {
@@ -73,20 +74,26 @@ export function TerminalViewer({
     
     // Initial fit
     setTimeout(() => {
-      fitAddon.fit();
-      if (onResizeRef.current) {
-        onResizeRef.current(term.cols, term.rows);
+      if (fitAddonRef.current && terminalRef.current) {
+        fitAddonRef.current.fit();
+        terminalRef.current.scrollToBottom();
+        if (onResizeRef.current) {
+          onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+        }
       }
-    }, 0);
+    }, 100);
 
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
 
     // Handle window resize
     const handleResize = () => {
-      fitAddon.fit();
-      if (onResizeRef.current) {
-        onResizeRef.current(term.cols, term.rows);
+      if (fitAddonRef.current && terminalRef.current) {
+        fitAddonRef.current.fit();
+        terminalRef.current.scrollToBottom();
+        if (onResizeRef.current) {
+          onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+        }
       }
     };
     window.addEventListener(
@@ -125,7 +132,9 @@ export function TerminalViewer({
       writtenLengthRef.current,
     );
     if (newContent) {
-      term.write(newContent);
+      term.write(newContent, () => {
+        term.scrollToBottom();
+      });
       writtenLengthRef.current =
         output.length;
     }
@@ -137,6 +146,7 @@ export function TerminalViewer({
       () => {
         if (fitAddonRef.current && terminalRef.current) {
           fitAddonRef.current.fit();
+          terminalRef.current.scrollToBottom();
           if (onResizeRef.current) {
             onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
           }
@@ -155,7 +165,7 @@ export function TerminalViewer({
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full ${className || ""}`}
+      className={`h-full w-full overflow-hidden relative ${className || ""}`}
       style={{ minHeight: "100px" }}
     />
   );
