@@ -315,9 +315,13 @@ export function SettingsWorkflows({
   const WorkflowPreview = ({
     items,
     isActive = false,
+    onItemClick,
+    currentDefaultView,
   }: {
     items: string[];
     isActive?: boolean;
+    onItemClick?: (mode: string) => void;
+    currentDefaultView?: string;
   }) => (
     <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border flex-wrap">
       {items.length > 0 ? (
@@ -335,15 +339,21 @@ export function SettingsWorkflows({
           if (!config) return null;
           const Icon = config.icon;
           const isItemActive =
-            index === 0 && isActive;
+            isActive && currentDefaultView === mode;
           return (
             <div
               key={`${mode}-${index}`}
+              onClick={(e) => {
+                if (onItemClick) {
+                  e.stopPropagation();
+                  onItemClick(mode);
+                }
+              }}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
                 isItemActive
                   ? "bg-amber-500/15 text-amber-500 border border-amber-500/20"
-                  : "text-muted-foreground border border-transparent"
-              }`}
+                  : "text-muted-foreground border border-transparent hover:bg-white/5"
+              } ${onItemClick ? "cursor-pointer" : ""}`}
             >
               <Icon className="w-4 h-4" />
               {config.label}
@@ -382,10 +392,10 @@ export function SettingsWorkflows({
           </Label>
           <div className="flex justify-center items-center p-4 bg-background border border-border rounded-xl">
             <WorkflowPreview
-              items={selectedItems.map(
-                (i) => i.type,
-              )}
+              items={selectedItems.map((i) => i.type)}
               isActive={true}
+              currentDefaultView={settings.defaultView}
+              onItemClick={(mode) => onChange("defaultView", mode)}
             />
           </div>
         </div>
@@ -667,10 +677,13 @@ export function SettingsWorkflows({
 
                 <div className="flex justify-start">
                   <WorkflowPreview
-                    items={
-                      workflow.items
-                    }
+                    items={workflow.items}
                     isActive={isActive}
+                    currentDefaultView={settings.defaultView}
+                    onItemClick={(mode) => {
+                      handleSelectWorkflow(workflow.id);
+                      onChange("defaultView", mode);
+                    }}
                   />
                 </div>
 

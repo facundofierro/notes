@@ -28,7 +28,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     selectedTool,
     projectConfig,
     activeBrowserPageIndex,
-    browserPagesCurrentUrls,
+    browserPagesCurrentUrls = [],
     viewMode,
   } = projectState;
 
@@ -196,14 +196,16 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   const lastLoadedElectronUrlRef = React.useRef<string | null>(null);
 
   // Load URL in the Electron WebContentsView when iframeUrl changes
+  // Only load when the browser tab is actually visible to avoid connection errors
+  // for apps that haven't started yet.
   React.useEffect(() => {
-    if (!isElectron || !isSelected || !iframeUrl) return;
+    if (!isElectron || !isBrowserVisible || !iframeUrl) return;
     if (iframeUrl === electronLoadedUrl || iframeUrl === lastLoadedElectronUrlRef.current) return;
     
     lastLoadedElectronUrlRef.current = iframeUrl;
     setElectronLoadedUrlLocal(iframeUrl);
     window.electronAPI!.browserView.loadUrl(iframeUrl);
-  }, [isElectron, isSelected, iframeUrl, electronLoadedUrl, setElectronLoadedUrlLocal]);
+  }, [isElectron, isBrowserVisible, iframeUrl, electronLoadedUrl, setElectronLoadedUrlLocal]);
 
   // Listen for navigation events from WebContentsView
   React.useEffect(() => {
@@ -344,9 +346,9 @@ export function BrowserTab({ repoName }: { repoName: string }) {
         className="flex flex-1 bg-background overflow-hidden relative flex-col border-r border-border"
         id="browser-container"
       >
-        {!screenshot ? (
-          <>
-            <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
+      {/* Always render browser content to preserve iframe navigation state */}
+        <div className={screenshot ? "hidden" : "contents"}>
+          <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
               <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
                 {isIframeInsecure ? (
                   <div title="Insecure connection (Certificate Error)">
@@ -398,8 +400,8 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                 );
               })
             )}
-          </>
-        ) : (
+        </div>
+        {screenshot && (
           <ScreenshotViewer
             screenshot={screenshot}
             annotations={annotations}

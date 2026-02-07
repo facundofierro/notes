@@ -38,6 +38,9 @@ export interface UserSettings {
     | "epics"
     | "kanban"
     | "tests"
+    | "review"
+    | "browser"
+    | "logs"
     | "commands"
     | "cli-tools"
     | "ai";
@@ -80,7 +83,7 @@ export const defaultSettings: UserSettings =
     language: "en",
     notifications: true,
     autoSave: true,
-    defaultView: "epics",
+    defaultView: "kanban",
     sidebarCollapsed: false,
     editorFontSize: 14,
     editorFontFamily: "monospace",

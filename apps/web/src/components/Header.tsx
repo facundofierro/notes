@@ -36,6 +36,11 @@ export function Header() {
 
   const { viewMode, isAppRunning, isAppManaged } = store.getProjectState();
 
+  // Defer persisted viewMode until after hydration to avoid SSR mismatch
+  const [hasMounted, setHasMounted] = React.useState(false);
+  React.useEffect(() => setHasMounted(true), []);
+  const effectiveViewMode = hasMounted ? viewMode : "kanban";
+
   const [isAppActionsMenuOpen, setIsAppActionsMenuOpen] = React.useState(false);
 
   const visibleItems = React.useMemo(() => {
@@ -97,7 +102,7 @@ export function Header() {
                 key={`${mode}-${index}`}
                 onClick={() => setViewMode(mode as ViewMode)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${ 
-                  viewMode === mode ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent" 
+                  effectiveViewMode === mode ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent" 
                 }`}
               >
                 <Icon className="w-4 h-4" />
