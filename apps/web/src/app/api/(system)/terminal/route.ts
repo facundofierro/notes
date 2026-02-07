@@ -99,3 +99,42 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const { id, input } = await request.json();
+    const { getProcess } = await import("@/lib/agent-store");
+    const process = getProcess(id);
+
+    if (!process || !process.stdin) {
+      return NextResponse.json(
+        { error: "Terminal not found or closed" },
+        { status: 404 }
+      );
+    }
+
+    process.stdin.write(input);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to send input" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { id } = await request.json();
+    const { killProcess } = await import("@/lib/agent-store");
+    const success = killProcess(id);
+    return NextResponse.json({ success });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to kill process" },
+      { status: 500 }
+    );
+  }
+}
+
+

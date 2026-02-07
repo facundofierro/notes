@@ -4,6 +4,13 @@ import { UserSettings } from "@/hooks/use-settings";
 import { Annotation, AnnotationType, TestsSetupStatus } from "@/types/entities";
 import { inferTestExecutionStatus } from "@/lib/test-output";
 
+export interface TerminalState {
+  id: string;
+  title: string;
+  output: string;
+  processId?: string;
+}
+
 export interface ProjectState {
   viewMode: ViewMode;
   testViewMode: "steps" | "code" | "results";
@@ -36,6 +43,8 @@ export interface ProjectState {
   selectedTool: AnnotationType | null;
   workEditorEditing: boolean;
   workDocIsDraft: boolean;
+  terminals: TerminalState[];
+  activeTerminalId: string;
 }
 
 const createDefaultProjectState = (): ProjectState => ({
@@ -65,6 +74,8 @@ const createDefaultProjectState = (): ProjectState => ({
   selectedTool: null,
   workEditorEditing: false,
   workDocIsDraft: false,
+  terminals: [],
+  activeTerminalId: "logs",
 });
 
 export interface HomeState {
@@ -104,6 +115,10 @@ export interface HomeState {
   setSettingsTab: (tab: any) => void;
   setAppLogs: (updater: string | ((prev: string) => string)) => void;
   setIframeUrl: (url: string) => void;
+  addTerminal: (terminal: TerminalState) => void;
+  removeTerminal: (id: string) => void;
+  setActiveTerminalId: (id: string) => void;
+  updateTerminalOutput: (id: string, updater: string | ((prev: string) => string)) => void;
 
   // Logic Actions (operates on selectedRepo)
   handleStartApp: () => Promise<void>;
@@ -222,6 +237,38 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   setAppLogs: (updater) => {
     get().setProjectState((prev) => ({
       appLogs: typeof updater === "function" ? updater(prev.appLogs) : updater
+    }));
+  },
+
+  addTerminal: (terminal) => {
+    get().setProjectState((prev) => ({
+      terminals: [...prev.terminals, terminal],
+      activeTerminalId: terminal.id,
+    }));
+  },
+
+  removeTerminal: (id) => {
+    get().setProjectState((prev) => {
+      const terminals = prev.terminals.filter((t) => t.id !== id);
+      let activeTerminalId = prev.activeTerminalId;
+      if (activeTerminalId === id) {
+        activeTerminalId = terminals.length > 0 ? terminals[terminals.length - 1].id : "logs";
+      }
+      return { terminals, activeTerminalId };
+    });
+  },
+
+  setActiveTerminalId: (id) => {
+    get().setProjectState(() => ({ activeTerminalId: id }));
+  },
+
+  updateTerminalOutput: (id, updater) => {
+    get().setProjectState((prev) => ({
+      terminals: prev.terminals.map((t) =>
+        t.id === id
+          ? { ...t, output: typeof updater === "function" ? updater(t.output) : updater }
+          : t
+      ),
     }));
   },
 
