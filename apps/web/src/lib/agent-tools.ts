@@ -69,7 +69,7 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     type: "cli",
     modelFlag: "--model",
     listModelsCommand: null,
-    promptFlag: "-p",
+    promptFlag: "-i",
     supportedModels: ["gemini-1.5-pro", "gemini-1.5-flash"],
   },
   kimi: {
