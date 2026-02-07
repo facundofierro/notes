@@ -98,6 +98,8 @@ export function LogsTab() {
     ],
   );
 
+  const [termSize, setTermSize] = React.useState({ cols: 100, rows: 40 });
+
   const createNewTerminal =
     async () => {
       const id = crypto.randomUUID();
@@ -121,6 +123,8 @@ export function LogsTab() {
             },
             body: JSON.stringify({
               cwd: currentRepoPath,
+              cols: termSize.cols,
+              rows: termSize.rows,
             }),
           },
         );
@@ -218,6 +222,7 @@ export function LogsTab() {
           output={activeOutput}
           className="w-full h-full"
           onInput={handleInput}
+          onResize={(cols, rows) => setTermSize({ cols, rows })}
         />
       </div>
 

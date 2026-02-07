@@ -5,7 +5,7 @@ import { registerProcess } from "@/lib/agent-store";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { cwd } = body;
+    const { cwd, cols = 200, rows = 50 } = body;
 
     const encoder = new TextEncoder();
     const processId = crypto.randomUUID();
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
           spawnArgs = [
             "-u",
             "-c",
-            "import pty, sys; pty.spawn(sys.argv[1:])",
+            "import pty,os,sys,fcntl,termios,struct; pty.fork = (lambda f=pty.fork: lambda: (lambda p,d: (p, (p==0 or fcntl.ioctl(d, termios.TIOCSWINSZ, struct.pack('HHHH', int(os.environ.get('LINES', 24)), int(os.environ.get('COLUMNS', 80)), 0, 0)), d)[-1]))(*f()))(); pty.spawn(sys.argv[1:])",
             "zsh",
             "-i",
             "-l",
@@ -37,8 +37,8 @@ export async function POST(request: Request) {
           env: {
             ...process.env,
             PATH: process.env.PATH,
-            COLUMNS: "200",
-            LINES: "50",
+            COLUMNS: cols.toString(),
+            LINES: rows.toString(),
             FORCE_COLOR: "1",
             TERM: "xterm-256color",
           },

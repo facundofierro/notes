@@ -78,6 +78,7 @@ export function AIRightSidebar({
   const [toolModelsByTool, setToolModelsByTool] = React.useState<Record<string, string[]>>({});
   const [toolModelByTool, setToolModelByTool] = React.useState<Record<string, string>>({});
   const [isToolModelsLoading, setIsToolModelsLoading] = React.useState<Record<string, boolean>>({});
+  const [termSize, setTermSize] = React.useState({ cols: 100, rows: 30 });
 
   const cancelTerminal = React.useCallback(() => {
     terminalAbortControllerRef.current?.abort();
@@ -105,7 +106,11 @@ Cancelled` : "Cancelled"));
       const res = await fetch("/api/terminal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd }),
+        body: JSON.stringify({ 
+          cwd,
+          cols: termSize.cols,
+          rows: termSize.rows
+        }),
         signal: ac.signal,
       });
 
@@ -238,6 +243,8 @@ Error: ${error.message}`);
           prompt,
           model: toolModelByTool[toolName] || undefined,
           cwd,
+          cols: termSize.cols,
+          rows: termSize.rows
         }),
         signal: controller.signal,
       });
@@ -383,7 +390,12 @@ Cancelled` : "Cancelled");
         <div className={`flex overflow-hidden flex-col flex-1 h-full ${ rightSidebarView === "terminal" ? "" : "hidden" }`}>
           <div className="flex-1 min-h-0 bg-black">
             {terminalOutput || isTerminalRunning ? (
-              <TerminalViewer output={terminalOutput || "Initializing..."} className="w-full h-full" onInput={handleTerminalInput} />
+              <TerminalViewer 
+                output={terminalOutput || "Initializing..."} 
+                className="w-full h-full" 
+                onInput={handleTerminalInput}
+                onResize={(cols, rows) => setTermSize({ cols, rows })}
+              />
             ) : (
               <div className="flex justify-center items-center h-full text-xs text-muted-foreground">No terminal output</div>
             )}

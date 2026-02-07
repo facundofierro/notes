@@ -84,7 +84,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { tool, prompt, model, cwd } =
+    const { tool, prompt, model, cwd, cols = 200, rows = 50 } =
       body;
 
     if (!tool || !prompt) {
@@ -164,7 +164,7 @@ export async function POST(
           spawnArgs = [
             "-u",
             "-c",
-            "import pty, sys; pty.spawn(sys.argv[1:])",
+            "import pty,os,sys,fcntl,termios,struct; pty.fork = (lambda f=pty.fork: lambda: (lambda p,d: (p, (p==0 or fcntl.ioctl(d, termios.TIOCSWINSZ, struct.pack('HHHH', int(os.environ.get('LINES', 24)), int(os.environ.get('COLUMNS', 80)), 0, 0)), d)[-1]))(*f()))(); pty.spawn(sys.argv[1:])",
             resolvedCommand,
             ...args,
           ];
@@ -178,8 +178,8 @@ export async function POST(
             env: {
               ...process.env,
               PATH: process.env.PATH,
-              COLUMNS: "200", // Force wider output for terminal viewer
-              LINES: "50",
+              COLUMNS: cols.toString(), // Force wider output for terminal viewer
+              LINES: rows.toString(),
               FORCE_COLOR: "1", // Ensure colors are preserved
               TERM: "xterm-256color",
             },

@@ -9,12 +9,14 @@ interface TerminalViewerProps {
   output: string;
   className?: string;
   onInput?: (data: string) => void;
+  onResize?: (cols: number, rows: number) => void;
 }
 
 export function TerminalViewer({
   output,
   className,
   onInput,
+  onResize,
 }: TerminalViewerProps) {
   const containerRef =
     React.useRef<HTMLDivElement>(null);
@@ -25,11 +27,16 @@ export function TerminalViewer({
   const writtenLengthRef =
     React.useRef(0);
   const onInputRef = React.useRef(onInput);
+  const onResizeRef = React.useRef(onResize);
 
-  // Update onInput ref
+  // Update refs
   React.useEffect(() => {
     onInputRef.current = onInput;
   }, [onInput]);
+
+  React.useEffect(() => {
+    onResizeRef.current = onResize;
+  }, [onResize]);
 
   // Initialize terminal
   React.useEffect(() => {
@@ -63,7 +70,14 @@ export function TerminalViewer({
     term.loadAddon(fitAddon);
 
     term.open(containerRef.current);
-    fitAddon.fit();
+    
+    // Initial fit
+    setTimeout(() => {
+      fitAddon.fit();
+      if (onResizeRef.current) {
+        onResizeRef.current(term.cols, term.rows);
+      }
+    }, 0);
 
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -71,6 +85,9 @@ export function TerminalViewer({
     // Handle window resize
     const handleResize = () => {
       fitAddon.fit();
+      if (onResizeRef.current) {
+        onResizeRef.current(term.cols, term.rows);
+      }
     };
     window.addEventListener(
       "resize",
@@ -118,7 +135,12 @@ export function TerminalViewer({
   React.useEffect(() => {
     const observer = new ResizeObserver(
       () => {
-        fitAddonRef.current?.fit();
+        if (fitAddonRef.current && terminalRef.current) {
+          fitAddonRef.current.fit();
+          if (onResizeRef.current) {
+            onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+          }
+        }
       },
     );
 
@@ -130,7 +152,6 @@ export function TerminalViewer({
 
     return () => observer.disconnect();
   }, []);
-
   return (
     <div
       ref={containerRef}
