@@ -108,6 +108,35 @@ export function BrowserTab({ repoName }: { repoName: string }) {
 
   const [screenshotDisplaySize, setScreenshotDisplaySize] = React.useState<{ width: number; height: number } | null>(null);
 
+  // Explicit helper to load a URL in the Electron WebContentsView.
+  // Only called from user-driven events (tab click, Enter key, page switch).
+  const loadInElectron = React.useCallback((url: string) => {
+    if (!isElectron) return;
+    
+    setProjectStateForRepo(repoName, (prev) => {
+      const newLog = {
+        requestId: `browser-nav-${Date.now()}`,
+        method: "BROWSER",
+        url: url || "(empty url)",
+        timestamp: Date.now(),
+        finished: true,
+        type: "navigation",
+        status: url ? 200 : 0
+      };
+      const logs = [...prev.networkLogs, newLog].slice(-100);
+      return { 
+        networkLogs: logs,
+        ...(url ? { electronLoadedUrl: url } : {})
+      };
+    });
+
+    if (url) {
+      window.electronAPI!.browserView.loadUrl(url);
+    }
+  }, [isElectron, repoName, setProjectStateForRepo]);
+
+  const initialLoadDoneRef = React.useRef(false);
+
   const requestEmbeddedCapture = React.useCallback(async () => {
     if (window.electronAPI?.browserView && isSelected) {
       return window.electronAPI.browserView.capture();
@@ -136,17 +165,18 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     if (!isSelected) return;
     setProjectStateForRepo(repoName, (prev) => {
       if (prev.iframeUrl) return {};
-      const targetUrl = browserPages[activeBrowserPageIndex] || "";
+      const mainUrl = currentProjectConfig?.url || "";
+      const targetUrl = mainUrl || (browserPages[activeBrowserPageIndex] || "");
       if (!targetUrl) return {};
       return { iframeUrl: targetUrl };
     });
-  }, [isSelected, repoName, browserPages, activeBrowserPageIndex, setProjectStateForRepo]);
+  }, [isSelected, repoName, browserPages, activeBrowserPageIndex, currentProjectConfig, setProjectStateForRepo]);
 
   // Persist navigated URL to session (covers typing, Electron nav, etc.)
   React.useEffect(() => {
     if (!isSelected || !iframeUrl) return;
     setProjectStateForRepo(repoName, (prev) => {
-      const nextUrls = [...prev.browserPagesCurrentUrls];
+      const nextUrls = [...(prev.browserPagesCurrentUrls || [])];
       while (nextUrls.length < browserPages.length) nextUrls.push("");
       if (nextUrls[activeBrowserPageIndex] === iframeUrl) return {};
       nextUrls[activeBrowserPageIndex] = iframeUrl;
@@ -186,26 +216,22 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     // Show on mount, hide on unmount
     api.show();
 
+    // Event 1: When browser tab becomes visible, load page if not already loaded
+    if (!initialLoadDoneRef.current) {
+      const targetUrl = iframeUrl || currentProjectConfig?.url || "";
+      if (targetUrl) {
+        initialLoadDoneRef.current = true;
+        if (!iframeUrl) setIframeUrlLocal(targetUrl);
+        loadInElectron(targetUrl);
+      }
+    }
+
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", syncBounds);
       api.hide();
     };
   }, [isElectron, isBrowserVisible]);
-
-  const lastLoadedElectronUrlRef = React.useRef<string | null>(null);
-
-  // Load URL in the Electron WebContentsView when iframeUrl changes
-  // Only load when the browser tab is actually visible to avoid connection errors
-  // for apps that haven't started yet.
-  React.useEffect(() => {
-    if (!isElectron || !isBrowserVisible || !iframeUrl) return;
-    if (iframeUrl === electronLoadedUrl || iframeUrl === lastLoadedElectronUrlRef.current) return;
-    
-    lastLoadedElectronUrlRef.current = iframeUrl;
-    setElectronLoadedUrlLocal(iframeUrl);
-    window.electronAPI!.browserView.loadUrl(iframeUrl);
-  }, [isElectron, isBrowserVisible, iframeUrl, electronLoadedUrl, setElectronLoadedUrlLocal]);
 
   // Listen for navigation events from WebContentsView
   React.useEffect(() => {
@@ -288,19 +314,21 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     };
   }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
 
+  // Event 2: Enter in URL bar always reloads the page
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         const val = e.currentTarget.value;
         if (isElectron) {
-          window.electronAPI!.browserView.loadUrl(val);
+          setIframeUrlLocal(val);
+          loadInElectron(val);
         } else {
           setIframeUrlLocal("");
           setTimeout(() => setIframeUrlLocal(val), 0);
         }
       }
     },
-    [isElectron, setIframeUrlLocal],
+    [isElectron, setIframeUrlLocal, loadInElectron],
   );
 
   return (
@@ -316,6 +344,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                   activeBrowserPageIndex: idx,
                   iframeUrl: targetUrl
                 }));
+                if (isElectron) loadInElectron(targetUrl);
               }}
               className={`p-2 rounded-lg transition-colors ${activeBrowserPageIndex === idx ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
               title={idx === 0 ? "Project Page" : url}
@@ -359,7 +388,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                 )}
                 <input
                   type="text"
-                  value={iframeUrl}
+                  value={iframeUrl || ""}
                   onChange={(e) => setIframeUrlLocal(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="flex-1 bg-transparent border-none outline-none text-xs text-muted-foreground focus:text-foreground transition-colors"

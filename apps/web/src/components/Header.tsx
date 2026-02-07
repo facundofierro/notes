@@ -11,7 +11,6 @@ import {
   Download, 
   Hammer, 
   Settings, 
-  Settings2, 
   LogIn 
 } from "lucide-react";
 import { AgelumNotesLogo } from "@agelum/shadcn";
@@ -191,13 +190,6 @@ export function Header() {
                 </div>
               )}
             </div>
-            <button 
-              onClick={() => { setSettingsTab("defaults"); setIsSettingsOpen(true); }} 
-              className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors" 
-              title="General Settings"
-            >
-              <Settings2 className="w-4 h-4" />
-            </button>
           </div>
         </div>
         <button 

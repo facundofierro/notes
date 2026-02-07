@@ -17,7 +17,8 @@ export function NetworkPanel({ repo }: PanelProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getStatusColor = (status?: number) => {
+  const getStatusColor = (status?: number, method?: string) => {
+    if (method === "BROWSER") return "text-amber-500";
     if (!status) return "text-muted-foreground";
     if (status >= 200 && status < 300) return "text-green-500";
     if (status >= 300 && status < 400) return "text-blue-500";
@@ -74,15 +75,15 @@ export function NetworkPanel({ repo }: PanelProps) {
                   className="text-[11px] hover:bg-accent/50 transition-colors group"
                 >
                   <td className="px-3 py-1.5 font-mono font-bold text-muted-foreground">
-                    {log.method}
+                    <span className={log.method === "BROWSER" ? "text-amber-500" : ""}>{log.method}</span>
                   </td>
                   <td className="px-3 py-1.5 truncate relative" title={log.url}>
                     <div className="flex items-center gap-1.5">
-                      <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
-                      <span className="truncate">{log.url}</span>
+                      <Globe className={`w-3 h-3 shrink-0 ${log.method === "BROWSER" ? "text-amber-500" : "text-muted-foreground"}`} />
+                      <span className={`truncate ${log.method === "BROWSER" ? "text-amber-500 font-medium" : ""}`}>{log.url}</span>
                     </div>
                   </td>
-                  <td className={`px-3 py-1.5 font-mono ${getStatusColor(log.status)}`}>
+                  <td className={`px-3 py-1.5 font-mono ${getStatusColor(log.status, log.method)}`}>
                     {log.status || (log.finished ? "Fail" : "...")}
                   </td>
                   <td className="px-3 py-1.5 text-muted-foreground truncate">

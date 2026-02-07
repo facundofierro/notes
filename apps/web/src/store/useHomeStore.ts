@@ -283,16 +283,12 @@ export const useHomeStore =
             const projectStates = {
               ...state.projectStates,
             };
-            if (
-              !projectStates[
+            projectStates[selectedRepo] = {
+              ...createDefaultProjectState(),
+              ...(projectStates[
                 selectedRepo
-              ]
-            ) {
-              projectStates[
-                selectedRepo
-              ] =
-                createDefaultProjectState();
-            }
+              ] || {}),
+            };
             return {
               selectedRepo,
               projectStates,
@@ -311,11 +307,12 @@ export const useHomeStore =
         ) => {
           if (!repo) return;
           set((state) => {
-            const currentState =
-              state.projectStates[
+            const currentState = {
+              ...createDefaultProjectState(),
+              ...(state.projectStates[
                 repo
-              ] ||
-              createDefaultProjectState();
+              ] || {}),
+            };
             const updates =
               typeof updater ===
               "function"
@@ -642,16 +639,14 @@ export const useHomeStore =
                     {
                       ...state.projectStates,
                     };
-                  if (
-                    !projectStates[
+                  projectStates[
+                    nextRepos[0].name
+                  ] = {
+                    ...createDefaultProjectState(),
+                    ...(projectStates[
                       nextRepos[0].name
-                    ]
-                  ) {
-                    projectStates[
-                      nextRepos[0].name
-                    ] =
-                      createDefaultProjectState();
-                  }
+                    ] || {}),
+                  };
                   updates.projectStates =
                     projectStates;
                 }
@@ -1349,8 +1344,6 @@ export const useHomeStore =
                 ([repo, pState]) => [
                   repo,
                   {
-                    viewMode:
-                      pState.viewMode,
                     testViewMode:
                       pState.testViewMode,
                     activeTerminalId:
