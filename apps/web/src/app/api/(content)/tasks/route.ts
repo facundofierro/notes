@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { executeAgentCommand } from "@/lib/agent-tools";
 import { resolveProjectPath, readSettings } from "@/lib/settings";
+import { getTimestampPrefix } from "@/lib/date-utils";
 import { execSync } from "child_process";
 
 interface Task {
@@ -463,14 +464,16 @@ async function createTask(
 
   const createdAt =
     new Date().toISOString();
+  const prefix = getTimestampPrefix();
   const safeTitle =
     sanitizeTaskTitleToFileBase(
       data.title || "",
     );
+  const fileBase = `${prefix}-${safeTitle}`;
   const filePath =
     resolveUniqueFilePath(
       stateDir,
-      safeTitle,
+      fileBase,
     );
   const id = fileNameToId(
     path.basename(filePath),
@@ -572,14 +575,16 @@ async function createTaskFromContent(
 
   const createdAt =
     new Date().toISOString();
+  const prefix = getTimestampPrefix();
   const safeTitle =
     sanitizeTaskTitleToFileBase(
       data.fileBase || "untitled",
     );
+  const fileBase = `${prefix}-${safeTitle}`;
   const filePath =
     resolveUniqueFilePath(
       stateDir,
-      safeTitle,
+      fileBase,
     );
   const finalBase = fileNameToId(
     path.basename(filePath),
@@ -724,6 +729,14 @@ async function moveTask(
     path.sep,
   );
 
+  let targetFileName = `${taskId}.md`;
+  if (toState === "done") {
+    const hasPrefix = /^\d{2}_\d{2}_\d{2}-\d{6}-/.test(taskId);
+    if (!hasPrefix) {
+      targetFileName = `${getTimestampPrefix()}-${taskId}.md`;
+    }
+  }
+
   let toPath: string;
   if (pathParts.length > 1) {
     // Task is in an epic folder, maintain the epic folder structure
@@ -741,7 +754,7 @@ async function moveTask(
     });
     toPath = path.join(
       toEpicDir,
-      `${taskId}.md`,
+      targetFileName,
     );
   } else {
     // Task is at root level
@@ -754,7 +767,7 @@ async function moveTask(
     });
     toPath = path.join(
       toStateDir,
-      `${taskId}.md`,
+      targetFileName,
     );
   }
 

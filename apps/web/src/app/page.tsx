@@ -41,12 +41,6 @@ export default function Home() {
     setIsElectron(!!window.electronAPI?.browserView);
   }, [setIsElectron]);
 
-  // Save selected repo to local storage
-  React.useEffect(() => {
-    if (!selectedRepo) return;
-    window.localStorage.setItem("agelum.selectedRepo", selectedRepo);
-  }, [selectedRepo]);
-
   const currentProjectPath = React.useMemo(() => {
     if (!selectedRepo) return null;
     return (

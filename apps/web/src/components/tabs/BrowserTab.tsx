@@ -29,6 +29,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     projectConfig,
     activeBrowserPageIndex,
     browserPagesCurrentUrls,
+    viewMode,
   } = projectState;
 
   const currentProjectConfig = React.useMemo(() => {
@@ -153,11 +154,13 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     });
   }, [isSelected, repoName, iframeUrl, activeBrowserPageIndex, browserPages.length, setProjectStateForRepo]);
 
+  const isBrowserVisible = isSelected && viewMode === "browser";
+
   // Sync WebContentsView bounds with placeholder div
   React.useEffect(() => {
     if (
       !isElectron ||
-      !isSelected ||
+      !isBrowserVisible ||
       !browserViewPlaceholderRef.current
     )
       return;
@@ -188,7 +191,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       window.removeEventListener("resize", syncBounds);
       api.hide();
     };
-  }, [isElectron, isSelected]);
+  }, [isElectron, isBrowserVisible]);
 
   const lastLoadedElectronUrlRef = React.useRef<string | null>(null);
 

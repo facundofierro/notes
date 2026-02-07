@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { executeAgentCommand } from "@/lib/agent-tools";
 import { resolveProjectPath } from "@/lib/settings";
+import { getTimestampPrefix } from "@/lib/date-utils";
 
 interface Epic {
   id: string;
@@ -265,7 +266,9 @@ async function createEpic(
       | "doing"
       | "done") || "backlog";
 
-  const id = `epic-${Date.now()}`;
+  const prefix = getTimestampPrefix();
+  const safeTitle = sanitizeFileBase(data.title || "untitled");
+  const id = `${prefix}-${safeTitle}`;
   const stateDir = path.join(
     primaryEpicsRoot,
     state,
@@ -382,9 +385,18 @@ async function moveEpic(
   fs.mkdirSync(toStateDir, {
     recursive: true,
   });
+
+  let targetFileName = `${epicId}.md`;
+  if (toState === "done") {
+    const hasPrefix = /^\d{2}_\d{2}_\d{2}-\d{6}-/.test(epicId);
+    if (!hasPrefix) {
+      targetFileName = `${getTimestampPrefix()}-${epicId}.md`;
+    }
+  }
+
   const toPath = path.join(
     toStateDir,
-    `${epicId}.md`,
+    targetFileName,
   );
 
   fs.renameSync(fromPath, toPath);

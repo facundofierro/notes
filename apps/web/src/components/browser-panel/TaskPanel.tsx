@@ -21,6 +21,7 @@ import {
   Annotation,
   AnnotationType,
 } from "@/types/entities";
+import { getTimestampPrefix } from "@/lib/date-utils";
 import { PanelProps } from "./types";
 
 type Mode =
@@ -246,10 +247,12 @@ export function TaskPanel({
     setIsCreatingTask,
   ] = useState(false);
 
+  const [initialScreenshotPath, setInitialScreenshotPath] = useState<string | null>(null);
+
   const resetScreenState = () => {
     onScreenshotChange?.(null);
     onAnnotationsChange?.([]);
-    onToolSelect?.(null);
+    onToolSelect?.("modify");
     onSelectAnnotation?.(null);
     setNextId(1);
     setIsDrawing(false);
@@ -653,6 +656,37 @@ export function TaskPanel({
             onScreenshotChange?.(
               directCapture,
             );
+
+            // Save initial screenshot to disk
+            if (projectPath) {
+              const prefix = getTimestampPrefix();
+              const fileName = `${prefix}-screenshot.png`;
+              const absolutePath = joinFsPath(
+                projectPath,
+                ".agelum",
+                "work",
+                "tasks",
+                "images",
+                fileName,
+              );
+              const base64Data = directCapture.replace(
+                /^data:image\/\w+;base64,/,
+                "",
+              );
+              await fetch("/api/file", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  path: absolutePath,
+                  content: base64Data,
+                  encoding: "base64",
+                }),
+              });
+              setInitialScreenshotPath(absolutePath);
+            }
+
             onAnnotationsChange?.([]);
             setNextId(1);
             onSelectAnnotation?.(null);
@@ -694,6 +728,36 @@ export function TaskPanel({
         const dataUrl =
           canvas.toDataURL("image/png");
         onScreenshotChange?.(dataUrl);
+
+        // Save initial screenshot to disk
+        if (projectPath) {
+          const prefix = getTimestampPrefix();
+          const fileName = `${prefix}-screenshot.png`;
+          const absolutePath = joinFsPath(
+            projectPath,
+            ".agelum",
+            "work",
+            "tasks",
+            "images",
+            fileName,
+          );
+          const base64Data = dataUrl.replace(
+            /^data:image\/\w+;base64,/,
+            "",
+          );
+          await fetch("/api/file", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              path: absolutePath,
+              content: base64Data,
+              encoding: "base64",
+            }),
+          });
+          setInitialScreenshotPath(absolutePath);
+        }
 
         // Stop sharing
         track.stop();
@@ -1503,8 +1567,9 @@ export function TaskPanel({
             /^data:image\/\w+;base64,/,
             "",
           );
-        const timestamp = Date.now();
-        const fileName = `screenshot-${timestamp}.png`;
+        const prefix = getTimestampPrefix();
+        const safeTitle = "UI-Fixes";
+        const fileName = `${prefix}-${safeTitle}.png`;
         const absolutePath = joinFsPath(
           projectPath,
           ".agelum",
@@ -1537,6 +1602,18 @@ export function TaskPanel({
               "Failed to save screenshot",
           );
         }
+
+        // Delete initial screenshot if it exists
+        if (initialScreenshotPath) {
+          try {
+            await fetch(`/api/file?path=${encodeURIComponent(initialScreenshotPath)}`, {
+              method: "DELETE",
+            });
+          } catch (err) {
+            console.warn("Failed to delete initial screenshot:", err);
+          }
+        }
+
         imageRelativePath = `../images/${fileName}`;
       }
 
@@ -1544,7 +1621,7 @@ export function TaskPanel({
       let taskBody = "";
 
       if (mode === "screen") {
-        taskTitle = `UI Fixes - ${new Date().toLocaleString()}`;
+        taskTitle = `UI Fixes`;
         taskBody = `Source: Browser Screenshot
 
 `;
@@ -1603,12 +1680,12 @@ ${generalPrompt}
 `;
         }
       } else if (mode === "prompt") {
-        taskTitle = `Browser Task - ${new Date().toLocaleString()}`;
+        taskTitle = `Browser Task`;
         taskBody = promptText;
       } else if (
         mode === "properties"
       ) {
-        taskTitle = `Style Tweaks - ${new Date().toLocaleString()}`;
+        taskTitle = `Style Tweaks`;
         taskBody = `Source: Browser Properties Editor
 
 `;

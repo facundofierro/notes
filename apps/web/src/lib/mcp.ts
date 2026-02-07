@@ -130,6 +130,17 @@ function formatPriority(
   ).padStart(2, "0");
 }
 
+function getTimestampPrefix() {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2);
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const day = now.getDate().toString().padStart(2, "0");
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const seconds = now.getSeconds().toString().padStart(2, "0");
+  return `${year}_${month}_${day}-${hours}${minutes}${seconds}`;
+}
+
 function buildFileName(args: {
   type: DocumentType;
   title: string;
@@ -143,6 +154,8 @@ function buildFileName(args: {
     throw new Error(
       "title is required",
     );
+
+  const prefix = getTimestampPrefix();
 
   if (args.type === "task") {
     if (args.priority === undefined)
@@ -160,7 +173,7 @@ function buildFileName(args: {
       formatStoryPoints(
         args.storyPoints,
       );
-    return `${priority} ${title} (${storyPoints}).md`;
+    return `${prefix}-${priority} ${title} (${storyPoints}).md`;
   }
 
   if (args.storyPoints !== undefined) {
@@ -168,10 +181,10 @@ function buildFileName(args: {
       formatStoryPoints(
         args.storyPoints,
       );
-    return `${title} (${storyPoints}).md`;
+    return `${prefix}-${title} (${storyPoints}).md`;
   }
 
-  return `${title}.md`;
+  return `${prefix}-${title}.md`;
 }
 
 function buildFrontmatter(args: {
@@ -731,10 +744,19 @@ export function createAgelumMcpServer(
             fs.mkdirSync(targetDir, {
               recursive: true,
             });
+
+            let targetFileName = sourceFileName;
+            if (toState === "done") {
+              const hasPrefix = /^\d{2}_\d{2}_\d{2}-\d{6}-/.test(sourceFileName);
+              if (!hasPrefix) {
+                targetFileName = `${getTimestampPrefix()}-${sourceFileName}`;
+              }
+            }
+
             const targetPath =
               path.join(
                 targetDir,
-                sourceFileName,
+                targetFileName,
               );
 
             if (

@@ -36,7 +36,7 @@ export function ScreenshotAnnotationModal({
   onCreateTask,
   isCreatingTask,
 }: ScreenshotAnnotationModalProps) {
-  const [selectedTool, setSelectedTool] = useState<AnnotationType | null>(null);
+  const [selectedTool, setSelectedTool] = useState<AnnotationType | null>("modify");
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
