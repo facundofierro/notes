@@ -17,6 +17,7 @@ export interface ProjectConfig {
   };
   url?: string;
   autoRun?: boolean;
+  browserPages?: string[];
 }
 
 export interface WorkflowConfig {

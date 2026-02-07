@@ -11,13 +11,11 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   const selectedRepo = useHomeStore(s => s.selectedRepo);
   const repositories = useHomeStore(s => s.repositories);
   const settings = useHomeStore(s => s.settings);
-  const projectStates = useHomeStore(s => s.projectStates);
+  const projectState = useHomeStore(s => s.projectStates[repoName]) || useHomeStore.getState().getProjectState();
   const setProjectStateForRepo = useHomeStore(s => s.setProjectStateForRepo);
   const saveProjectConfig = useHomeStore(s => s.saveProjectConfig);
-  const preservedIframeUrls = useHomeStore(s => s.preservedIframeUrls);
 
   const isSelected = selectedRepo === repoName;
-  const projectState = projectStates[repoName] || useHomeStore.getState().getProjectState();
 
   const {
     iframeUrl,
@@ -74,7 +72,6 @@ export function BrowserTab({ repoName }: { repoName: string }) {
 
   const browserIframeRef = React.useRef<HTMLIFrameElement>(null);
   const browserViewPlaceholderRef = React.useRef<HTMLDivElement>(null);
-  const lastRestoredRepoRef = React.useRef<string | null>(null);
 
   const setIframeUrlLocal = React.useCallback((url: string) => {
     setProjectStateForRepo(repoName, () => ({ iframeUrl: url }));
@@ -120,52 +117,41 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   // Sync with current Electron URL on mount
   React.useEffect(() => {
     if (!isElectron || !isSelected) return;
-    const sync = async () => {
+    let cancelled = false;
+    (async () => {
       const url = await window.electronAPI!.browserView.getUrl();
-      if (url && url !== "about:blank") {
-        setProjectStateForRepo(repoName, (prev) => ({ 
-          electronLoadedUrl: url,
-          iframeUrl: prev.iframeUrl || url 
-        }));
+      if (!cancelled && url && url !== "about:blank") {
+        setProjectStateForRepo(repoName, (prev) => {
+          if (prev.iframeUrl) return { electronLoadedUrl: url };
+          return { electronLoadedUrl: url, iframeUrl: url };
+        });
       }
-    };
-    sync();
+    })();
+    return () => { cancelled = true; };
   }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
 
-  // Restore or set initial URL when mounting or switching repo
+  // Load initial URL only if nothing is loaded yet
   React.useEffect(() => {
     if (!isSelected) return;
+    setProjectStateForRepo(repoName, (prev) => {
+      if (prev.iframeUrl) return {};
+      const targetUrl = browserPages[activeBrowserPageIndex] || "";
+      if (!targetUrl) return {};
+      return { iframeUrl: targetUrl };
+    });
+  }, [isSelected, repoName, browserPages, activeBrowserPageIndex, setProjectStateForRepo]);
 
-    const repoChanged = repoName !== lastRestoredRepoRef.current;
-    lastRestoredRepoRef.current = repoName;
-
-    const sessionUrl = browserPagesCurrentUrls[activeBrowserPageIndex];
-    const targetUrl = sessionUrl || browserPages[activeBrowserPageIndex] || "";
-
-    if (targetUrl && targetUrl !== iframeUrl) {
-      setIframeUrlLocal(targetUrl);
-    }
-  }, [isSelected, repoName, browserPages, activeBrowserPageIndex, browserPagesCurrentUrls, setIframeUrlLocal, iframeUrl]);
-
-  // Save current URL to session URLs whenever it changes
+  // Persist navigated URL to session (covers typing, Electron nav, etc.)
   React.useEffect(() => {
-    if (isSelected && iframeUrl) {
-      setProjectStateForRepo(repoName, (prev) => {
-        const nextUrls = [...prev.browserPagesCurrentUrls];
-        // Ensure array is large enough
-        while (nextUrls.length < browserPages.length) {
-          nextUrls.push("");
-        }
-        if (nextUrls[activeBrowserPageIndex] !== iframeUrl) {
-          nextUrls[activeBrowserPageIndex] = iframeUrl;
-          return { browserPagesCurrentUrls: nextUrls };
-        }
-        return prev;
-      });
-      // Still keep preservedIframeUrls for backward compatibility or global tracking
-      preservedIframeUrls[repoName] = iframeUrl;
-    }
-  }, [isSelected, repoName, iframeUrl, activeBrowserPageIndex, browserPages.length, setProjectStateForRepo, preservedIframeUrls]);
+    if (!isSelected || !iframeUrl) return;
+    setProjectStateForRepo(repoName, (prev) => {
+      const nextUrls = [...prev.browserPagesCurrentUrls];
+      while (nextUrls.length < browserPages.length) nextUrls.push("");
+      if (nextUrls[activeBrowserPageIndex] === iframeUrl) return {};
+      nextUrls[activeBrowserPageIndex] = iframeUrl;
+      return { browserPagesCurrentUrls: nextUrls };
+    });
+  }, [isSelected, repoName, iframeUrl, activeBrowserPageIndex, browserPages.length, setProjectStateForRepo]);
 
   // Sync WebContentsView bounds with placeholder div
   React.useEffect(() => {
@@ -204,10 +190,14 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     };
   }, [isElectron, isSelected]);
 
+  const lastLoadedElectronUrlRef = React.useRef<string | null>(null);
+
   // Load URL in the Electron WebContentsView when iframeUrl changes
   React.useEffect(() => {
     if (!isElectron || !isSelected || !iframeUrl) return;
-    if (iframeUrl === electronLoadedUrl) return;
+    if (iframeUrl === electronLoadedUrl || iframeUrl === lastLoadedElectronUrlRef.current) return;
+    
+    lastLoadedElectronUrlRef.current = iframeUrl;
     setElectronLoadedUrlLocal(iframeUrl);
     window.electronAPI!.browserView.loadUrl(iframeUrl);
   }, [isElectron, isSelected, iframeUrl, electronLoadedUrl, setElectronLoadedUrlLocal]);
@@ -217,11 +207,16 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     if (!isElectron || !isSelected) return;
     const api = window.electronAPI!.browserView;
     const unsubNav = api.onNavigated((url, isInsecure) => {
-      setProjectStateForRepo(repoName, () => ({
-        electronLoadedUrl: url,
-        iframeUrl: url,
-        isIframeInsecure: !!isInsecure
-      }));
+      setProjectStateForRepo(repoName, (prev) => {
+        if (prev.electronLoadedUrl === url && prev.iframeUrl === url && prev.isIframeInsecure === !!isInsecure) {
+          return prev;
+        }
+        return {
+          electronLoadedUrl: url,
+          iframeUrl: url,
+          isIframeInsecure: !!isInsecure
+        };
+      });
     });
 
     const unsubFail = api.onLoadFailed((url, desc, code) => {

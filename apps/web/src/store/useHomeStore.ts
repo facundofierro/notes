@@ -79,7 +79,6 @@ export interface HomeState {
   settingsTab: string;
   agentTools: Array<{ name: string; displayName: string; available: boolean }>;
   isElectron: boolean;
-  preservedIframeUrls: Record<string, string>;
 
   // Per-Project States
   projectStates: Record<string, ProjectState>;
@@ -155,7 +154,6 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   settingsTab: "defaults",
   agentTools: [],
   isElectron: false,
-  preservedIframeUrls: {},
   projectStates: {},
 
   getProjectState: () => {
@@ -188,7 +186,15 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       
       // Check if anything actually changed to avoid infinite loops
       const hasChanges = Object.keys(updates).some(
-        (key) => (updates as any)[key] !== (currentState as any)[key]
+        (key) => {
+          const val = (updates as any)[key];
+          const cur = (currentState as any)[key];
+          if (Array.isArray(val) && Array.isArray(cur)) {
+            if (val.length !== cur.length) return true;
+            return val.some((v, i) => v !== cur[i]);
+          }
+          return val !== cur;
+        }
       );
       
       if (!hasChanges) return state;

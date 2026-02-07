@@ -133,6 +133,7 @@ function parseEpicFile(
   state:
     | "backlog"
     | "priority"
+    | "fixes"
     | "pending"
     | "doing"
     | "done",

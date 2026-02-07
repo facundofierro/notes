@@ -110,7 +110,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
     return settings.projects?.find((p) => p.name === repoName) || projectConfig || null;
   }, [repoName, settings.projects, projectConfig]);
 
-  // Project-specific background effects (Status, Logs, Config)
+  // Fetch project config
   React.useEffect(() => {
     if (!currentProjectPath) return;
     let cancelled = false;
@@ -118,37 +118,29 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!cancelled && data) {
-          setProjectStateForRepo(repoName, prev => ({ ...prev, projectConfig: data.config || null }));
+          setProjectStateForRepo(repoName, () => ({ projectConfig: data.config || null }));
         }
       });
     return () => { cancelled = true; };
   }, [currentProjectPath, repoName, setProjectStateForRepo]);
 
-  // Refresh app status for this project
+  // Check app status once on mount
   React.useEffect(() => {
     let cancelled = false;
-    const checkStatus = async () => {
+    (async () => {
       try {
         const res = await fetch(`/api/app-status?repo=${repoName}`);
         const data = await res.json();
         if (cancelled) return;
-        setProjectStateForRepo(repoName, prev => ({
-          ...prev,
+        setProjectStateForRepo(repoName, (prev) => ({
           isAppRunning: data.isRunning,
           isAppManaged: data.isManaged,
           appPid: data.pid || null,
           logStreamPid: data.isManaged && data.pid && !prev.logStreamPid ? data.pid : prev.logStreamPid
         }));
       } catch {}
-    };
-
-    checkStatus();
-    const handleFocus = () => checkStatus();
-    window.addEventListener("focus", handleFocus);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("focus", handleFocus);
-    };
+    })();
+    return () => { cancelled = true; };
   }, [repoName, setProjectStateForRepo]);
 
   // Stream logs for this project
@@ -160,18 +152,18 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
 
     const streamLogs = async () => {
       const ac = new AbortController();
-      setProjectStateForRepo(repoName, prev => ({ ...prev, appLogsAbortController: ac }));
+      setProjectStateForRepo(repoName, () => ({ appLogsAbortController: ac }));
       try {
         const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, { signal: ac.signal });
         if (!res.ok || !res.body) {
-          setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n", isAppStarting: false }));
+          setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n", isAppStarting: false }));
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         
-        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setProjectStateForRepo(repoName, prev => ({ ...prev, isAppStarting: false })); }, 2000);
+        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setProjectStateForRepo(repoName, () => ({ isAppStarting: false })); }, 2000);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -184,20 +176,20 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
               try {
                 const data = JSON.parse(line);
                 if (data.output) {
-                  setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + data.output, isAppStarting: !currentProjectConfig?.url && data.output ? false : prev.isAppStarting }));
+                  setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + data.output, isAppStarting: !currentProjectConfig?.url && data.output ? false : prev.isAppStarting }));
                   hasLoggedRecently = true;
                 }
               } catch {
-                setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + line + "\n", isAppStarting: !currentProjectConfig?.url ? false : prev.isAppStarting }));
+                setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + line + "\n", isAppStarting: !currentProjectConfig?.url ? false : prev.isAppStarting }));
                 hasLoggedRecently = true;
               }
             }
           }
         }
-        setProjectStateForRepo(repoName, prev => ({ ...prev, isAppStarting: false }));
+        setProjectStateForRepo(repoName, () => ({ isAppStarting: false }));
       } catch (error: any) {
         if (error.name !== "AbortError" && !cancelled) {
-          setProjectStateForRepo(repoName, prev => ({ ...prev, appLogs: prev.appLogs + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`, isAppStarting: false }));
+          setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`, isAppStarting: false }));
         }
       }
     };
@@ -210,25 +202,34 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
   }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectStateForRepo]);
 
   return (
-    <div className="flex overflow-hidden flex-1">
-      {viewMode === "docs" ? (
-        <DocsTab />
-      ) : viewMode === "ai" ? (
-        <AITab />
-      ) : viewMode === "tests" ? (
-        <TestsTab />
-      ) : viewMode === "ideas" ? (
-        <IdeasTab />
-      ) : viewMode === "epics" ? (
-        <EpicsTab />
-      ) : viewMode === "review" ? (
-        <ReviewTab />
-      ) : viewMode === "logs" ? (
-        <LogsTab />
-      ) : viewMode === "browser" ? (
+    <div className="flex overflow-hidden flex-1 relative">
+      {/* Always render BrowserTab so the iframe is never destroyed */}
+      <div className={`absolute inset-0 flex ${
+        viewMode === "browser" ? "z-10 visible" : "z-0 invisible pointer-events-none"
+      }`}>
         <BrowserTab repoName={repoName} />
-      ) : (
-        <TasksTab />
+      </div>
+
+      {viewMode !== "browser" && (
+        <div className="flex overflow-hidden flex-1">
+          {viewMode === "docs" ? (
+            <DocsTab />
+          ) : viewMode === "ai" ? (
+            <AITab />
+          ) : viewMode === "tests" ? (
+            <TestsTab />
+          ) : viewMode === "ideas" ? (
+            <IdeasTab />
+          ) : viewMode === "epics" ? (
+            <EpicsTab />
+          ) : viewMode === "review" ? (
+            <ReviewTab />
+          ) : viewMode === "logs" ? (
+            <LogsTab />
+          ) : (
+            <TasksTab />
+          )}
+        </div>
       )}
     </div>
   );

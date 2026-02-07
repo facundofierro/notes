@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { KanbanCard } from "./KanbanCard";
 import type {
   KanbanColumn as KanbanColumnType,
@@ -152,7 +151,7 @@ export function KanbanColumn({
       </div>
 
       {/* Cards Container */}
-      <ScrollArea className="flex-1 px-2.5">
+      <div className="flex-1 overflow-y-auto px-2.5">
         <div
           ref={setNodeRef}
           className={cn(
@@ -182,7 +181,7 @@ export function KanbanColumn({
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Add Card Button */}
       {onAddCard && (
