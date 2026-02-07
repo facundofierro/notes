@@ -33,8 +33,19 @@ export function WorkEditorTab({
     handleRunTest,
     selectedRepo,
     basePath,
+    repositories,
+    settings,
     agentTools
   } = store;
+
+  const projectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      settings.projects?.find((p) => p.name === selectedRepo)?.path ||
+      null
+    );
+  }, [repositories, selectedRepo, settings.projects]);
 
   if (!selectedFile) return null;
 
@@ -48,6 +59,7 @@ export function WorkEditorTab({
       viewMode={viewMode}
       selectedRepo={selectedRepo}
       basePath={basePath}
+      projectPath={projectPath}
       agentTools={agentTools}
       workEditorEditing={workEditorEditing}
       onWorkEditorEditingChange={(editing) => store.setProjectState(() => ({ workEditorEditing: editing }))}

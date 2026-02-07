@@ -35,12 +35,23 @@ export function ReviewTab() {
   const { 
     selectedRepo, 
     basePath, 
+    repositories,
+    settings,
     setSelectedFile,
     handleFileSelect,
     handleRunTest,
     saveFile,
     agentTools,
   } = store;
+
+  const projectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      settings.projects?.find((p) => p.name === selectedRepo)?.path ||
+      null
+    );
+  }, [repositories, selectedRepo, settings.projects]);
 
   const {
     selectedFile,
@@ -258,6 +269,7 @@ export function ReviewTab() {
       <AIRightSidebar
         selectedRepo={selectedRepo}
         basePath={basePath}
+        projectPath={projectPath}
         agentTools={agentTools}
         viewMode={viewMode}
         file={selectedFile}

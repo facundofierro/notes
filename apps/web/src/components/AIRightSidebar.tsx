@@ -26,6 +26,7 @@ const TerminalViewer = dynamic(
 interface AIRightSidebarProps {
   selectedRepo: string | null;
   basePath: string;
+  projectPath?: string | null;
   agentTools: Array<{ name: string; displayName: string; available: boolean; type?: string }>;
   viewMode: string;
   file?: { path: string } | null;
@@ -40,6 +41,7 @@ interface AIRightSidebarProps {
 export function AIRightSidebar({
   selectedRepo,
   basePath,
+  projectPath,
   agentTools,
   viewMode,
   file,
@@ -88,8 +90,7 @@ Cancelled` : "Cancelled"));
   }, []);
 
   const openInteractiveTerminal = React.useCallback(async () => {
-    if (!selectedRepo) return;
-    const cwd = basePath ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined;
+    const cwd = projectPath || (basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined);
 
     setTerminalToolName("Interactive Terminal");
     setTerminalOutput("");
@@ -136,7 +137,7 @@ Error: ${error.message}`);
       }
       setIsTerminalRunning(false);
     }
-  }, [selectedRepo, basePath]);
+  }, [selectedRepo, basePath, projectPath]);
 
   const handleTerminalInput = React.useCallback(async (data: string) => {
     if (!terminalProcessId) return;
@@ -184,7 +185,7 @@ Error: ${error.message}`);
       prompt = prompt.split(`@${name}`).join(path);
     });
 
-    const cwd = basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined;
+    const cwd = projectPath || (basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined);
 
     try {
       if (agentTools.find(t => t.name === toolName)?.type === "web") {
@@ -198,8 +199,8 @@ Error: ${error.message}`);
         let apiPath = `/api/${toolName.toLowerCase().replace("-web", "")}`;
         const params = new URLSearchParams();
         let fullPath = "";
-        if (basePath && selectedRepo) {
-          const nextFullPath = `${basePath}/${selectedRepo}`.replace(/\/+/g, "/");
+        const nextFullPath = projectPath || (basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : "");
+        if (nextFullPath) {
           fullPath = nextFullPath;
           params.set("path", nextFullPath);
         }
@@ -271,7 +272,7 @@ Cancelled` : "Cancelled");
       }
       setIsTerminalRunning(false);
     }
-  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, toolModelByTool, buildToolPrompt]);
+  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt]);
 
   const ensureModelsForTool = React.useCallback(async (toolName: string) => {
     if (toolModelsByTool[toolName] || isToolModelsLoading[toolName]) return;

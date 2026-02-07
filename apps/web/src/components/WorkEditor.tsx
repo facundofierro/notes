@@ -18,6 +18,7 @@ interface WorkEditorProps {
   viewMode: string;
   selectedRepo: string | null;
   basePath: string;
+  projectPath?: string | null;
   agentTools: Array<{ name: string; displayName: string; available: boolean }>;
   workEditorEditing: boolean;
   onWorkEditorEditingChange: (editing: boolean) => void;
@@ -38,6 +39,7 @@ export function WorkEditor({
   viewMode,
   selectedRepo,
   basePath,
+  projectPath,
   agentTools,
   workEditorEditing,
   onWorkEditorEditingChange,
@@ -80,6 +82,7 @@ export function WorkEditor({
       <AIRightSidebar
         selectedRepo={selectedRepo}
         basePath={basePath}
+        projectPath={projectPath}
         agentTools={agentTools}
         viewMode={viewMode}
         file={file}
