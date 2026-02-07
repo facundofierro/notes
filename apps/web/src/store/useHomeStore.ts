@@ -190,6 +190,7 @@ export interface HomeState {
   handleStartApp: () => Promise<void>;
   handleStopApp: () => Promise<void>;
   handleRestartApp: () => Promise<void>;
+  handleBuildApp: () => Promise<void>;
   handleRunTest: (
     path: string,
   ) => Promise<void>;
@@ -962,6 +963,75 @@ export const useHomeStore =
                 isAppStarting: false,
               }),
             );
+          }
+        },
+
+        handleBuildApp: async () => {
+          const {
+            selectedRepo,
+            repositories,
+            settings,
+            projectStates,
+          } = get();
+          if (!selectedRepo) return;
+          const pState = projectStates[selectedRepo];
+
+          const project = settings.projects?.find((p) => p.name === selectedRepo);
+          const buildCmd = project?.commands?.build || "pnpm build";
+          const repoPath = repositories.find((r) => r.name === selectedRepo)?.path || project?.path || "unknown";
+
+          // If app is running, stop it first
+          if (pState.isAppRunning) {
+            await get().handleStopApp();
+          }
+
+          if (pState.appLogsAbortController) {
+            pState.appLogsAbortController.abort();
+          }
+
+          const banner = [
+            `\x1b[36m━━━ Building: ${selectedRepo} ━━━\x1b[0m`,
+            `\x1b[90m  Directory: ${repoPath}\x1b[0m`,
+            `\x1b[90m  Command:   ${buildCmd}\x1b[0m`,
+            `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
+            "",
+          ].join("\n");
+
+          get().setProjectState(() => ({
+            appLogs: banner,
+            isAppStarting: true,
+            viewMode: "logs",
+            logStreamPid: null,
+            isAppRunning: false, // Ensure it's false since we are building
+          }));
+
+          try {
+            const res = await fetch("/api/system/command", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ repo: selectedRepo, command: buildCmd }),
+            });
+            const data = await res.json();
+            if (!data.success) {
+              get().setProjectState((prev) => ({
+                appLogs: prev.appLogs + `\x1b[31mError: ${data.error || "Failed to start build"}\x1b[0m\n`,
+                isAppStarting: false,
+              }));
+              return;
+            }
+
+            if (data.pid) {
+              get().setProjectState(() => ({
+                appPid: data.pid,
+                isAppManaged: true,
+                logStreamPid: data.pid,
+              }));
+            }
+          } catch (error) {
+            get().setProjectState((prev) => ({
+              appLogs: prev.appLogs + `\x1b[31mError: ${error}\x1b[0m\n`,
+              isAppStarting: false,
+            }));
           }
         },
 

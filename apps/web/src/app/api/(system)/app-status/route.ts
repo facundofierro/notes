@@ -100,6 +100,20 @@ async function checkPidAlive(pid: number): Promise<boolean> {
   }
 }
 
+async function killProcessTree(pid: number) {
+  try {
+    // Try to kill the whole process group
+    // We use -pid to target the process group
+    process.kill(-pid, "SIGKILL");
+  } catch (e) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch (e2) {
+      // ignore
+    }
+  }
+}
+
 async function findProcessByPort(port: number): Promise<number | null> {
   try {
     const { stdout } = await execAsync(`lsof -ti :${port}`);
@@ -339,6 +353,7 @@ export async function POST(request: NextRequest) {
               FORCE_COLOR: "1",
             },
             stdio: ["pipe", "pipe", "pipe"],
+            detached: true,
           });
         } catch (error: any) {
           console.error(`[Spawn] Failed:`, error);
@@ -412,11 +427,8 @@ export async function POST(request: NextRequest) {
         if (managedProcess) {
           // Stop managed process
           try {
-            if (managedProcess.childProcess) {
-              managedProcess.childProcess.kill("SIGTERM");
-            } else {
-              process.kill(managedProcess.pid, "SIGTERM");
-            }
+            await killProcessTree(managedProcess.pid);
+            
             cleanupProcess(repo, managedProcess.pid);
             setTimeout(() => cleanupProcessBuffer(managedProcess.pid), 10000);
             return NextResponse.json({ success: true, managed: true });
@@ -438,7 +450,7 @@ export async function POST(request: NextRequest) {
               const pid = await findProcessByPort(port);
               if (pid) {
                 try {
-                  process.kill(pid, "SIGTERM");
+                  await killProcessTree(pid);
                   // Clean up if it was somehow in our buffers
                   processOutputBuffers.delete(pid);
                   processInputHandlers.delete(pid);
@@ -465,15 +477,12 @@ export async function POST(request: NextRequest) {
         const managedProcess = processStore.get(repo);
         if (managedProcess) {
           try {
-            if (managedProcess.childProcess) {
-              managedProcess.childProcess.kill("SIGTERM");
-            } else {
-              process.kill(managedProcess.pid, "SIGTERM");
-            }
+            await killProcessTree(managedProcess.pid);
+            
             cleanupProcess(repo, managedProcess.pid);
             setTimeout(() => cleanupProcessBuffer(managedProcess.pid), 10000);
-            // Wait a bit for the process to die
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Wait a bit for the process to die and release ports
+            await new Promise((resolve) => setTimeout(resolve, 2000));
           } catch {
             // Ignore errors
           }
@@ -507,6 +516,7 @@ export async function POST(request: NextRequest) {
               ...cleanEnv,
             },
             stdio: ["pipe", "pipe", "pipe"],
+            detached: true,
           });
         } catch (error: any) {
           console.error(`[Spawn] Restart failed:`, error);

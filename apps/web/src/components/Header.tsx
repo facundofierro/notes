@@ -28,6 +28,7 @@ export function Header() {
     handleStartApp,
     handleStopApp,
     handleRestartApp,
+    handleBuildApp,
     setSettingsTab,
     setIsSettingsOpen,
     settings
@@ -74,17 +75,6 @@ export function Header() {
       body: JSON.stringify({ repo: selectedRepo, command: "pnpm install" }),
     });
   }, [selectedRepo]);
-
-  const handleBuildApp = React.useCallback(async () => {
-    if (!selectedRepo) return;
-    const project = settings.projects?.find((p) => p.name === selectedRepo);
-    const buildCmd = project?.commands?.build || "pnpm build";
-    await fetch("/api/system/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repo: selectedRepo, command: buildCmd }),
-    });
-  }, [selectedRepo, settings.projects]);
 
   return (
     <div className="flex justify-between items-center px-4 py-2 border-b bg-secondary border-border">
