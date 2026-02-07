@@ -128,6 +128,7 @@ export interface HomeState {
 
   // Actions
   fetchSettings: () => Promise<void>;
+  fetchAgentTools: () => Promise<void>;
   updateSettings: (
     newSettings: Partial<UserSettings>,
   ) => Promise<void>;
@@ -231,7 +232,7 @@ const defaultSettings: UserSettings = {
   aiModel: "default",
   aiProvider: "auto",
   projects: [],
-  enabledAgents: [],
+  enabledAgents: ["*"],
   stagehandApiKey: "",
   openaiApiKey: "",
   anthropicApiKey: "",
@@ -503,6 +504,8 @@ export const useHomeStore =
               settings: data.settings,
               settingsError: null,
             });
+            // After fetching settings, fetch and filter agent tools
+            void get().fetchAgentTools();
           } catch (err) {
             set({
               settingsError:
@@ -512,6 +515,26 @@ export const useHomeStore =
             set({
               isSettingsLoading: false,
             });
+          }
+        },
+
+        fetchAgentTools: async () => {
+          try {
+            const response = await fetch("/api/agents?action=tools");
+            if (!response.ok) throw new Error("Failed to fetch agent tools");
+            const data = await response.json();
+            const tools = data.tools || [];
+            
+            const { settings } = get();
+            const enabledAgents = settings.enabledAgents || ["*"];
+            
+            const filteredTools = tools.filter((tool: any) => 
+              enabledAgents.includes("*") || enabledAgents.includes(tool.name)
+            );
+            
+            set({ agentTools: filteredTools });
+          } catch (error) {
+            console.error("Error fetching agent tools:", error);
           }
         },
 
@@ -547,6 +570,7 @@ export const useHomeStore =
               settings: data.settings,
               settingsError: null,
             });
+            void get().fetchAgentTools();
           } catch (err) {
             set({
               settingsError:
@@ -580,6 +604,7 @@ export const useHomeStore =
               settings: data.settings,
               settingsError: null,
             });
+            void get().fetchAgentTools();
           } catch (err) {
             set({
               settingsError:
@@ -1330,28 +1355,8 @@ export const useHomeStore =
           () => localStorage,
         ),
         partialize: (state) => ({
-          settings: state.settings,
-          repositories:
-            state.repositories,
-          selectedRepo:
-            state.selectedRepo,
-          basePath: state.basePath,
-          projectStates:
-            Object.fromEntries(
-              Object.entries(
-                state.projectStates,
-              ).map(
-                ([repo, pState]) => [
-                  repo,
-                  {
-                    testViewMode:
-                      pState.testViewMode,
-                    activeTerminalId:
-                      pState.activeTerminalId,
-                  },
-                ],
-              ),
-            ),
+          repositories: state.repositories,
+          selectedRepo: state.selectedRepo,
         }),
       },
     ),

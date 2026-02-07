@@ -82,7 +82,7 @@ const defaultSettings: UserSettings = {
   aiModel: "default",
   aiProvider: "auto",
   projects: [],
-  enabledAgents: [],
+  enabledAgents: ["*"],
   stagehandApiKey: "",
   openaiApiKey: "",
   anthropicApiKey: "",

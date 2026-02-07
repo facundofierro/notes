@@ -98,6 +98,15 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     listModelsCommand: null,
     promptFlag: "run",
   },
+  verdent: {
+    name: "Verdent",
+    command: "verdent",
+    type: "app",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "run",
+    supportedModels: ["claude-3-5-sonnet", "gpt-4o"],
+  },
   vscode: {
     name: "VS Code",
     command: "code",

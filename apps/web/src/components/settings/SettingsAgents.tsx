@@ -18,9 +18,15 @@ export function SettingsAgents({ settings, onChange }: SettingsAgentsProps) {
   }, []);
 
   const toggleAgent = (name: string, checked: boolean) => {
-    const current = settings.enabledAgents || []; 
+    let current = settings.enabledAgents || ["*"]; 
+    if (current.includes("*")) {
+      current = tools.map(t => t.name);
+    }
+
     if (checked) {
-      onChange("enabledAgents", [...current, name]);
+      if (!current.includes(name)) {
+        onChange("enabledAgents", [...current, name]);
+      }
     } else {
       onChange("enabledAgents", current.filter(n => n !== name));
     }
@@ -41,7 +47,7 @@ export function SettingsAgents({ settings, onChange }: SettingsAgentsProps) {
 
   const renderTool = (tool: any) => {
     if (!tool) return <div className="invisible" />;
-    const isEnabled = (settings.enabledAgents || []).includes(tool.name);
+    const isEnabled = (settings.enabledAgents || ["*"]).includes("*") || (settings.enabledAgents || []).includes(tool.name);
     return (
       <div 
         key={tool.name} 
