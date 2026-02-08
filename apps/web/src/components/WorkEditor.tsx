@@ -28,6 +28,7 @@ interface WorkEditorProps {
   testOutput: string;
   isTestRunning: boolean;
   onRunTest?: (path: string) => void;
+  contextKey?: string;
 }
 
 export function WorkEditor({
@@ -49,6 +50,7 @@ export function WorkEditor({
   testOutput,
   isTestRunning,
   onRunTest,
+  contextKey,
 }: WorkEditorProps) {
 
   const handleSaveFile = async (opts: { path: string; content: string }) => {
@@ -91,6 +93,7 @@ export function WorkEditor({
         testOutput={testOutput}
         isTestRunning={isTestRunning}
         onRunTest={onRunTest}
+        contextKey={contextKey}
       />
     </div>
   );

@@ -9,7 +9,7 @@ import {
   resolveCommandPath,
 } from "@/lib/agent-tools";
 
-import { registerProcess } from "@/lib/agent-store";
+import { registerProcess, appendOutput } from "@/lib/agent-store";
 import type { AgentToolName } from "@/lib/agent-tools";
 
 export async function GET(
@@ -140,11 +140,10 @@ export async function POST(
 
     const stream = new ReadableStream({
       start(controller) {
-        // Log debug info to the stream
+        const debugMsg = `\n[Debug] Spawning command: ${resolvedCommand}\n[Debug] Args: ${JSON.stringify(args)}\n\n`;
+        appendOutput(processId, debugMsg);
         controller.enqueue(
-          encoder.encode(
-            `\n[Debug] Spawning command: ${resolvedCommand}\n[Debug] Args: ${JSON.stringify(args)}\n\n`,
-          ),
+          encoder.encode(debugMsg),
         );
 
         // Use python pty to emulate TTY
@@ -194,16 +193,17 @@ export async function POST(
         registerProcess(
           processId,
           child,
+          toolName,
         );
 
         if (child.stdout) {
           child.stdout.on(
             "data",
             (data) => {
+              const str = data.toString();
+              appendOutput(processId, str);
               controller.enqueue(
-                encoder.encode(
-                  data.toString(),
-                ),
+                encoder.encode(str),
               );
             },
           );
@@ -213,10 +213,10 @@ export async function POST(
           child.stderr.on(
             "data",
             (data) => {
+              const str = data.toString();
+              appendOutput(processId, str);
               controller.enqueue(
-                encoder.encode(
-                  data.toString(),
-                ),
+                encoder.encode(str),
               );
             },
           );
@@ -224,20 +224,20 @@ export async function POST(
 
         child.on("close", (code) => {
           if (code !== 0) {
+            const msg = `\nProcess exited with code ${code}`;
+            appendOutput(processId, msg);
             controller.enqueue(
-              encoder.encode(
-                `\nProcess exited with code ${code}`,
-              ),
+              encoder.encode(msg),
             );
           }
           controller.close();
         });
 
         child.on("error", (err) => {
+          const msg = `\nFailed to start process: ${err.message}`;
+          appendOutput(processId, msg);
           controller.enqueue(
-            encoder.encode(
-              `\nFailed to start process: ${err.message}`,
-            ),
+            encoder.encode(msg),
           );
           controller.close();
         });

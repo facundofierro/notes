@@ -20,6 +20,14 @@ export interface TerminalState {
   processId?: string;
 }
 
+export interface TerminalSessionInfo {
+  processId: string;
+  toolName: string;
+  contextKey: string;
+  isRunning: boolean;
+  startedAt: number;
+}
+
 export interface ProjectState {
   viewMode: ViewMode;
   testViewMode:
@@ -61,6 +69,7 @@ export interface ProjectState {
   workDocIsDraft: boolean;
   terminals: TerminalState[];
   activeTerminalId: string;
+  terminalSessions: TerminalSessionInfo[];
 }
 
 const createDefaultProjectState =
@@ -94,6 +103,7 @@ const createDefaultProjectState =
     workDocIsDraft: false,
     terminals: [],
     activeTerminalId: "logs",
+    terminalSessions: [],
   });
 
 export interface HomeState {
@@ -185,6 +195,19 @@ export interface HomeState {
       | string
       | ((prev: string) => string),
   ) => void;
+  registerTerminalSession: (
+    session: TerminalSessionInfo,
+  ) => void;
+  updateTerminalSession: (
+    processId: string,
+    updates: Partial<TerminalSessionInfo>,
+  ) => void;
+  removeTerminalSession: (
+    processId: string,
+  ) => void;
+  getTerminalSessionForContext: (
+    contextKey: string,
+  ) => TerminalSessionInfo | undefined;
 
   // Logic Actions (operates on selectedRepo)
   handleStartApp: () => Promise<void>;
@@ -483,6 +506,43 @@ export const useHomeStore =
                       : t,
                 ),
             }),
+          );
+        },
+
+        registerTerminalSession: (session) => {
+          get().setProjectState((prev) => {
+            const existing = prev.terminalSessions.findIndex(
+              (s) => s.contextKey === session.contextKey
+            );
+            if (existing >= 0) {
+              const sessions = [...prev.terminalSessions];
+              sessions[existing] = session;
+              return { terminalSessions: sessions };
+            }
+            return { terminalSessions: [...prev.terminalSessions, session] };
+          });
+        },
+
+        updateTerminalSession: (processId, updates) => {
+          get().setProjectState((prev) => ({
+            terminalSessions: prev.terminalSessions.map((s) =>
+              s.processId === processId ? { ...s, ...updates } : s
+            ),
+          }));
+        },
+
+        removeTerminalSession: (processId) => {
+          get().setProjectState((prev) => ({
+            terminalSessions: prev.terminalSessions.filter(
+              (s) => s.processId !== processId
+            ),
+          }));
+        },
+
+        getTerminalSessionForContext: (contextKey) => {
+          const state = get().getProjectState();
+          return state.terminalSessions.find(
+            (s) => s.contextKey === contextKey
           );
         },
 

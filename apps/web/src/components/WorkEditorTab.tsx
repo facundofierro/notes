@@ -69,6 +69,7 @@ export function WorkEditorTab({
       testOutput={testOutput}
       isTestRunning={isTestRunning}
       onRunTest={handleRunTest}
+      contextKey={selectedFile ? `${viewMode}:${selectedFile.path}` : ""}
     />
   );
 }

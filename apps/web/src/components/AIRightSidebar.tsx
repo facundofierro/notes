@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { usePromptBuilder, PromptBuilderOptions } from "@/hooks/usePromptBuilder";
 import { inferTestExecutionStatus } from "@/lib/test-output";
+import { useHomeStore } from "@/store/useHomeStore";
 
 const TerminalViewer = dynamic(
   () => import("@/components/TerminalViewer").then((mod) => mod.TerminalViewer),
@@ -36,6 +37,7 @@ interface AIRightSidebarProps {
   isTestRunning?: boolean;
   onRunTest?: (path: string) => void;
   className?: string;
+  contextKey?: string;
 }
 
 export function AIRightSidebar({
@@ -51,11 +53,14 @@ export function AIRightSidebar({
   isTestRunning = false,
   onRunTest,
   className = "",
+  contextKey = "",
 }: AIRightSidebarProps) {
   const { buildToolPrompt } = usePromptBuilder();
+  const { registerTerminalSession, updateTerminalSession, removeTerminalSession, getTerminalSessionForContext } = useHomeStore();
   const terminalAbortControllerRef = React.useRef<AbortController | null>(null);
   const recognitionRef = React.useRef<any>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const reconnectAttemptedRef = React.useRef<string | null>(null);
 
   const [rightSidebarView, setRightSidebarView] = React.useState<"prompt" | "terminal" | "iframe">("prompt");
   const [terminalOutput, setTerminalOutput] = React.useState("");
@@ -80,15 +85,78 @@ export function AIRightSidebar({
   const [isToolModelsLoading, setIsToolModelsLoading] = React.useState<Record<string, boolean>>({});
   const [termSize, setTermSize] = React.useState({ cols: 100, rows: 30 });
 
+  const reconnectToSession = React.useCallback(async (processId: string, toolName: string) => {
+    terminalAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    terminalAbortControllerRef.current = controller;
+
+    setTerminalToolName(toolName);
+    setTerminalOutput("");
+    setTerminalProcessId(processId);
+    setRightSidebarView("terminal");
+
+    try {
+      const statusRes = await fetch(`/api/terminal?id=${processId}&action=status`);
+      if (!statusRes.ok) {
+        if (contextKey) removeTerminalSession(processId);
+        setRightSidebarView("prompt");
+        return;
+      }
+      const status = await statusRes.json();
+      setIsTerminalRunning(status.alive);
+
+      const res = await fetch(`/api/terminal?id=${processId}`, {
+        signal: controller.signal,
+      });
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setTerminalOutput("Failed to reconnect");
+        setIsTerminalRunning(false);
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) setTerminalOutput((prev) => prev + chunk);
+      }
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        setTerminalOutput((prev) => `${prev}\nReconnect error: ${error.message}`);
+      }
+    } finally {
+      if (terminalAbortControllerRef.current === controller) {
+        terminalAbortControllerRef.current = null;
+      }
+      setIsTerminalRunning(false);
+      if (contextKey) updateTerminalSession(processId, { isRunning: false });
+    }
+  }, [contextKey, removeTerminalSession, updateTerminalSession]);
+
+  React.useEffect(() => {
+    if (!contextKey) return;
+    const session = getTerminalSessionForContext(contextKey);
+    if (!session || !session.isRunning) return;
+    if (reconnectAttemptedRef.current === session.processId) return;
+    reconnectAttemptedRef.current = session.processId;
+    reconnectToSession(session.processId, session.toolName);
+  }, [contextKey, getTerminalSessionForContext, reconnectToSession]);
+
   const cancelTerminal = React.useCallback(() => {
     terminalAbortControllerRef.current?.abort();
     terminalAbortControllerRef.current = null;
+    if (terminalProcessId && contextKey) {
+      updateTerminalSession(terminalProcessId, { isRunning: false });
+    }
     setIsTerminalRunning(false);
     setTerminalProcessId(null);
     setTerminalOutput((prev) => (prev ? `${prev}
 
 Cancelled` : "Cancelled"));
-  }, []);
+  }, [terminalProcessId, contextKey, updateTerminalSession]);
 
   const openInteractiveTerminal = React.useCallback(async () => {
     const cwd = projectPath || (basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined);
@@ -101,6 +169,7 @@ Cancelled` : "Cancelled"));
 
     terminalAbortControllerRef.current = new AbortController();
     const ac = terminalAbortControllerRef.current;
+    let localProcessId: string | null = null;
 
     try {
       const res = await fetch("/api/terminal", {
@@ -115,7 +184,19 @@ Cancelled` : "Cancelled"));
       });
 
       const processId = res.headers.get("X-Agent-Process-ID");
-      if (processId) setTerminalProcessId(processId);
+      localProcessId = processId;
+      if (processId) {
+        setTerminalProcessId(processId);
+        if (contextKey) {
+          registerTerminalSession({
+            processId,
+            toolName: "Interactive Terminal",
+            contextKey,
+            isRunning: true,
+            startedAt: Date.now(),
+          });
+        }
+      }
 
       const reader = res.body?.getReader();
       if (!reader) {
@@ -141,8 +222,11 @@ Error: ${error.message}`);
         terminalAbortControllerRef.current = null;
       }
       setIsTerminalRunning(false);
+      if (localProcessId && contextKey) {
+        updateTerminalSession(localProcessId, { isRunning: false });
+      }
     }
-  }, [selectedRepo, basePath, projectPath]);
+  }, [selectedRepo, basePath, projectPath, contextKey, registerTerminalSession, updateTerminalSession]);
 
   const handleTerminalInput = React.useCallback(async (data: string) => {
     if (!terminalProcessId) return;
@@ -250,7 +334,18 @@ Error: ${error.message}`);
       });
 
       const processId = res.headers.get("X-Agent-Process-ID");
-      if (processId) setTerminalProcessId(processId);
+      if (processId) {
+        setTerminalProcessId(processId);
+        if (contextKey) {
+          registerTerminalSession({
+            processId,
+            toolName,
+            contextKey,
+            isRunning: true,
+            startedAt: Date.now(),
+          });
+        }
+      }
 
       const reader = res.body?.getReader();
       if (!reader) {
@@ -278,8 +373,11 @@ Cancelled` : "Cancelled");
         terminalAbortControllerRef.current = null;
       }
       setIsTerminalRunning(false);
+      if (contextKey && terminalProcessId) {
+        updateTerminalSession(terminalProcessId, { isRunning: false });
+      }
     }
-  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt]);
+  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt, contextKey, registerTerminalSession, updateTerminalSession, terminalProcessId]);
 
   const ensureModelsForTool = React.useCallback(async (toolName: string) => {
     if (toolModelsByTool[toolName] || isToolModelsLoading[toolName]) return;
@@ -532,6 +630,9 @@ Cancelled` : "Cancelled");
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">CLI & Web</div>
                 {agentTools.filter(t => t.type === "cli" || t.type === "web").map(tool => {
                   const isActive = isTerminalRunning && terminalToolName === tool.name;
+                  const savedSession = contextKey ? getTerminalSessionForContext(contextKey) : undefined;
+                  const hasSavedSession = savedSession?.toolName === tool.name && savedSession?.isRunning && !isActive;
+                  const isHighlighted = isActive || hasSavedSession;
                   const getToolIcon = (type?: string) => {
                     switch (type) {
                       case "cli": return <Terminal className="w-3.5 h-3.5" />;
@@ -540,18 +641,23 @@ Cancelled` : "Cancelled");
                       default: return <Terminal className="w-3.5 h-3.5" />;
                     }
                   };
+                  const handleClick = () => {
+                    if (isActive) { setRightSidebarView("terminal"); return; }
+                    if (hasSavedSession && savedSession) { reconnectToSession(savedSession.processId, savedSession.toolName); return; }
+                    runTool(tool.name);
+                  };
                   
                   return (
-                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isActive ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                      <button onClick={() => isActive ? setRightSidebarView("terminal") : runTool(tool.name)} disabled={!tool.available || (!isActive && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
+                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
+                      <button onClick={handleClick} disabled={!tool.available || (!isHighlighted && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
                         <div className="flex gap-2 items-center mb-0.5 pr-5">
                           <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
-                          {isActive && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+                          {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
                         </div>
                         <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
                           {getToolIcon(tool.type)}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">{isActive ? "Continue" : "Run"}</div>
+                        <div className="text-[10px] text-muted-foreground">{isHighlighted ? "Continue" : "Run"}</div>
                       </button>
                       <div className="p-1 border-t bg-background border-border">
                         <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
@@ -569,6 +675,9 @@ Cancelled` : "Cancelled");
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">Applications</div>
                 {agentTools.filter(t => t.type === "app").map(tool => {
                   const isActive = isTerminalRunning && terminalToolName === tool.name;
+                  const savedSession = contextKey ? getTerminalSessionForContext(contextKey) : undefined;
+                  const hasSavedSession = savedSession?.toolName === tool.name && savedSession?.isRunning && !isActive;
+                  const isHighlighted = isActive || hasSavedSession;
                   const getToolIcon = (type?: string) => {
                     switch (type) {
                       case "cli": return <Terminal className="w-3.5 h-3.5" />;
@@ -577,18 +686,23 @@ Cancelled` : "Cancelled");
                       default: return <Terminal className="w-3.5 h-3.5" />;
                     }
                   };
+                  const handleClick = () => {
+                    if (isActive) { setRightSidebarView("terminal"); return; }
+                    if (hasSavedSession && savedSession) { reconnectToSession(savedSession.processId, savedSession.toolName); return; }
+                    runTool(tool.name);
+                  };
                   
                   return (
-                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isActive ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                      <button onClick={() => isActive ? setRightSidebarView("terminal") : runTool(tool.name)} disabled={!tool.available || (!isActive && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
+                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
+                      <button onClick={handleClick} disabled={!tool.available || (!isHighlighted && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
                         <div className="flex gap-2 items-center mb-0.5 pr-5">
                           <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
-                          {isActive && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+                          {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
                         </div>
                         <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
                           {getToolIcon(tool.type)}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">{isActive ? "Continue" : "Run"}</div>
+                        <div className="text-[10px] text-muted-foreground">{isHighlighted ? "Continue" : "Run"}</div>
                       </button>
                       <div className="p-1 border-t bg-background border-border">
                         <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">

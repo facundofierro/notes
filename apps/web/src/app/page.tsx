@@ -195,36 +195,20 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
     };
   }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectStateForRepo]);
 
+  const tabClass = (mode: string) =>
+    `absolute inset-0 flex ${viewMode === mode ? "z-10 visible" : "z-0 invisible pointer-events-none"}`;
+
   return (
     <div className="flex overflow-hidden flex-1 relative">
-      {/* Always render BrowserTab so the iframe is never destroyed */}
-      <div className={`absolute inset-0 flex ${
-        viewMode === "browser" ? "z-10 visible" : "z-0 invisible pointer-events-none"
-      }`}>
-        <BrowserTab repoName={repoName} />
-      </div>
-
-      {viewMode !== "browser" && (
-        <div className="flex overflow-hidden flex-1">
-          {viewMode === "docs" ? (
-            <DocsTab />
-          ) : viewMode === "ai" ? (
-            <AITab />
-          ) : viewMode === "tests" ? (
-            <TestsTab />
-          ) : viewMode === "ideas" ? (
-            <IdeasTab />
-          ) : viewMode === "epics" ? (
-            <EpicsTab />
-          ) : viewMode === "review" ? (
-            <ReviewTab />
-          ) : viewMode === "logs" ? (
-            <LogsTab />
-          ) : (
-            <TasksTab />
-          )}
-        </div>
-      )}
+      <div className={tabClass("kanban")}><TasksTab /></div>
+      <div className={tabClass("docs")}><DocsTab /></div>
+      <div className={tabClass("ai")}><AITab /></div>
+      <div className={tabClass("tests")}><TestsTab /></div>
+      <div className={tabClass("ideas")}><IdeasTab /></div>
+      <div className={tabClass("epics")}><EpicsTab /></div>
+      <div className={tabClass("review")}><ReviewTab /></div>
+      <div className={tabClass("logs")}><LogsTab /></div>
+      <div className={tabClass("browser")}><BrowserTab repoName={repoName} /></div>
     </div>
   );
 }

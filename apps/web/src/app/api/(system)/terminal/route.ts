@@ -1,6 +1,85 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
-import { registerProcess } from "@/lib/agent-store";
+import { registerProcess, appendOutput, getOutputBuffer, isProcessAlive, getProcessStatus, cleanupSession } from "@/lib/agent-store";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  const action = searchParams.get("action");
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  if (action === "status") {
+    const status = getProcessStatus(id);
+    if (!status) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+    return NextResponse.json(status);
+  }
+
+  if (action === "cleanup") {
+    cleanupSession(id);
+    return NextResponse.json({ success: true });
+  }
+
+  const buffer = getOutputBuffer(id);
+  const alive = isProcessAlive(id);
+
+  if (buffer === undefined && !alive) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  const encoder = new TextEncoder();
+  let position = 0;
+
+  const stream = new ReadableStream({
+    start(controller) {
+      if (buffer) {
+        controller.enqueue(encoder.encode(buffer));
+        position = buffer.length;
+      }
+
+      if (!alive) {
+        controller.close();
+        return;
+      }
+
+      const pollInterval = setInterval(() => {
+        const currentBuffer = getOutputBuffer(id);
+        if (currentBuffer && currentBuffer.length > position) {
+          const newContent = currentBuffer.slice(position);
+          position = currentBuffer.length;
+          controller.enqueue(encoder.encode(newContent));
+        }
+
+        if (!isProcessAlive(id)) {
+          const finalBuffer = getOutputBuffer(id);
+          if (finalBuffer && finalBuffer.length > position) {
+            controller.enqueue(encoder.encode(finalBuffer.slice(position)));
+          }
+          clearInterval(pollInterval);
+          controller.close();
+        }
+      }, 100);
+
+      request.signal.addEventListener("abort", () => {
+        clearInterval(pollInterval);
+      });
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Agent-Process-ID": id,
+      "X-Agent-Process-Running": alive ? "true" : "false",
+    },
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +91,6 @@ export async function POST(request: Request) {
 
     const stream = new ReadableStream({
       start(controller) {
-        // Use python pty to emulate TTY for interactive shell
         const usePty =
           process.platform === "darwin" ||
           process.platform === "linux";
@@ -43,39 +121,43 @@ export async function POST(request: Request) {
             TERM: "xterm-256color",
           },
           stdio: [
-            "pipe", // stdin - allow input
-            "pipe", // stdout
-            "pipe", // stderr
+            "pipe",
+            "pipe",
+            "pipe",
           ],
         });
 
-        registerProcess(processId, child);
+        registerProcess(processId, child, "Interactive Terminal");
 
         if (child.stdout) {
           child.stdout.on("data", (data) => {
-            controller.enqueue(encoder.encode(data.toString()));
+            const str = data.toString();
+            appendOutput(processId, str);
+            controller.enqueue(encoder.encode(str));
           });
         }
 
         if (child.stderr) {
           child.stderr.on("data", (data) => {
-            controller.enqueue(encoder.encode(data.toString()));
+            const str = data.toString();
+            appendOutput(processId, str);
+            controller.enqueue(encoder.encode(str));
           });
         }
 
         child.on("close", (code) => {
           if (code !== 0) {
-            controller.enqueue(
-              encoder.encode(`\nProcess exited with code ${code}`)
-            );
+            const msg = `\nProcess exited with code ${code}`;
+            appendOutput(processId, msg);
+            controller.enqueue(encoder.encode(msg));
           }
           controller.close();
         });
 
         child.on("error", (err) => {
-          controller.enqueue(
-            encoder.encode(`\nFailed to start terminal: ${err.message}`)
-          );
+          const msg = `\nFailed to start terminal: ${err.message}`;
+          appendOutput(processId, msg);
+          controller.enqueue(encoder.encode(msg));
           controller.close();
         });
       },

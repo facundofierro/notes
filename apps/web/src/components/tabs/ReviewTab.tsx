@@ -278,6 +278,7 @@ export function ReviewTab() {
         testOutput={testOutput}
         isTestRunning={isTestRunning}
         onRunTest={handleRunTest}
+        contextKey={selectedFile ? `review:${selectedFile.path}` : "review"}
       />
     </div>
   );
