@@ -264,22 +264,21 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
                 </h3>
                 
                 {Object.entries(groupedStaged).map(([folder, files]) => (
-                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-3 shadow-sm group/card hover:border-border/80 transition-colors">
-                        <div className="px-3 py-2 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate border-b border-border/50 flex items-center gap-2" title={folder}>
-                            <span className="opacity-70">📁</span>
+                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
+                        <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
                             {truncatePath(folder)}
                         </div>
-                        <div className="divide-y divide-border/30">
+                        <div className="">
                             {files.map(file => (
                                 <div 
                                 key={file.path} 
-                                className={`flex items-center gap-2 px-3 py-2 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
+                                className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
                                 onClick={() => onSelectFile(file)}
                                 >
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
                                     <span className="flex-1 truncate font-medium">{file.path.split("/").pop()}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); handleUnstage(file.path); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 rounded transition-all" title="Unstage">
-                                        <Minus className="w-3.5 h-3.5" />
+                                    <button onClick={(e) => { e.stopPropagation(); handleUnstage(file.path); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 rounded transition-all" title="Unstage">
+                                        <Minus className="w-3 h-3" />
                                     </button>
                                 </div>
                             ))}
@@ -298,22 +297,21 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
                 </h3>
 
                 {Object.entries(groupedUnstaged).map(([folder, files]) => (
-                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-3 shadow-sm group/card hover:border-border/80 transition-colors">
-                        <div className="px-3 py-2 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate border-b border-border/50 flex items-center gap-2" title={folder}>
-                            <span className="opacity-70">📁</span>
+                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
+                        <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
                             {truncatePath(folder)}
                         </div>
-                        <div className="divide-y divide-border/30">
+                        <div className="">
                             {files.map(file => (
                                 <div 
                                 key={file.path} 
-                                className={`flex items-center gap-2 px-3 py-2 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
+                                className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
                                 onClick={() => onSelectFile(file)}
                                 >
                                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${file.status === "modified" ? "bg-amber-500" : "bg-slate-500"}`} />
                                     <span className="flex-1 truncate font-medium">{file.path.split("/").pop()}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); handleStage(file.path); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500 rounded transition-all" title="Stage">
-                                        <Plus className="w-3.5 h-3.5" />
+                                    <button onClick={(e) => { e.stopPropagation(); handleStage(file.path); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500 rounded transition-all" title="Stage">
+                                        <Plus className="w-3 h-3" />
                                     </button>
                                 </div>
                             ))}

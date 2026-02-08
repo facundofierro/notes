@@ -183,36 +183,45 @@ export function ReviewTab() {
 
   return (
     <div className="flex flex-1 overflow-hidden h-full bg-background">
-      {/* Left Narrow Sidebar */}
-      <div className="w-12 border-r border-border bg-secondary/20 flex flex-col items-center py-4 gap-4">
-        <button 
-          onClick={() => setLeftSidebarView("files")}
-          className={`p-2 rounded-lg transition-colors ${leftSidebarView === "files" ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
-          title="Files"
-        >
-          <Folder className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={() => setLeftSidebarView("changes")}
-          className={`p-2 rounded-lg transition-colors ${leftSidebarView === "changes" ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
-          title="Changes"
-        >
-          <GitBranch className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={() => setLeftSidebarView("prs")}
-          className={`p-2 rounded-lg transition-colors ${leftSidebarView === "prs" ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
-          title="GitHub PRs"
-        >
-          <Github className="w-5 h-5" />
-        </button>
-      </div>
-
       {/* Left Content Sidebar (File Browser / Changes / PRs) */}
       <div className={`flex flex-col overflow-hidden bg-secondary/5 ${leftSidebarView !== "files" ? "w-64 border-r border-border" : ""}`}>
-        <div className="p-3 border-b border-border font-medium text-xs uppercase tracking-wider text-muted-foreground flex justify-between items-center">
-          <span>{leftSidebarView === "files" ? "Project Files" : leftSidebarView === "changes" ? "Local Changes" : "GitHub PRs"}</span>
+        {/* Navigation Header */}
+        <div className="flex items-center border-b border-border bg-background/50">
+          <button 
+            onClick={() => setLeftSidebarView("files")}
+            className={`flex-1 flex items-center justify-center py-3 transition-colors border-b-2 ${
+              leftSidebarView === "files" 
+                ? "border-amber-500 text-amber-500 bg-amber-500/5" 
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            }`}
+            title="Project Files"
+          >
+            <Folder className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setLeftSidebarView("changes")}
+            className={`flex-1 flex items-center justify-center py-3 transition-colors border-b-2 ${
+              leftSidebarView === "changes" 
+                ? "border-amber-500 text-amber-500 bg-amber-500/5" 
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            }`}
+            title="Local Changes"
+          >
+            <GitBranch className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setLeftSidebarView("prs")}
+            className={`flex-1 flex items-center justify-center py-3 transition-colors border-b-2 ${
+              leftSidebarView === "prs" 
+                ? "border-amber-500 text-amber-500 bg-amber-500/5" 
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            }`}
+            title="GitHub PRs"
+          >
+            <Github className="w-4 h-4" />
+          </button>
         </div>
+
         <div className="flex-1 overflow-hidden">
           {leftSidebarView === "files" ? (
             <FileBrowser
