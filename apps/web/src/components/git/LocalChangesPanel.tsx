@@ -11,7 +11,8 @@ import {
   ArrowDown,
   Check,
   Plus,
-  Minus
+  Minus,
+  GitBranch
 } from "lucide-react";
 
 interface GitFile {
@@ -48,8 +49,6 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
   const [loading, setLoading] = React.useState(false);
   const [commitMessage, setCommitMessage] = React.useState("");
   const [generating, setGenerating] = React.useState(false);
-  const [uncommittedOpen, setUncommittedOpen] = React.useState(true);
-  const [localCommitsOpen, setLocalCommitsOpen] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
   const fetchStatus = React.useCallback(async () => {
@@ -141,17 +140,16 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
      fetchStatus();
   };
 
-  // Group files by folder
-  const groupedFiles = React.useMemo(() => {
-    if (!status?.files) return {};
+  // Helper to group files by folder
+  const groupFilesByFolder = (files: GitFile[]) => {
     const groups: Record<string, GitFile[]> = {};
-    status.files.forEach(f => {
+    files.forEach(f => {
       const excludeFile = f.path.split("/").slice(0, -1).join("/") || ".";
       if (!groups[excludeFile]) groups[excludeFile] = [];
       groups[excludeFile].push(f);
     });
     return groups;
-  }, [status?.files]);
+  };
 
   // truncate path helper
   const truncatePath = (path: string) => {
@@ -162,170 +160,211 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
   };
 
   const stagedFiles = status?.files.filter(f => f.status === "staged") || [];
-  const changesCount = status?.files.length || 0;
+  const unstagedFiles = status?.files.filter(f => f.status !== "staged") || [];
+  
+  const groupedStaged = groupFilesByFolder(stagedFiles);
+  const groupedUnstaged = groupFilesByFolder(unstagedFiles);
+
   const hasStaged = stagedFiles.length > 0;
-  const hasUnstaged = status?.files.some(f => f.status !== "staged") || false;
+  const hasUnstaged = unstagedFiles.length > 0;
 
   return (
     <div className={`flex flex-col h-full bg-secondary/5 border-r border-border ${className}`}>
         
-      {/* 1. Commit Message Section */}
-      <div className="p-3 border-b border-border flex flex-col gap-2">
-         <textarea 
-            value={commitMessage}
-            onChange={e => setCommitMessage(e.target.value)}
-            placeholder="Commit message..."
-            className="w-full h-16 bg-background border border-border rounded p-2 text-xs resize-none focus:outline-none focus:border-primary"
-         />
-         <button 
-           onClick={handleGenerateMessage}
-           disabled={generating}
-           className="flex items-center justify-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-         >
-            <Sparkles className="w-3 h-3" />
-            {generating ? "Generating..." : "Generate with AI"}
-         </button>
-      </div>
-
-      {/* 2. Actions Row */}
-      <div className="p-2 flex gap-2 border-b border-border">
-         <button 
-           onClick={handleCommit}
-           disabled={!hasStaged || !commitMessage || loading}
-           className="flex-1 bg-primary text-primary-foreground text-xs py-1.5 rounded font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-         >
-           <GitCommit className="w-3.5 h-3.5" />
-           Commit
-         </button>
-         {hasUnstaged && (
-           <button 
-             onClick={handleStageAll}
-             disabled={loading}
-             className="px-3 bg-secondary text-secondary-foreground border border-border text-xs py-1.5 rounded hover:bg-secondary/80 disabled:opacity-50"
-             title="Stage All"
-           >
-             <Plus className="w-3.5 h-3.5" />
-           </button>
-         )}
-      </div>
-
-      {/* 3. Changes List - Uncommitted */}
-      <div className="flex-1 overflow-y-auto">
-        <div>
-          <button 
-            onClick={() => setUncommittedOpen(!uncommittedOpen)}
-            className="w-full flex items-center justify-between p-2 text-xs font-semibold text-muted-foreground hover:bg-secondary/10 uppercase tracking-wider sticky top-0 bg-background/95 backdrop-blur z-10 border-b border-border/50"
-          >
-            <span>Changes ({changesCount})</span>
-            {uncommittedOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-          
-          {uncommittedOpen && (
-             <div className="flex flex-col">
-                {changesCount === 0 && <div className="p-3 text-xs text-muted-foreground text-center italic">No local changes</div>}
-                
-                {Object.entries(groupedFiles).map(([folder, files]) => (
-                   <div key={folder} className="flex flex-col">
-                      <div className="px-2 py-1 bg-secondary/10 text-[10px] font-mono text-muted-foreground truncate text-right border-y border-border/30" title={folder}>
-                         {truncatePath(folder)}
-                      </div>
-                      {files.map(file => (
-                        <div 
-                          key={file.path} 
-                          className={`flex items-center gap-2 px-2 py-1.5 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
-                          onClick={() => onSelectFile(file)}
-                        >
-                           {/* Status Indicator */}
-                           <span className={`w-1.5 h-1.5 rounded-full ${
-                             file.status === "staged" ? "bg-green-500" :
-                             file.status === "modified" ? "bg-amber-500" :
-                             "bg-slate-500"
-                           }`} />
-                           
-                           <span className="flex-1 truncate">{file.path.split("/").pop()}</span>
-                           
-                           {/* Action button (Stage/Unstage) - visible on hover */}
-                           <div className="opacity-0 group-hover:opacity-100 flex items-center">
-                              {file.status === "staged" ? (
-                                <button onClick={(e) => { e.stopPropagation(); handleUnstage(file.path); }} className="p-1 hover:bg-background rounded" title="Unstage">
-                                   <Minus className="w-3 h-3 text-red-500" />
-                                </button>
-                              ) : (
-                                <button onClick={(e) => { e.stopPropagation(); handleStage(file.path); }} className="p-1 hover:bg-background rounded" title="Stage">
-                                   <Plus className="w-3 h-3 text-green-500" />
-                                </button>
-                              )}
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                ))}
-             </div>
-          )}
-        </div>
-
-        {/* 4. Local Commits (Outgoing) */}
-        <div>
-          <button 
-            onClick={() => setLocalCommitsOpen(!localCommitsOpen)}
-            className="w-full flex items-center justify-between p-2 text-xs font-semibold text-muted-foreground hover:bg-secondary/10 uppercase tracking-wider sticky top-0 bg-background/95 backdrop-blur z-10 border-b border-border/50"
-          >
-            <span>Local Commits ({status?.localCommits.length || 0})</span>
-            {localCommitsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-          
-          {localCommitsOpen && (
-             <div className="flex flex-col">
-                {(status?.localCommits || []).map(commit => (
-                   <div key={commit.hash} className="p-2 border-b border-border/30 text-xs hover:bg-accent/30">
-                      <div className="font-medium truncate">{commit.message}</div>
-                      <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
-                         <span className="font-mono">{commit.hash.substring(0, 7)}</span>
-                         <span>{commit.date}</span>
-                      </div>
-                   </div>
-                ))}
-                {(status?.localCommits.length || 0) === 0 && (
-                   <div className="p-3 text-xs text-muted-foreground text-center italic">No outgoing commits</div>
-                )}
-             </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* 5. Footer Status */}
-      <div className="p-2 border-t border-border bg-background text-xs flex flex-col gap-2">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 font-mono text-muted-foreground">
-               <GitCommit className="w-3.5 h-3.5" />
-               <span className="truncate max-w-[120px]" title={status?.branch}>{status?.branch || "..."}</span>
+      {/* 1. Header: Branch & Actions */}
+      <div className="p-3 border-b border-border bg-background/50 flex items-center justify-between gap-2">
+         {/* Left: Branch Info */}
+         <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GitBranch className="w-4 h-4 text-primary" />
             </div>
-            <button onClick={fetchStatus} disabled={refreshing} className={`p-1 hover:bg-secondary rounded ${refreshing ? "animate-spin" : ""}`}>
-               <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+            <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold truncate" title={status?.branch}>
+                    {status?.branch || "..."}
+                </span>
+            </div>
+            <button onClick={fetchStatus} disabled={refreshing} className={`p-1.5 hover:bg-secondary rounded-full ${refreshing ? "animate-spin" : ""}`}>
+                <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
          </div>
-         
-         <div className="grid grid-cols-2 gap-2">
+
+         {/* Right: Push/Pull Buttons */}
+         <div className="flex items-center gap-2 flex-shrink-0">
             <button 
                onClick={handlePull}
                disabled={loading}
-               className="flex items-center justify-center gap-1 px-2 py-1.5 bg-secondary hover:bg-secondary/80 rounded border border-border"
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-full border border-border text-[10px] font-medium transition-colors shadow-sm"
+               title="Pull Changes"
             >
                <ArrowDown className="w-3.5 h-3.5" />
-               <span>Pull {status?.behind || 0}</span>
+               <span>{status?.behind || 0}</span>
             </button>
             <button 
                onClick={handlePush}
                disabled={loading}
-               className="flex items-center justify-center gap-1 px-2 py-1.5 bg-secondary hover:bg-secondary/80 rounded border border-border"
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-full border border-border text-[10px] font-medium transition-colors shadow-sm"
+               title="Push Changes"
             >
                <ArrowUp className="w-3.5 h-3.5" />
-               <span>Push {status?.ahead || 0}</span>
+               <span>{status?.ahead || 0}</span>
             </button>
          </div>
       </div>
 
+      {/* 2. Commit Section */}
+      <div className="p-3 border-b border-border flex flex-col gap-3 bg-secondary/5">
+         <textarea 
+            value={commitMessage}
+            onChange={e => setCommitMessage(e.target.value)}
+            placeholder="Commit message..."
+            className="w-full h-20 bg-background border border-border rounded-xl p-3 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all shadow-sm"
+         />
+         
+         <div className="flex gap-2">
+             <button 
+               onClick={handleCommit}
+               disabled={!hasStaged || !commitMessage || loading}
+               className="flex-1 bg-primary text-primary-foreground text-xs py-2 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+             >
+               <GitCommit className="w-3.5 h-3.5" />
+               Commit
+             </button>
+
+             {hasUnstaged && (
+               <button 
+                 onClick={handleStageAll}
+                 disabled={loading}
+                 className="px-4 bg-background text-foreground border border-border text-xs py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50 shadow-sm transition-all whitespace-nowrap"
+                 title="Stage All"
+               >
+                 Stage all
+               </button>
+             )}
+
+             <button 
+               onClick={handleGenerateMessage}
+               disabled={generating}
+               className="px-3 bg-background border border-border text-primary hover:bg-primary/5 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
+               title="Generate with AI"
+             >
+                <Sparkles className="w-4 h-4" />
+             </button>
+         </div>
+      </div>
+
+      {/* 3. Main List (Scrollable) */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        
+        {/* STAGED FILES GROUP */}
+        {hasStaged && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2 pl-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    Staged Changes ({stagedFiles.length})
+                </h3>
+                
+                {Object.entries(groupedStaged).map(([folder, files]) => (
+                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-3 shadow-sm group/card hover:border-border/80 transition-colors">
+                        <div className="px-3 py-2 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate border-b border-border/50 flex items-center gap-2" title={folder}>
+                            <span className="opacity-70">📁</span>
+                            {truncatePath(folder)}
+                        </div>
+                        <div className="divide-y divide-border/30">
+                            {files.map(file => (
+                                <div 
+                                key={file.path} 
+                                className={`flex items-center gap-2 px-3 py-2 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
+                                onClick={() => onSelectFile(file)}
+                                >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                                    <span className="flex-1 truncate font-medium">{file.path.split("/").pop()}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); handleUnstage(file.path); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 rounded transition-all" title="Unstage">
+                                        <Minus className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+
+        {/* UNSTAGED FILES GROUP */}
+        {hasUnstaged && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200 delay-75">
+                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2 pl-1">
+                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                     Changes ({unstagedFiles.length})
+                </h3>
+
+                {Object.entries(groupedUnstaged).map(([folder, files]) => (
+                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-3 shadow-sm group/card hover:border-border/80 transition-colors">
+                        <div className="px-3 py-2 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate border-b border-border/50 flex items-center gap-2" title={folder}>
+                            <span className="opacity-70">📁</span>
+                            {truncatePath(folder)}
+                        </div>
+                        <div className="divide-y divide-border/30">
+                            {files.map(file => (
+                                <div 
+                                key={file.path} 
+                                className={`flex items-center gap-2 px-3 py-2 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
+                                onClick={() => onSelectFile(file)}
+                                >
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${file.status === "modified" ? "bg-amber-500" : "bg-slate-500"}`} />
+                                    <span className="flex-1 truncate font-medium">{file.path.split("/").pop()}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); handleStage(file.path); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500 rounded transition-all" title="Stage">
+                                        <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+
+        {/* LOCAL COMMITS GROUPS */}
+        {status?.localCommits && status.localCommits.length > 0 && (
+             <div className="animate-in fade-in slide-in-from-top-2 duration-200 delay-100">
+                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2 pl-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    Outgoing Commits ({status.localCommits.length})
+                </h3>
+                <div className="space-y-3">
+                    {status.localCommits.map(commit => (
+                        <div key={commit.hash} className="bg-background border border-border rounded-xl p-3 shadow-sm hover:border-primary/30 transition-colors">
+                             <div className="flex items-start gap-2.5">
+                                <GitCommit className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-medium text-foreground break-words leading-relaxed">
+                                        {commit.message}
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2">
+                                        <div className="flex items-center gap-2 bg-secondary/50 pl-1 pr-2 py-0.5 rounded-full">
+                                            <span className="font-mono text-primary/70">#</span>
+                                            <span className="font-mono">{commit.hash.substring(0, 7)}</span>
+                                        </div>
+                                        <span>{commit.date}</span>
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+                    ))}
+                </div>
+             </div>
+        )}
+
+        {/* EMPTY STATE */}
+        {!hasStaged && !hasUnstaged && (!status?.localCommits || status.localCommits.length === 0) && (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
+               <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mb-3">
+                    <Check className="w-6 h-6" />
+               </div>
+               <span className="text-xs font-medium">All clean</span>
+            </div>
+        )}
+
+      </div>
     </div>
   );
 }
