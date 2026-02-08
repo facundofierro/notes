@@ -1,6 +1,7 @@
 import * as React from "react";
-import { GitPullRequest, RefreshCw, ExternalLink, ArrowRight, Check, AlertCircle } from "lucide-react";
+import { GitPullRequest, RefreshCw, ExternalLink, ArrowRight, Check, AlertCircle, Plus } from "lucide-react";
 import { Button, ScrollArea, Skeleton, Badge, cn } from "@agelum/shadcn";
+import { CreatePRDialog } from "./CreatePRDialog";
 
 interface PR {
   number: number;
@@ -22,6 +23,7 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = React.useState<number | null>(null);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const fetchPRs = React.useCallback(async () => {
     if (!repoPath) return;
@@ -87,9 +89,14 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
           <GitPullRequest className="w-4 h-4" />
           Open PRs
         </h3>
-        <Button variant="ghost" size="icon" onClick={fetchPRs} disabled={loading} className="h-7 w-7">
-          <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => setCreateOpen(true)} className="h-7 w-7" title="Create Pull Request">
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={fetchPRs} disabled={loading} className="h-7 w-7" title="Refresh">
+            <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
@@ -169,6 +176,15 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
           ))}
         </div>
       </ScrollArea>
+      
+      <CreatePRDialog 
+        open={createOpen} 
+        onOpenChange={setCreateOpen} 
+        repoPath={repoPath}
+        onSuccess={() => {
+            fetchPRs();
+        }}
+      />
     </div>
   );
 }

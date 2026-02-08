@@ -39,6 +39,17 @@ export async function GET(request: Request) {
       const { stdout } = await execPromise(cmd, repoPath);
       const pr = JSON.parse(stdout);
       return NextResponse.json({ pr });
+    } else if (action === "branches") {
+      // List all local branches
+      const cmd = `git branch --format='%(refname:short)'`;
+      const { stdout } = await execPromise(cmd, repoPath);
+      const branches = stdout.split('\n').filter(b => b.trim() !== '');
+      return NextResponse.json({ branches });
+    } else if (action === "current-branch") {
+      // Get current branch
+      const cmd = `git branch --show-current`;
+      const { stdout } = await execPromise(cmd, repoPath);
+      return NextResponse.json({ branch: stdout.trim() });
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -62,6 +73,23 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "PR number is required" }, { status: 400 });
       }
       const cmd = `gh pr checkout ${prNumber}`;
+      const { stdout } = await execPromise(cmd, repoPath);
+      return NextResponse.json({ success: true, output: stdout });
+    } else if (action === "create") {
+      const { title, body: prBody, base, head, isDraft } = body;
+      
+      if (!title || !head) {
+         return NextResponse.json({ error: "Title and Head branch are required" }, { status: 400 });
+      }
+
+      // Construct command
+      // properly escape quotes is tricky in shell, doing basic escaping here
+      const escape = (str: string) => str.replace(/"/g, '\\"');
+      
+      let cmd = `gh pr create --title "${escape(title)}" --body "${escape(prBody || "")}" --head "${head}"`;
+      if (base) cmd += ` --base "${base}"`;
+      if (isDraft) cmd += ` --draft`;
+
       const { stdout } = await execPromise(cmd, repoPath);
       return NextResponse.json({ success: true, output: stdout });
     } else {
