@@ -5,10 +5,10 @@ import path from "path";
 
 export async function GET(
   request: Request,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const filePathParts = params.path;
+    const { path: filePathParts } = await params;
     if (!filePathParts || filePathParts.length === 0) {
         return NextResponse.json({ error: "No path provided" }, { status: 400 });
     }

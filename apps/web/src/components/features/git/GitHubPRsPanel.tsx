@@ -183,15 +183,6 @@ export function GitHubPRsPanel({
       if (onBack) onBack();
   };
 
-  if (!repoPath) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-4 text-center text-muted-foreground">
-        <GitPullRequest className="w-12 h-12 mb-4 opacity-20" />
-        <p>No repository selected</p>
-      </div>
-    );
-  }
-
   // Files processing for details view
   const files: GitFile[] = React.useMemo(() => {
       if (!prDetails?.files) return [];
@@ -203,6 +194,15 @@ export function GitHubPRsPanel({
           deletions: f.deletions
       }));
   }, [prDetails]);
+
+  if (!repoPath) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-4 text-center text-muted-foreground">
+        <GitPullRequest className="w-12 h-12 mb-4 opacity-20" />
+        <p>No repository selected</p>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col h-full">
