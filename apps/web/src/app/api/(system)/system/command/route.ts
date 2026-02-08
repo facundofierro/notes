@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
           FORCE_COLOR: "1",
         },
         stdio: ["pipe", "pipe", "pipe"],
-        detached: true,
       });
     } catch (error: any) {
       console.error(`[System Command] Failed:`, error);

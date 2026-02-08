@@ -26,6 +26,7 @@ interface FileNode {
   type: "file" | "directory";
   children?: FileNode[];
   content?: string;
+  size?: number;
 }
 
 interface FileBrowserProps {
@@ -49,6 +50,7 @@ function FileTreeNode({
   node,
   level = 0,
   onFileSelect,
+  onFolderSelect,
   expandedPaths,
   toggleExpand,
   onDelete,
@@ -67,6 +69,7 @@ function FileTreeNode({
   onFileSelect: (
     node: FileNode,
   ) => void;
+  onFolderSelect?: (node: FileNode) => void;
   expandedPaths: Set<string>;
   toggleExpand: (path: string) => void;
   onDelete: (
@@ -285,6 +288,7 @@ function FileTreeNode({
                   onFileSelect={
                     onFileSelect
                   }
+                  onFolderSelect={onFolderSelect}
                   expandedPaths={
                     expandedPaths
                   }
@@ -327,6 +331,7 @@ function FileTreeNode({
 export default function FileBrowser({
   fileTree,
   onFileSelect,
+  onFolderSelect,
   onRefresh,
   onRunFolder,
   viewMode,
@@ -649,6 +654,7 @@ export default function FileBrowser({
               onFileSelect={
                 onFileSelect
               }
+              onFolderSelect={onFolderSelect}
               expandedPaths={
                 expandedPaths
               }

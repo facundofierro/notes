@@ -353,7 +353,6 @@ export async function POST(request: NextRequest) {
               FORCE_COLOR: "1",
             },
             stdio: ["pipe", "pipe", "pipe"],
-            detached: true,
           });
         } catch (error: any) {
           console.error(`[Spawn] Failed:`, error);
@@ -516,7 +515,6 @@ export async function POST(request: NextRequest) {
               ...cleanEnv,
             },
             stdio: ["pipe", "pipe", "pipe"],
-            detached: true,
           });
         } catch (error: any) {
           console.error(`[Spawn] Restart failed:`, error);
