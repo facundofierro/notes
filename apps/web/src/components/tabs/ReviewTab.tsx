@@ -18,7 +18,9 @@ import {
   Bot,
   FileDiff,
   Info,
-  RefreshCw
+  RefreshCw,
+  GitMerge,
+  Check
 } from "lucide-react";
 import { cn, Button } from "@agelum/shadcn";
 
@@ -206,6 +208,9 @@ const PRsCentralArea = ({
   prDetails,
   onCheckout,
   isCheckingOut,
+  onMerge,
+  onClose,
+  actionLoading,
   showCheckoutOverlay
 }: any) => {
   const [activeTab, setActiveTab] = React.useState<PRsTab>("info");
@@ -249,10 +254,50 @@ const PRsCentralArea = ({
              prDetails ? (
                  <div className="flex flex-col h-full overflow-y-auto p-6">
                      <div className="border-b border-border pb-4 mb-4">
-                         <div className="flex items-center gap-2 mb-2">
-                            <h1 className="text-xl font-bold">{prDetails.title}</h1>
-                            <span className="text-muted-foreground font-mono text-sm">#{prDetails.number}</span>
-                         </div>
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                             <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-bold">{prDetails.title}</h1>
+                                <span className="text-muted-foreground font-mono text-sm">#{prDetails.number}</span>
+                             </div>
+                             <div className="flex items-center gap-2 flex-shrink-0">
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-8 text-xs gap-1.5"
+                                    onClick={() => onCheckout && onCheckout(prDetails.number)}
+                                    disabled={isCheckingOut === prDetails.number}
+                                >
+                                    {isCheckingOut === prDetails.number ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                    Checkout
+                                </Button>
+                                {prDetails.state === "OPEN" && (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 text-xs gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-500/10 border-green-500/20"
+                                            onClick={() => onMerge && onMerge(prDetails.number)}
+                                            disabled={!!actionLoading || prDetails.mergeable === "CONFLICTING"}
+                                            title={prDetails.mergeable === "CONFLICTING" ? "Conflicts must be resolved" : "Merge Pull Request"}
+                                        >
+                                            {actionLoading === "merge" ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <GitMerge className="w-3.5 h-3.5" />}
+                                            Merge
+                                        </Button>
+                                         <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 text-xs gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-500/10 border-red-500/20"
+                                            onClick={() => onClose && onClose(prDetails.number)}
+                                            disabled={!!actionLoading}
+                                            title="Close Pull Request"
+                                        >
+                                            {actionLoading === "close" ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                                            Close
+                                        </Button>
+                                    </>
+                                )}
+                             </div>
+                          </div>
                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
                              <div className="flex items-center gap-1">
                                  <span className="font-medium text-foreground">{prDetails.author.login}</span>
@@ -397,6 +442,7 @@ export function ReviewTab() {
   const [prDiffOriginal, setPRDiffOriginal] = React.useState("");
   const [prDiffModified, setPRDiffModified] = React.useState("");
   const [checkoutLoading, setCheckoutLoading] = React.useState<number | null>(null);
+  const [actionLoading, setActionLoading] = React.useState<string | null>(null);
   const [showCheckoutOverlay, setShowCheckoutOverlay] = React.useState(false);
 
   // -- Resizable Sidebar State --
@@ -531,7 +577,7 @@ export function ReviewTab() {
       }
   };
 
-  const handleCheckout = async (prNumber: number) => {
+   const handleCheckout = async (prNumber: number) => {
     if (!projectPath) return;
     setCheckoutLoading(prNumber);
     try {
@@ -563,6 +609,58 @@ export function ReviewTab() {
     } finally {
       setCheckoutLoading(null);
     }
+  };
+
+  const handleMerge = async (prNumber: number) => {
+      if (!projectPath) return;
+      if (!confirm("Are you sure you want to merge this PR?")) return;
+      setActionLoading("merge");
+      try {
+          const res = await fetch("/api/github", {
+              method: "POST",
+              body: JSON.stringify({ action: "merge", repoPath: projectPath, prNumber }),
+          });
+          if (!res.ok) throw new Error("Failed to merge");
+          
+          // Refresh details if this is the active PR
+          if (activePRDetails?.number === prNumber) {
+              const detailsRes = await fetch(`/api/github?action=details&path=${encodeURIComponent(projectPath)}&pr=${prNumber}`);
+              if (detailsRes.ok) {
+                  const data = await detailsRes.json();
+                  setActivePRDetails(data.pr);
+              }
+          }
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setActionLoading(null);
+      }
+  };
+
+  const handleClose = async (prNumber: number) => {
+      if (!projectPath) return;
+      if (!confirm("Are you sure you want to close this PR?")) return;
+      setActionLoading("close");
+      try {
+          const res = await fetch("/api/github", {
+              method: "POST",
+              body: JSON.stringify({ action: "close", repoPath: projectPath, prNumber }),
+          });
+          if (!res.ok) throw new Error("Failed to close");
+          
+          // Refresh details
+          if (activePRDetails?.number === prNumber) {
+              const detailsRes = await fetch(`/api/github?action=details&path=${encodeURIComponent(projectPath)}&pr=${prNumber}`);
+              if (detailsRes.ok) {
+                  const data = await detailsRes.json();
+                  setActivePRDetails(data.pr);
+              }
+          }
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setActionLoading(null);
+      }
   };
 
   const handleSaveFileShim = async ({ content }: { content: string }) => {
@@ -683,6 +781,9 @@ export function ReviewTab() {
                  selectedFile={selectedPRFile?.path}
                  onCheckout={handleCheckout}
                  isCheckingOut={checkoutLoading}
+                 onMerge={handleMerge}
+                 onClose={handleClose}
+                 actionLoading={actionLoading}
               />
             ) : (
               <div className="p-4 text-xs text-muted-foreground">Select a repository first</div>
@@ -734,6 +835,9 @@ export function ReviewTab() {
             prDetails={activePRDetails}
             onCheckout={handleCheckout}
             isCheckingOut={checkoutLoading}
+            onMerge={handleMerge}
+            onClose={handleClose}
+            actionLoading={actionLoading}
             showCheckoutOverlay={showCheckoutOverlay}
          />
       </div>

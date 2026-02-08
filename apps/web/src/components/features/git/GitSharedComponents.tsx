@@ -30,7 +30,7 @@ export function ChangeGroup({ title, count, color, children, defaultOpen = true,
           <span className="text-[10px] text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded-full border border-border/50">{count}</span>
        </button>
        {isOpen && (
-         <div className="pl-0 pb-2 w-full">
+         <div className="pl-0 pb-2 w-full min-w-0 overflow-hidden">
             {children}
          </div>
        )}
@@ -137,8 +137,8 @@ export function FileGroupList({
     return (
         <div className="px-3 w-full min-w-0">
             {Object.entries(groupedFiles).map(([folder, folderFiles]) => (
-                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full min-w-0">
-                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right w-full" style={{ direction: "rtl" }} title={folder}>
+                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full min-w-0 flex flex-col">
+                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right w-full min-w-0" style={{ direction: "rtl", unicodeBidi: "bidi-override" }} title={folder}>
                         &lrm;{folder}&lrm;
                     </div>
                     <div className="">

@@ -64,6 +64,9 @@ interface GitHubPRsPanelProps {
   selectedFile?: string | null;
   onCheckout?: (prNumber: number) => Promise<void>;
   isCheckingOut?: number | null;
+  onMerge?: (prNumber: number) => Promise<void>;
+  onClose?: (prNumber: number) => Promise<void>;
+  actionLoading?: string | null;
 }
 
 export function GitHubPRsPanel({ 
@@ -75,13 +78,18 @@ export function GitHubPRsPanel({
     onSelectFile,
     selectedFile,
     onCheckout,
-    isCheckingOut
+    isCheckingOut,
+    onMerge,
+    onClose,
+    actionLoading: externalActionLoading
 }: GitHubPRsPanelProps) {
   const [prs, setPrs] = React.useState<PR[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [localCheckoutLoading, setLocalCheckoutLoading] = React.useState<number | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [internalActionLoading, setInternalActionLoading] = React.useState<string | null>(null);
+  const actionLoading = externalActionLoading !== undefined ? externalActionLoading : internalActionLoading;
   
   // Internal state if not controlled
   const [internalSelectedPRNumber, setInternalSelectedPRNumber] = React.useState<number | null>(null);
@@ -89,7 +97,6 @@ export function GitHubPRsPanel({
 
   const [prDetails, setPrDetails] = React.useState<PRDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = React.useState(false);
-  const [actionLoading, setActionLoading] = React.useState<string | null>(null);
 
   const fetchPRs = React.useCallback(async () => {
     if (!repoPath) return;
@@ -171,8 +178,12 @@ export function GitHubPRsPanel({
   const currentCheckoutLoading = isCheckingOut !== undefined ? isCheckingOut : localCheckoutLoading;
 
   const handleMerge = async (prNumber: number) => {
+      if (onMerge) {
+          await onMerge(prNumber);
+          return;
+      }
       if (!confirm("Are you sure you want to merge this PR?")) return;
-      setActionLoading("merge");
+      setInternalActionLoading("merge");
       try {
           const res = await fetch("/api/github", {
               method: "POST",
@@ -185,13 +196,17 @@ export function GitHubPRsPanel({
       } catch (e) {
           console.error(e);
       } finally {
-          setActionLoading(null);
+          setInternalActionLoading(null);
       }
   };
 
   const handleClose = async (prNumber: number) => {
+      if (onClose) {
+          await onClose(prNumber);
+          return;
+      }
       if (!confirm("Are you sure you want to close this PR?")) return;
-      setActionLoading("close");
+      setInternalActionLoading("close");
       try {
           const res = await fetch("/api/github", {
               method: "POST",
@@ -203,7 +218,7 @@ export function GitHubPRsPanel({
       } catch (e) {
           console.error(e);
       } finally {
-          setActionLoading(null);
+          setInternalActionLoading(null);
       }
   };
 
@@ -257,7 +272,7 @@ export function GitHubPRsPanel({
   }
   
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0">
       <div className="flex items-center justify-between p-3 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-2">
             {selectedPRNumber ? (
@@ -295,43 +310,9 @@ export function GitHubPRsPanel({
                 ) : (
                     <div className="flex flex-col h-full">
                         <div className="p-3 border-b border-border bg-secondary/5">
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 mb-2">
                                 <Badge variant={prDetails?.state === "OPEN" ? "default" : "secondary"} className="h-5 px-1.5">{prDetails?.state}</Badge>
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-7 text-xs gap-1.5"
-                                    onClick={() => prDetails && handleCheckout(prDetails.number)}
-                                    disabled={currentCheckoutLoading === prDetails?.number}
-                                >
-                                    {currentCheckoutLoading === prDetails?.number ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                    Checkout
-                                </Button>
-                                {prDetails?.state === "OPEN" && (
-                                    <>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 text-xs gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-500/10 border-green-500/20"
-                                            onClick={() => prDetails && handleMerge(prDetails.number)}
-                                            disabled={!!actionLoading || prDetails.mergeable === "CONFLICTING"}
-                                            title={prDetails.mergeable === "CONFLICTING" ? "Conflicts must be resolved" : "Merge Pull Request"}
-                                        >
-                                            {actionLoading === "merge" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
-                                            Merge
-                                        </Button>
-                                         <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500"
-                                            onClick={() => prDetails && handleClose(prDetails.number)}
-                                            disabled={!!actionLoading}
-                                            title="Close Pull Request"
-                                        >
-                                            {actionLoading === "close" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-                                        </Button>
-                                    </>
-                                )}
+                                <span className="text-xs text-muted-foreground font-mono">#{prDetails?.number}</span>
                             </div>
                             <h2 className="text-sm font-semibold leading-tight mb-1 line-clamp-2">{prDetails?.title}</h2>
                             <div className="text-xs text-muted-foreground truncate">{prDetails?.author.login}</div>

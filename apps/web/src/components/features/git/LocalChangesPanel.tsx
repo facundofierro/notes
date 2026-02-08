@@ -154,55 +154,51 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
   const hasUnstaged = unstagedFiles.length > 0;
 
   return (
-    <div className={`flex flex-col h-full bg-secondary/5 border-r border-border ${className}`}>
+    <div className={`flex flex-col h-full bg-secondary/5 border-r border-border min-w-0 ${className}`}>
         
       {/* 1. Header: Branch & Actions */}
       <div className="p-3 border-b border-border bg-background/50 flex items-center justify-between gap-2">
-         {/* Left: Project & Branch Info */}
-         <div className="flex flex-col min-w-0 flex-1">
-             <div className="flex items-center justify-between">
-                 <h2 className="text-sm font-bold truncate pr-2" title={projectName}>{projectName || "Project"}</h2>
-                 
-                 <div className="flex items-center gap-1">
-                     <button onClick={fetchStatus} disabled={refreshing} className={`p-1 hover:bg-secondary rounded-full ${refreshing ? "animate-spin" : ""}`}>
-                        <RefreshCw className="w-3 h-3 text-muted-foreground" />
-                     </button>
-                 </div>
-             </div>
-             
-             {/* Branch Switcher - Aligned Right below Project Name */}
-            <div className="flex justify-end mt-0.5">
-                <BranchSwitcher 
-                    currentBranch={status?.branch || "..."} 
-                    repoPath={repoPath}
-                    onBranchChanged={fetchStatus}
-                >
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-foreground text-muted-foreground transition-colors group/branch">
-                        <GitBranch className="w-3 h-3 group-hover/branch:text-primary transition-colors" />
-                        <span className="text-[10px] font-medium max-w-[150px] truncate">{status?.branch || "..."}</span>
-                    </div>
-                </BranchSwitcher>
-            </div>
+         {/* Left: Branch Info */}
+         <div className="flex items-center gap-2 min-w-0 flex-1">
+            <BranchSwitcher 
+                currentBranch={status?.branch || "..."} 
+                repoPath={repoPath}
+                onBranchChanged={fetchStatus}
+            >
+                <div className="flex items-center gap-1.5 cursor-pointer hover:bg-secondary/50 px-2 py-1 rounded-lg transition-all group/branch">
+                    <GitBranch className="w-3.5 h-3.5 text-muted-foreground group-hover/branch:text-primary transition-colors" />
+                    <span className="text-sm font-bold truncate text-foreground">{status?.branch || "..."}</span>
+                </div>
+            </BranchSwitcher>
          </div>
 
-         {/* Right: Push/Pull Buttons */}
-         <div className="flex flex-col items-end gap-1.5 flex-shrink-0 ml-2 border-l border-border pl-2">
+         {/* Right: Actions Row (Refresh, Pull, Push) */}
+         <div className="flex items-center gap-1 flex-shrink-0 ml-2 border-l border-border pl-1.5">
+            <button 
+                onClick={fetchStatus} 
+                disabled={refreshing} 
+                className={`p-1.5 hover:bg-secondary rounded-full ${refreshing ? "animate-spin" : ""} text-muted-foreground hover:text-foreground transition-colors`}
+                title="Refresh Status"
+            >
+                <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+
             <button 
                onClick={handlePull}
                disabled={loading}
-               className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-secondary/80 rounded text-[10px] font-medium transition-colors text-muted-foreground hover:text-foreground"
+               className="flex items-center gap-1 px-1.5 py-1 hover:bg-secondary/80 rounded text-[10px] font-semibold transition-colors text-muted-foreground hover:text-foreground"
                title="Pull Changes"
             >
-               <ArrowDown className="w-3 h-3" />
+               <ArrowDown className="w-3.5 h-3.5" />
                <span>{status?.behind || 0}</span>
             </button>
             <button 
                onClick={handlePush}
                disabled={loading}
-               className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-secondary/80 rounded text-[10px] font-medium transition-colors text-muted-foreground hover:text-foreground"
+               className="flex items-center gap-1 px-1.5 py-1 hover:bg-secondary/80 rounded text-[10px] font-semibold transition-colors text-muted-foreground hover:text-foreground"
                title="Push Changes"
             >
-               <ArrowUp className="w-3 h-3" />
+               <ArrowUp className="w-3.5 h-3.5" />
                <span>{status?.ahead || 0}</span>
             </button>
          </div>

@@ -111,52 +111,56 @@ export function BranchSwitcher({
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
-        <div className="flex items-center border-b px-3 py-2 bg-muted/40 backdrop-blur-sm">
-          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+      <PopoverContent className="w-[300px] p-0 border-border bg-popover/95 backdrop-blur-md shadow-2xl overflow-hidden" align="start">
+        <div className="flex items-center border-b border-border/50 px-3 py-2.5 bg-secondary/20">
+          <Search className="mr-2.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <Input
             placeholder="Search branch..."
-            className="flex h-7 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-none focus-visible:ring-0 px-0 shadow-none"
+            className="flex h-6 w-full rounded-md bg-transparent text-xs outline-none placeholder:text-muted-foreground/50 border-none focus-visible:ring-0 px-0 shadow-none"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         
         {loading ? (
-             <div className="flex items-center justify-center p-4 py-8 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span className="text-xs">Loading branches...</span>
+             <div className="flex items-center justify-center p-8 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin mr-2.5 text-primary" />
+                <span className="text-xs font-medium">Loading branches...</span>
              </div>
         ) : (
-            <ScrollArea className="h-[200px] p-1">
+            <ScrollArea className="h-[240px] p-1.5">
             {filteredBranches.length === 0 && !search && (
-                <div className="py-6 text-center text-sm text-muted-foreground">No branches found.</div>
+                <div className="py-10 text-center text-xs text-muted-foreground italic">No branches found.</div>
             )}
             
-            {filteredBranches.map((branch) => (
-                <div
-                key={branch}
-                onClick={() => handleCheckout(branch)}
-                className={cn(
-                    "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 cursor-pointer",
-                    branch === currentBranch && "bg-accent/50 text-accent-foreground"
-                )}
-                >
-                <GitBranch className="mr-2 h-4 w-4 opacity-70" />
-                <span className="flex-1 truncate">{branch}</span>
-                {branch === currentBranch && (
-                    <Check className="ml-auto h-4 w-4 opacity-100 text-primary" />
-                )}
-                </div>
-            ))}
+            <div className="space-y-0.5">
+                {filteredBranches.map((branch) => (
+                    <div
+                    key={branch}
+                    onClick={() => handleCheckout(branch)}
+                    className={cn(
+                        "group relative flex select-none items-center rounded-md px-2.5 py-2 text-xs outline-none transition-all duration-200 cursor-pointer",
+                        branch === currentBranch 
+                            ? "bg-primary/10 text-primary font-semibold" 
+                            : "text-foreground/70 hover:bg-secondary/80 hover:text-foreground"
+                    )}
+                    >
+                    <GitBranch className={cn("mr-2.5 h-3.5 w-3.5 transition-colors", branch === currentBranch ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                    <span className="flex-1 truncate">{branch}</span>
+                    {branch === currentBranch && (
+                        <Check className="ml-auto h-3.5 w-3.5 text-primary animate-in zoom-in-50 duration-300" />
+                    )}
+                    </div>
+                ))}
+            </div>
 
             {search && !exactMatch && (
                  <div
                     onClick={handleCreateBranch}
-                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-foreground font-medium border-t mt-1 pt-2"
+                    className="relative flex cursor-pointer select-none items-center rounded-md px-2.5 py-2 text-xs outline-none bg-primary/5 hover:bg-primary/10 text-primary font-semibold border-t border-border/50 mt-1.5 pt-2 whitespace-nowrap overflow-hidden transition-all"
                 >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create branch: <span className="font-bold ml-1 truncate">"{search}"</span>
+                    <Plus className="mr-2.5 h-3.5 w-3.5" />
+                    <span>Create branch: <span className="underline decoration-primary/30 underline-offset-2 ml-1">"{search}"</span></span>
                 </div>
             )}
             </ScrollArea>
