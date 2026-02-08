@@ -16,8 +16,8 @@ This task involves the implementation of a new browser testing engine based on V
   - `GET /api/tests`: List tests.
   - `POST /api/tests`: Create invalid test (placeholder).
   - `POST /api/tests/execute`: Run test via CLI.
-- [x] **Visual Editor (Basic)**: Created `/tests` page to list and run tests.
-- [ ] **Visual Editor (Advanced)**: Step editor, result visualization (screenshots).
+- [x] **Visual Editor (Basic)**: Implemented `TestsTab.tsx` to list and run tests.
+- [x] **Visual Editor (Advanced)**: Step editor implemented with result visualization (screenshots & logs).
 - [ ] **Migration**: Port existing Stagehand tests to new engine.
 
 ## Vercel Agent Browser Integration

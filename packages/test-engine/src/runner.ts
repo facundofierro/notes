@@ -26,13 +26,27 @@ async function main() {
 
     const engine = new TestEngine(defaultProvider);
     
+    // Create run directory
+    const runId = `run-${Date.now()}`;
+    const runDir = path.join(process.cwd(), ".agelum/tests/runs", runId);
+    if (!fs.existsSync(runDir)) {
+      fs.mkdirSync(runDir, { recursive: true });
+    }
+
+    console.log(JSON.stringify({ type: "run-start", runId, runDir }));
+
     console.log("Starting engine...");
-    await engine.start({ headless: process.env.HEADLESS !== "false" });
+    await engine.start({ 
+        headless: process.env.HEADLESS !== "false",
+        screenshotDir: runDir
+    });
 
     try {
       await engine.runScenario(scenario);
-      console.log("Scenario completed successfully.");
+      console.log(JSON.stringify({ type: "run-complete", status: "success" }));
     } catch (error: any) {
+      console.error(JSON.stringify({ type: "run-failed", error: error.message }));
+      // Also log human readable
       console.error("Scenario failed:", error.message);
       process.exit(1);
     } finally {

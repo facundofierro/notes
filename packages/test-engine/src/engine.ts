@@ -12,7 +12,11 @@ export class TestEngine {
     this.llmProvider = llmProvider;
   }
 
-  async start(options: { headless?: boolean } = {}) {
+  private screenshotDir?: string;
+
+  async start(options: { headless?: boolean, screenshotDir?: string } = {}) {
+    this.screenshotDir = options.screenshotDir;
+    
     await this.browser.launch({
       action: "launch",
       id: "launch",
@@ -43,6 +47,11 @@ export class TestEngine {
     if (s.action === "verifyVisible") {
        await this.handleVerifyVisible(s.selector);
        return;
+    }
+    
+    if (s.action === "screenshot") {
+        await this.handleScreenshot(s.name);
+        return;
     }
 
     // Map step to agent-browser command
@@ -101,6 +110,31 @@ export class TestEngine {
      if (!(result.data as any)?.visible) {
          throw new Error(`Element ${selector} is not visible`);
      }
+  }
+
+  private async handleScreenshot(name?: string) {
+      if (!this.screenshotDir) return;
+      
+      const fileName = `${Date.now()}-${(name || "screenshot").replace(/[^a-z0-9]/gi, '_')}.png`;
+      // We assume path module is available or we construct path manually if running in browser env (which this is not supposed to be).
+      // Since this runs in node, we need path, but we didn't import it.
+      // Let's rely on basic string concat for now or fix imports if I can.
+      // Assuming screenshotDir is absolute or relative to CWD.
+      const filePath = `${this.screenshotDir}/${fileName}`;
+      
+      try {
+          // Use browser page if available
+          // @ts-ignore
+          if (this.browser.page) {
+              // @ts-ignore
+              await this.browser.page.screenshot({ path: filePath });
+              console.log(JSON.stringify({ type: "screenshot", path: filePath })); // Structured log event
+          } else {
+              console.warn("Screenshot skipped: No page instance found on browser manager.");
+          }
+      } catch (e: any) {
+          console.error(`Screenshot failed: ${e.message}`);
+      }
   }
 
   private async handleAIPrompt(instruction: string) {

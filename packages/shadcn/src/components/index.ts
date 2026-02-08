@@ -44,6 +44,17 @@ export {
   CardContent,
 } from './ui/card'
 
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from './ui/table'
+
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
 
 export { Skeleton } from './ui/skeleton'

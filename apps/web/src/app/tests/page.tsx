@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@agelum/shadcn/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@agelum/shadcn/table";
-import { ScrollArea } from "@agelum/shadcn/scroll-area";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, ScrollArea } from "@agelum/shadcn";
 import { Trash2, Play, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
