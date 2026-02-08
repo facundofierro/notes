@@ -84,7 +84,17 @@ export function AIRightSidebar({
   const [toolModelsByTool, setToolModelsByTool] = React.useState<Record<string, string[]>>({});
   const [toolModelByTool, setToolModelByTool] = React.useState<Record<string, string>>({});
   const [isToolModelsLoading, setIsToolModelsLoading] = React.useState<Record<string, boolean>>({});
-  const [termSize, setTermSize] = React.useState({ cols: 100, rows: 30 });
+  // Use larger default to accommodate wide terminals before onResize fires
+  const [termSize, setTermSize] = React.useState({ cols: 300, rows: 60 });
+  const [loadingIndicatorVisible, setLoadingIndicatorVisible] = React.useState(false);
+
+  // Helper to trigger loading indicator
+  const triggerLoadingIndicator = React.useCallback(() => {
+    setLoadingIndicatorVisible(true);
+    setTimeout(() => {
+      setLoadingIndicatorVisible(false);
+    }, 10000);
+  }, []);
 
   const refreshCurrentFile = React.useCallback(async () => {
     if (!file?.path) return;
@@ -111,7 +121,9 @@ export function AIRightSidebar({
     setTerminalToolName(toolName);
     setTerminalOutput("");
     setTerminalProcessId(processId);
+    setTerminalProcessId(processId);
     setRightSidebarView("terminal");
+    triggerLoadingIndicator();
 
     try {
       const statusRes = await fetch(`/api/terminal?id=${processId}&action=status`);
@@ -170,6 +182,7 @@ export function AIRightSidebar({
       updateTerminalSession(terminalProcessId, { isRunning: false });
     }
     setIsTerminalRunning(false);
+    setLoadingIndicatorVisible(false);
     setTerminalProcessId(null);
     setTerminalOutput((prev) => (prev ? `${prev}
 
@@ -185,7 +198,22 @@ Cancelled` : "Cancelled"));
     setTerminalOutput("");
     setTerminalProcessId(null);
     setIsTerminalRunning(true);
+    setIsTerminalRunning(true);
     setRightSidebarView("terminal");
+    triggerLoadingIndicator();
+
+    // Calculate expected terminal dimensions based on container size
+    // Terminal sidebar is 50% width when running, with p-3 padding (12px each side)
+    const expectedWidth = (window.innerWidth * 0.5) - 48; // 24px padding + 24px buffer
+    const expectedHeight = window.innerHeight - 200; // Approximate usable height
+    const charWidth = 7.2; // Typical monospace char width for 12px font
+    const charHeight = 18; // Typical line height
+    const calculatedCols = Math.floor(expectedWidth / charWidth);
+    const calculatedRows = Math.floor(expectedHeight / charHeight);
+
+    // Use calculated dimensions or fall back to current termSize
+    const cols = calculatedCols > 0 ? calculatedCols : termSize.cols;
+    const rows = calculatedRows > 0 ? calculatedRows : termSize.rows;
 
     terminalAbortControllerRef.current = new AbortController();
     const ac = terminalAbortControllerRef.current;
@@ -195,10 +223,10 @@ Cancelled` : "Cancelled"));
       const res = await fetch("/api/terminal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           cwd,
-          cols: termSize.cols,
-          rows: termSize.rows
+          cols,
+          rows
         }),
         signal: ac.signal,
       });
@@ -242,6 +270,7 @@ Error: ${error.message}`);
         terminalAbortControllerRef.current = null;
       }
       setIsTerminalRunning(false);
+      setLoadingIndicatorVisible(false);
       if (localProcessId && contextKey) {
         updateTerminalSession(localProcessId, { isRunning: false });
       }
@@ -273,7 +302,22 @@ Error: ${error.message}`);
     setTerminalOutput("");
     setTerminalProcessId(null);
     setIsTerminalRunning(true);
+    setIsTerminalRunning(true);
     setRightSidebarView("terminal");
+    triggerLoadingIndicator();
+
+    // Calculate expected terminal dimensions based on container size
+    // Terminal sidebar is 50% width when running, with p-3 padding (12px each side)
+    const expectedWidth = (window.innerWidth * 0.5) - 48; // 24px padding + 24px buffer
+    const expectedHeight = window.innerHeight - 200; // Approximate usable height
+    const charWidth = 7.2; // Typical monospace char width for 12px font
+    const charHeight = 18; // Typical line height
+    const calculatedCols = Math.floor(expectedWidth / charWidth);
+    const calculatedRows = Math.floor(expectedHeight / charHeight);
+
+    // Use calculated dimensions or fall back to current termSize
+    const cols = calculatedCols > 0 ? calculatedCols : termSize.cols;
+    const rows = calculatedRows > 0 ? calculatedRows : termSize.rows;
 
     const rawPrompt = buildToolPrompt({
       promptText: trimmedPrompt,
@@ -347,8 +391,8 @@ Error: ${error.message}`);
           prompt,
           model: toolModelByTool[toolName] || undefined,
           cwd,
-          cols: termSize.cols,
-          rows: termSize.rows
+          cols,
+          rows
         }),
         signal: controller.signal,
       });
@@ -393,6 +437,7 @@ Cancelled` : "Cancelled");
         terminalAbortControllerRef.current = null;
       }
       setIsTerminalRunning(false);
+      setLoadingIndicatorVisible(false);
       if (contextKey && terminalProcessId) {
         updateTerminalSession(terminalProcessId, { isRunning: false });
       }
@@ -507,17 +552,21 @@ Cancelled` : "Cancelled");
         {/* Terminal View */}
         <div className={`flex overflow-hidden flex-col flex-1 h-full ${ rightSidebarView === "terminal" ? "" : "hidden" }`}>
           <div className="flex-1 min-h-0 bg-black relative">
-            {terminalOutput ? (
-              <TerminalViewer 
-                output={terminalOutput} 
-                className="w-full h-full" 
-                onInput={handleTerminalInput}
-                onResize={(cols, rows) => setTermSize({ cols, rows })}
-              />
-            ) : isTerminalRunning ? (
-              <div className="flex h-full items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
+            {(terminalOutput || isTerminalRunning) ? (
+              <>
+                <TerminalViewer 
+                  output={terminalOutput} 
+                  className="w-full h-full" 
+                  onInput={handleTerminalInput}
+                  onResize={(cols, rows) => setTermSize({ cols, rows })}
+                />
+                {loadingIndicatorVisible && isTerminalRunning && (
+                   <div className="absolute bottom-4 right-4 z-10 bg-zinc-900/80 text-xs text-zinc-400 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg backdrop-blur-sm transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Initializing env...</span>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex justify-center items-center h-full text-xs text-muted-foreground">No terminal output</div>
             )}
