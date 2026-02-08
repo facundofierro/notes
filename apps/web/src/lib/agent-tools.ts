@@ -16,6 +16,7 @@ export interface AgentTool {
   listModelsCommand?: string | null;
   promptFlag?: string | null;
   supportedModels?: string[];
+  extraArgs?: string[];
 }
 
 export const AGENT_TOOLS: Record<string, AgentTool> = {
@@ -58,9 +59,9 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     name: "Claude Code",
     command: "claude",
     type: "cli",
-    modelFlag: null,
+    modelFlag: "--model",
     listModelsCommand: null,
-    promptFlag: "-p",
+    promptFlag: null,
     supportedModels: ["claude-3-5-sonnet"],
   },
   gemini: {
@@ -209,14 +210,18 @@ export function buildAgentCommand(
   const tool = AGENT_TOOLS[toolName];
   const args: string[] = [];
 
-  if (tool.promptFlag) {
-    args.push(tool.promptFlag);
+  if (tool.extraArgs) {
+    args.push(...tool.extraArgs);
   }
-  args.push(prompt);
 
   if (model && tool.modelFlag) {
     args.push(tool.modelFlag, model);
   }
+
+  if (tool.promptFlag) {
+    args.push(tool.promptFlag);
+  }
+  args.push(prompt);
 
   return {
     command: tool.command,
