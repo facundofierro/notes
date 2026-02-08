@@ -1,6 +1,7 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
+import DiskUsageChart from "@/components/DiskUsageChart"; // Import the new component
 import { AIRightSidebar } from "@/components/AIRightSidebar";
 import { useHomeStore } from "@/store/useHomeStore";
 import { 
@@ -20,6 +21,7 @@ interface FileNode {
   type: "file" | "directory";
   children?: FileNode[];
   content?: string;
+  size?: number; // Add size
 }
 
 type LeftSidebarView = "files" | "changes" | "prs";
@@ -65,21 +67,31 @@ export function ReviewTab() {
 
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [leftSidebarView, setLeftSidebarView] = React.useState<LeftSidebarView>("files");
+  
+  // Single tab default + dynamic tabs logic if needed, but per request "keep 1 tab and the plus button"
+  // We'll start with just one tab.
   const [tabs, setTabs] = React.useState<TabItem[]>([
-    { id: "dashboard", label: "Dashboard", icon: Layers },
-    { id: "reviews", label: "Reviews", icon: Search },
+    { id: "main", label: "Project", icon: Layers },
   ]);
-  const [activeTabId, setActiveTabId] = React.useState("dashboard");
+  const [activeTabId, setActiveTabId] = React.useState("main");
+
+  // Local state for folder selection
+  const [selectedFolder, setSelectedFolder] = React.useState<FileNode | null>(null);
 
   const loadFileTree = React.useCallback(() => {
     if (selectedRepo) {
-      fetch(`/api/files?repo=${selectedRepo}&path=work/review`)
+      // Changed to root=true to get full project tree
+      fetch(`/api/files?repo=${selectedRepo}&root=true`)
         .then((res) => res.json())
         .then((data) => {
           setFileTree(data.tree);
+          // If no folder selected and no file selected, select root folder by default
+          if (!selectedFolder && !selectedFile && data.tree) {
+             setSelectedFolder(data.tree);
+          }
         });
     }
-  }, [selectedRepo]);
+  }, [selectedRepo]); // removed selectedFolder and selectedFile from dependency to avoid loop resetting
 
   React.useEffect(() => {
     loadFileTree();
@@ -105,6 +117,16 @@ export function ReviewTab() {
     setTabs([...tabs, { id: newId, label: "New Tab" }]);
     setActiveTabId(newId);
   };
+
+  const onFileSelectWrapper = (node: FileNode) => {
+     handleFileSelect(node);
+     setSelectedFolder(null); // Clear folder selection
+  };
+
+  const onFolderSelectWrapper = (node: FileNode) => {
+      setSelectedFolder(node);
+      setSelectedFile(null); // Clear file selection
+  }
 
   return (
     <div className="flex flex-1 overflow-hidden h-full bg-background">
@@ -142,7 +164,8 @@ export function ReviewTab() {
           {leftSidebarView === "files" ? (
             <FileBrowser
               fileTree={fileTree}
-              onFileSelect={handleFileSelect}
+              onFileSelect={onFileSelectWrapper}
+              onFolderSelect={onFolderSelectWrapper}
               currentPath={currentPath}
               basePath={basePath}
               onRefresh={loadFileTree}
@@ -165,18 +188,25 @@ export function ReviewTab() {
         <div className="flex border-b border-border bg-secondary/10 items-center overflow-x-auto no-scrollbar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            // Determine label based on selection if active
+            let label = tab.label;
+            if (activeTabId === tab.id) {
+                if (selectedFile) label = selectedFile.path.split('/').pop() || label;
+                else if (selectedFolder) label = selectedFolder.name || label;
+            }
+
             return (
               <div
                 key={tab.id}
                 onClick={() => setActiveTabId(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-border transition-colors min-w-[120px] group ${
+                className={`flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-border transition-colors min-w-[120px] max-w-[200px] group ${
                   activeTabId === tab.id 
                     ? "bg-background text-foreground font-medium" 
                     : "text-muted-foreground hover:bg-accent/50"
                 }`}
               >
                 {Icon && <Icon className="w-3.5 h-3.5" />}
-                <span className="truncate flex-1">{tab.label}</span>
+                <span className="truncate flex-1">{label}</span>
                 {tabs.length > 1 && (
                   <button 
                     onClick={(e) => removeTab(e, tab.id)}
@@ -199,57 +229,7 @@ export function ReviewTab() {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden relative">
-          {activeTabId === "dashboard" ? (
-            <div className="p-8 h-full overflow-auto">
-              <h1 className="text-2xl font-bold mb-4">Review Dashboard</h1>
-              <p className="text-muted-foreground mb-8">Welcome to the review center. Here you can see an overview of your code quality and pending reviews.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="p-6 rounded-xl border border-border bg-secondary/10">
-                  <h3 className="font-semibold mb-2">Pending Changes</h3>
-                  <div className="text-3xl font-bold text-amber-500">12</div>
-                  <p className="text-xs text-muted-foreground mt-1">Files modified locally</p>
-                </div>
-                <div className="p-6 rounded-xl border border-border bg-secondary/10">
-                  <h3 className="font-semibold mb-2">Open PRs</h3>
-                  <div className="text-3xl font-bold text-blue-500">3</div>
-                  <p className="text-xs text-muted-foreground mt-1">Waiting for review</p>
-                </div>
-                <div className="p-6 rounded-xl border border-border bg-secondary/10">
-                  <h3 className="font-semibold mb-2">Resolved Issues</h3>
-                  <div className="text-3xl font-bold text-green-500">45</div>
-                  <p className="text-xs text-muted-foreground mt-1">In the last 30 days</p>
-                </div>
-              </div>
-            </div>
-          ) : activeTabId === "reviews" ? (
-             <div className="flex flex-col h-full">
-                <div className="p-4 border-b border-border flex justify-between items-center bg-secondary/5">
-                   <h2 className="font-semibold">Code Reviews</h2>
-                   <div className="flex gap-2">
-                      <button className="px-3 py-1 text-xs bg-secondary border border-border rounded-md hover:bg-accent">Filter</button>
-                      <button className="px-3 py-1 text-xs bg-amber-500 text-white rounded-md hover:bg-amber-600 font-medium">New Review</button>
-                   </div>
-                </div>
-                <div className="flex-1 p-4 overflow-auto">
-                   <div className="space-y-3">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="p-4 border border-border rounded-lg hover:bg-secondary/10 cursor-pointer flex justify-between items-center group">
-                           <div>
-                              <div className="font-medium">Refactor Authentication Logic</div>
-                              <div className="text-xs text-muted-foreground mt-1 flex gap-2 items-center">
-                                 <span className="flex items-center gap-1"><Github className="w-3 h-3" /> #245</span>
-                                 <span>•</span>
-                                 <span>Updated 2 hours ago</span>
-                              </div>
-                           </div>
-                           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                        </div>
-                      ))}
-                   </div>
-                </div>
-             </div>
-          ) : selectedFile ? (
+           {selectedFile ? (
             <div className="flex flex-col h-full">
                <FileViewer
                   file={selectedFile}
@@ -257,9 +237,13 @@ export function ReviewTab() {
                   onFileSaved={loadFileTree}
                />
             </div>
+          ) : selectedFolder ? (
+            <div className="flex flex-col h-full">
+                <DiskUsageChart node={selectedFolder} />
+            </div>
           ) : (
             <div className="flex flex-1 justify-center items-center text-muted-foreground h-full">
-              Select a file or view from the sidebars
+              Select a file or folder
             </div>
           )}
         </div>

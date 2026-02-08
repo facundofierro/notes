@@ -600,6 +600,22 @@ export default function FileViewer({
               />
             </div>
           )
+        ) : displayedFileName.match(/\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)$/i) ? (
+            <div className="flex justify-center items-center h-full bg-secondary/10">
+                <img 
+                    src={`/api/image?path=${encodeURIComponent(file.path)}`} 
+                    alt={displayedFileName}
+                    className="max-w-full max-h-full object-contain" 
+                />
+            </div>
+        ) : displayedFileName.match(/\.(mp4|webm|mov)$/i) ? (
+             <div className="flex justify-center items-center h-full bg-secondary/10">
+                <video 
+                    src={`/api/image?path=${encodeURIComponent(file.path)}`} // Reusing general file server logic, assuming api/image streams or serves files
+                    controls
+                    className="max-w-full max-h-full" 
+                />
+            </div>
         ) : (
           <MonacoEditor
             value={effectiveContent}
@@ -616,6 +632,8 @@ export default function FileViewer({
                   : "typescript"
                 : isJSON
                   ? "json"
+                  : displayedFileName.endsWith(".css") ? "css"
+                  : displayedFileName.endsWith(".html") ? "html"
                   : "plaintext"
             }
             theme="vs-dark"

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
+import { StringDecoder } from "string_decoder";
 import { registerProcess, appendOutput, getOutputBuffer, isProcessAlive, getProcessStatus, cleanupSession } from "@/lib/agent-store";
 
 export async function GET(request: Request) {
@@ -91,6 +92,8 @@ export async function POST(request: Request) {
 
     const stream = new ReadableStream({
       start(controller) {
+        const decoder = new StringDecoder("utf8");
+
         const usePty =
           process.platform === "darwin" ||
           process.platform === "linux";
@@ -131,21 +134,26 @@ export async function POST(request: Request) {
 
         if (child.stdout) {
           child.stdout.on("data", (data) => {
-            const str = data.toString();
+            // Send raw buffer to client
+            controller.enqueue(data);
+            // Decode safely for storage
+            const str = decoder.write(data);
             appendOutput(processId, str);
-            controller.enqueue(encoder.encode(str));
           });
         }
 
         if (child.stderr) {
           child.stderr.on("data", (data) => {
-            const str = data.toString();
+            controller.enqueue(data);
+            const str = decoder.write(data);
             appendOutput(processId, str);
-            controller.enqueue(encoder.encode(str));
           });
         }
 
         child.on("close", (code) => {
+          const remaining = decoder.end();
+          if (remaining) appendOutput(processId, remaining);
+
           if (code !== 0) {
             const msg = `\nProcess exited with code ${code}`;
             appendOutput(processId, msg);

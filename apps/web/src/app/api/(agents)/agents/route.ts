@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
+import { StringDecoder } from "string_decoder";
 import {
   AGENT_TOOLS,
   buildAgentCommand,
@@ -196,15 +197,19 @@ export async function POST(
           toolName,
         );
 
+        const decoder = new StringDecoder("utf8");
+
         if (child.stdout) {
           child.stdout.on(
             "data",
             (data) => {
-              const str = data.toString();
+              // Send raw buffer to client to avoid double-encoding issues
+              // The client (TextDecoder) will handle the stream correctly
+              controller.enqueue(data);
+              
+              // Use stateful decoder for storage to handle split multi-byte characters
+              const str = decoder.write(data);
               appendOutput(processId, str);
-              controller.enqueue(
-                encoder.encode(str),
-              );
             },
           );
         }
@@ -213,16 +218,20 @@ export async function POST(
           child.stderr.on(
             "data",
             (data) => {
-              const str = data.toString();
+              controller.enqueue(data);
+              const str = decoder.write(data);
               appendOutput(processId, str);
-              controller.enqueue(
-                encoder.encode(str),
-              );
             },
           );
         }
 
         child.on("close", (code) => {
+          // Flush any remaining characters
+          const remaining = decoder.end();
+          if (remaining) {
+            appendOutput(processId, remaining);
+          }
+
           if (code !== 0) {
             const msg = `\nProcess exited with code ${code}`;
             appendOutput(processId, msg);
