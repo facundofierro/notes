@@ -44,6 +44,8 @@ export {
   CardContent,
 } from './ui/card'
 
+export { Skeleton } from './ui/skeleton'
+
 // Logo components
 export { PrimaryLogo } from './logo/PrimaryLogo'
 export { MonochromeLogo } from './logo/MonochromeLogo'

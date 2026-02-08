@@ -4,6 +4,7 @@ import FileViewer from "@/components/FileViewer";
 import DiskUsageChart from "@/components/DiskUsageChart"; 
 import { AIRightSidebar } from "@/components/AIRightSidebar";
 import { LocalChangesPanel } from "@/components/git/LocalChangesPanel";
+import { GitHubPRsPanel } from "@/components/git/GitHubPRsPanel";
 import { DiffView } from "@/components/git/DiffView";
 import { useHomeStore } from "@/store/useHomeStore";
 import { 
@@ -233,9 +234,11 @@ export function ReviewTab() {
                 <div className="p-4 text-xs text-muted-foreground">Select a repository first</div>
             )
           ) : (
-            <div className="p-4 text-sm text-muted-foreground italic">
-              GitHub PRs view not implemented yet.
-            </div>
+            projectPath ? (
+              <GitHubPRsPanel repoPath={projectPath} />
+            ) : (
+              <div className="p-4 text-xs text-muted-foreground">Select a repository first</div>
+            )
           )}
         </div>
       </div>
