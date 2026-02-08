@@ -319,7 +319,7 @@ export function GitHubPRsPanel({
                         </div>
 
                          <div className="flex-1 m-0 overflow-y-auto">
-                            <div className="p-0">
+                            <div className="p-0 w-full max-w-full min-w-0">
                                 {files.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground text-sm">No files changed</div>
                                 ) : (

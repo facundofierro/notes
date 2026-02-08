@@ -296,7 +296,7 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
                         defaultOpen={false}
                         uppercase={false}
                     >
-                        <div className="px-3">
+                        <div className="px-3 w-full max-w-full min-w-0">
                            {/* Commit Details Header */}
                            <div className="mb-2 px-2 text-[10px] text-muted-foreground flex items-center gap-2">
                                 <div className="flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded-full">

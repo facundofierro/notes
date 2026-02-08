@@ -22,7 +22,7 @@ interface ChangeGroupProps {
 export function ChangeGroup({ title, count, color, children, defaultOpen = true, uppercase = true }: ChangeGroupProps) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   return (
-    <div className="flex flex-col border-b border-border/50">
+    <div className="flex flex-col border-b border-border/50 w-full max-w-full min-w-0">
        <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-2 p-2 hover:bg-secondary/20 transition-colors w-full text-left group">
           {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/70" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/70" />}
           <span className={`w-2 h-2 rounded-full ${count === 0 ? "bg-zinc-500/50" : color} shadow-sm`} />
@@ -136,9 +136,11 @@ export function FileGroupList({
     return (
         <div className="px-3 w-full min-w-0">
             {Object.entries(groupedFiles).map(([folder, folderFiles]) => (
-                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full min-w-0 flex flex-col">
-                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right w-full min-w-0" style={{ direction: "rtl", unicodeBidi: "bidi-override" }} title={folder}>
-                        &lrm;{folder}&lrm;
+                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full max-w-full min-w-0 flex flex-col">
+                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground text-right w-full max-w-full min-w-0 overflow-hidden" title={folder}>
+                        <div className="truncate" style={{ direction: "rtl", unicodeBidi: "plaintext" }}>
+                            {folder}
+                        </div>
                     </div>
                     <div className="">
                         {folderFiles.map(file => (
