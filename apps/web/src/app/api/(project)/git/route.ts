@@ -36,6 +36,15 @@ export async function GET(request: Request) {
        return NextResponse.json({ content: result.stdout });
     }
   
+// Helper to get all branches
+    if (action === "branches") {
+       const { stdout } = await execPromise(`git branch --format="%(refname:short)"`, repoPath);
+       const branches = stdout.split("\n").filter(Boolean).map(b => b.trim());
+       // Get current branch
+       const { stdout: current } = await execPromise(`git branch --show-current`, repoPath);
+       return NextResponse.json({ branches, current: current.trim() });
+    }
+
     // Default: Get Status (changed files)
     const statusCmd = `git status --porcelain=v2 -b -u`; 
     const { stdout: statusOutput } = await execPromise(statusCmd, repoPath);
@@ -175,6 +184,18 @@ export async function POST(request: Request) {
 
       case "pull":
         result = await execPromise(`git pull`, repoPath);
+        break;
+
+      case "checkout":
+        const { branch } = body;
+        if (!branch) return NextResponse.json({ error: "Branch name is required" }, { status: 400 });
+        result = await execPromise(`git checkout "${branch}"`, repoPath);
+        break;
+
+      case "create-branch":
+        const { newBranch } = body;
+        if (!newBranch) return NextResponse.json({ error: "Branch name is required" }, { status: 400 });
+        result = await execPromise(`git checkout -b "${newBranch}"`, repoPath);
         break;
 
       default:

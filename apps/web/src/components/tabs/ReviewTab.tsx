@@ -664,6 +664,7 @@ export function ReviewTab() {
              {projectPath ? (
               <LocalChangesPanel 
                 repoPath={projectPath} 
+                projectName={selectedRepo || "Project"}
                 onSelectFile={handleGitFileSelect}
                 selectedFile={selectedGitFile?.path}
                 className="flex-1"
