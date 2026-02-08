@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Globe, ShieldAlert, Plus, X } from "lucide-react";
-import { BrowserRightPanel } from "@/components/BrowserRightPanel";
-import { IframeCaptureInjector } from "@/components/IframeCaptureInjector";
-import { ScreenshotViewer } from "@/components/ScreenshotViewer";
+import { BrowserRightPanel } from "@/components/features/browser/BrowserRightPanel";
+import { IframeCaptureInjector } from "@/components/features/browser/capture/IframeCaptureInjector";
+import { ScreenshotViewer } from "@/components/features/browser/capture/ScreenshotViewer";
 import { useHomeStore } from "@/store/useHomeStore";
 import { toast } from "@agelum/shadcn";
 

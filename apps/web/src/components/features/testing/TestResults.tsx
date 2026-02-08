@@ -10,7 +10,7 @@ import {
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
-import { inferTestExecutionStatus } from "../lib/test-output";
+import { inferTestExecutionStatus } from "@/lib/test-output";
 
 interface TestExecution {
   id: string;

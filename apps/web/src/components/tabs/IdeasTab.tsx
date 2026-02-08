@@ -1,6 +1,6 @@
 import * as React from "react";
-import IdeasKanban from "@/components/IdeasKanban";
-import { WorkEditorTab } from "@/components/WorkEditorTab";
+import IdeasKanban from "@/components/features/kanban/IdeasKanban";
+import { WorkEditorTab } from "@/components/features/work/WorkEditorTab";
 import { useHomeStore } from "@/store/useHomeStore";
 
 export function IdeasTab() {

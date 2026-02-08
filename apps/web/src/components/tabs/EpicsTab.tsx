@@ -1,6 +1,6 @@
 import * as React from "react";
-import EpicsKanban from "@/components/EpicsKanban";
-import { WorkEditorTab } from "@/components/WorkEditorTab";
+import EpicsKanban from "@/components/features/kanban/EpicsKanban";
+import { WorkEditorTab } from "@/components/features/work/WorkEditorTab";
 import { useHomeStore } from "@/store/useHomeStore";
 
 export function EpicsTab() {

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { SettingsDialog } from "@/components/SettingsDialog";
+import { SettingsDialog } from "@/components/features/settings/SettingsDialog";
 import { IdeasTab } from "@/components/tabs/IdeasTab";
 import { DocsTab } from "@/components/tabs/DocsTab";
 import { EpicsTab } from "@/components/tabs/EpicsTab";
@@ -11,7 +11,7 @@ import { ReviewTab } from "@/components/tabs/ReviewTab";
 import { AITab } from "@/components/tabs/AITab";
 import { LogsTab } from "@/components/tabs/LogsTab";
 import { BrowserTab } from "@/components/tabs/BrowserTab";
-import { Header } from "@/components/Header";
+import { Header } from "@/components/layout/Header";
 import { useHomeStore, ProjectState } from "@/store/useHomeStore";
 
 export default function Home() {

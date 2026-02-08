@@ -1,6 +1,6 @@
 import * as React from "react";
-import FileBrowser from "@/components/FileBrowser";
-import { WorkEditorTab } from "@/components/WorkEditorTab";
+import FileBrowser from "@/components/features/file-system/FileBrowser";
+import { WorkEditorTab } from "@/components/features/work/WorkEditorTab";
 import { useHomeStore } from "@/store/useHomeStore";
 
 interface FileNode {

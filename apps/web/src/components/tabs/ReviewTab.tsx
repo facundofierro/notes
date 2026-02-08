@@ -1,11 +1,11 @@
 import * as React from "react";
-import FileBrowser from "@/components/FileBrowser";
-import FileViewer from "@/components/FileViewer";
-import DiskUsageChart from "@/components/DiskUsageChart"; 
-import { AIRightSidebar } from "@/components/AIRightSidebar";
-import { LocalChangesPanel } from "@/components/git/LocalChangesPanel";
-import { GitHubPRsPanel } from "@/components/git/GitHubPRsPanel";
-import { DiffView } from "@/components/git/DiffView";
+import FileBrowser from "@/components/features/file-system/FileBrowser";
+import FileViewer from "@/components/features/file-system/FileViewer";
+import DiskUsageChart from "@/components/shared/DiskUsageChart"; 
+import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
+import { LocalChangesPanel } from "@/components/features/git/LocalChangesPanel";
+import { GitHubPRsPanel } from "@/components/features/git/GitHubPRsPanel";
+import { DiffView } from "@/components/features/git/DiffView";
 import { useHomeStore } from "@/store/useHomeStore";
 import { 
   Folder, 

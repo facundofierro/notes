@@ -21,7 +21,7 @@ import { inferTestExecutionStatus } from "@/lib/test-output";
 import { useHomeStore } from "@/store/useHomeStore";
 
 const TerminalViewer = dynamic(
-  () => import("@/components/TerminalViewer").then((mod) => mod.TerminalViewer),
+  () => import("@/components/features/terminal/TerminalViewer").then((mod) => mod.TerminalViewer),
   { ssr: false }
 );
 

@@ -20,12 +20,12 @@ import {
   Terminal,
   Eye,
 } from "lucide-react";
-import { SettingsProjects } from "./settings/SettingsProjects";
-import { SettingsAgents } from "./settings/SettingsAgents";
-import { SettingsTests } from "./settings/SettingsTests";
-import { SettingsDefaults } from "./settings/SettingsDefaults";
-import { SettingsWorkflows } from "./settings/SettingsWorkflows";
-import { ProjectSettings } from "./settings/ProjectSettings";
+import { SettingsProjects } from "./SettingsProjects";
+import { SettingsAgents } from "./SettingsAgents";
+import { SettingsTests } from "./SettingsTests";
+import { SettingsDefaults } from "./SettingsDefaults";
+import { SettingsWorkflows } from "./SettingsWorkflows";
+import { ProjectSettings } from "./ProjectSettings";
 import { useHomeStore } from "@/store/useHomeStore";
 
 interface SettingsDialogProps {

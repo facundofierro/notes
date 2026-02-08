@@ -12,7 +12,7 @@ import {
   ProjectConfig,
   UserSettings,
 } from "@/hooks/use-settings";
-import { DirectoryPicker } from "@/components/DirectoryPicker";
+import { DirectoryPicker } from "@/components/shared/DirectoryPicker";
 
 interface SettingsProjectsProps {
   settings: UserSettings;

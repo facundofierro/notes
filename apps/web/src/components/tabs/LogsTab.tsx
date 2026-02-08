@@ -12,7 +12,7 @@ import {
 
 const TerminalViewer = dynamic(
   () =>
-    import("@/components/TerminalViewer").then(
+    import("@/components/features/terminal/TerminalViewer").then(
       (mod) => mod.TerminalViewer,
     ),
   { ssr: false },

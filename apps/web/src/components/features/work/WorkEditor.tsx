@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import FileViewer from "@/components/FileViewer";
-import { AIRightSidebar } from "@/components/AIRightSidebar";
+import FileViewer from "@/components/features/file-system/FileViewer";
+import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
 
 interface FileNode {
   path: string;

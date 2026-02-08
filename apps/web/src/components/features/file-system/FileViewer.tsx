@@ -17,8 +17,8 @@ import {
   History,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { TestSteps } from "./TestSteps";
-import { TestResults } from "./TestResults";
+import { TestSteps } from "../testing/TestSteps";
+import { TestResults } from "../testing/TestResults";
 import type { EditorProps } from "@monaco-editor/react";
 
 const MonacoEditor =

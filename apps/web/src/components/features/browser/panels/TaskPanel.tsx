@@ -14,7 +14,7 @@ import {
   Code,
   History,
 } from "lucide-react";
-import { AnnotationPromptList } from "../AnnotationPromptList";
+import { AnnotationPromptList } from "@/components/features/work/AnnotationPromptList";
 import dynamic from "next/dynamic";
 import type { EditorProps } from "@monaco-editor/react";
 import {

@@ -1,6 +1,6 @@
 import * as React from "react";
-import TaskKanban from "@/components/TaskKanban";
-import { WorkEditorTab } from "@/components/WorkEditorTab";
+import TaskKanban from "@/components/features/kanban/TaskKanban";
+import { WorkEditorTab } from "@/components/features/work/WorkEditorTab";
 import { useHomeStore } from "@/store/useHomeStore";
 
 export function TasksTab() {

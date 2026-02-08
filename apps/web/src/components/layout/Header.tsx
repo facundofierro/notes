@@ -14,7 +14,7 @@ import {
   LogIn 
 } from "lucide-react";
 import { AgelumNotesLogo } from "@agelum/shadcn";
-import { ProjectSelector } from "@/components/ProjectSelector";
+import { ProjectSelector } from "@/components/shared/ProjectSelector";
 import { VIEW_MODE_CONFIG, ViewMode } from "@/lib/view-config";
 import { useHomeStore } from "@/store/useHomeStore";
 
