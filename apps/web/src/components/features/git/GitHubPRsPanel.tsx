@@ -18,7 +18,7 @@ import {
     GitMerge,
     X,
 } from "lucide-react";
-import { Button, ScrollArea, Skeleton, Badge, cn, Tabs, TabsList, TabsTrigger, TabsContent } from "@agelum/shadcn";
+import { Button, Skeleton, Badge, cn, Tabs, TabsList, TabsTrigger, TabsContent } from "@agelum/shadcn";
 import { CreatePRDialog } from "./CreatePRDialog";
 import { GitFile, ChangeGroup, FileItem, FileGroupList, groupFilesByFolder, truncatePath } from "./GitSharedComponents";
 
@@ -298,7 +298,7 @@ export function GitHubPRsPanel({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:h-full [&>[data-radix-scroll-area-viewport]>[div]:!block">
+      <div className="flex-1 overflow-y-auto min-w-0">
         {selectedPRNumber ? (
             // DETAIL VIEW (Files Only)
             <div className="flex flex-col h-full min-w-0">
@@ -308,16 +308,7 @@ export function GitHubPRsPanel({
                         <Skeleton className="h-20 w-full" />
                      </div>
                 ) : (
-                    <div className="flex flex-col h-full min-w-0">
-                        <div className="p-3 border-b border-border bg-secondary/5">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Badge variant={prDetails?.state === "OPEN" ? "default" : "secondary"} className="h-5 px-1.5">{prDetails?.state}</Badge>
-                                <span className="text-xs text-muted-foreground font-mono">#{prDetails?.number}</span>
-                            </div>
-                            <h2 className="text-sm font-semibold leading-tight mb-1 line-clamp-2">{prDetails?.title}</h2>
-                            <div className="text-xs text-muted-foreground truncate">{prDetails?.author.login}</div>
-                        </div>
-
+                    <div className="flex flex-col h-full min-w-0 overflow-hidden">
                          <div className="flex-1 m-0 overflow-y-auto min-w-0">
                             <div className="p-0 w-full max-w-full min-w-0">
                                 {files.length === 0 ? (
@@ -413,7 +404,7 @@ export function GitHubPRsPanel({
               ))}
             </div>
         )}
-      </ScrollArea>
+      </div>
       
       <CreatePRDialog 
         open={createOpen} 
