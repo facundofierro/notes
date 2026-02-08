@@ -1,8 +1,10 @@
 import * as React from "react";
 import FileBrowser from "@/components/FileBrowser";
 import FileViewer from "@/components/FileViewer";
-import DiskUsageChart from "@/components/DiskUsageChart"; // Import the new component
+import DiskUsageChart from "@/components/DiskUsageChart"; 
 import { AIRightSidebar } from "@/components/AIRightSidebar";
+import { LocalChangesPanel } from "@/components/git/LocalChangesPanel";
+import { DiffView } from "@/components/git/DiffView";
 import { useHomeStore } from "@/store/useHomeStore";
 import { 
   Folder, 
@@ -11,8 +13,6 @@ import {
   Plus, 
   X, 
   Layers, 
-  Search,
-  ChevronRight
 } from "lucide-react";
 
 interface FileNode {
@@ -21,7 +21,7 @@ interface FileNode {
   type: "file" | "directory";
   children?: FileNode[];
   content?: string;
-  size?: number; // Add size
+  size?: number; 
 }
 
 type LeftSidebarView = "files" | "changes" | "prs";
@@ -68,8 +68,6 @@ export function ReviewTab() {
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [leftSidebarView, setLeftSidebarView] = React.useState<LeftSidebarView>("files");
   
-  // Single tab default + dynamic tabs logic if needed, but per request "keep 1 tab and the plus button"
-  // We'll start with just one tab.
   const [tabs, setTabs] = React.useState<TabItem[]>([
     { id: "main", label: "Project", icon: Layers },
   ]);
@@ -78,9 +76,13 @@ export function ReviewTab() {
   // Local state for folder selection
   const [selectedFolder, setSelectedFolder] = React.useState<FileNode | null>(null);
 
+  // Git specific state
+  const [selectedGitFile, setSelectedGitFile] = React.useState<any | null>(null);
+  const [diffOriginal, setDiffOriginal] = React.useState("");
+  const [diffModified, setDiffModified] = React.useState("");
+
   const loadFileTree = React.useCallback(() => {
     if (selectedRepo) {
-      // Changed to root=true to get full project tree
       fetch(`/api/files?repo=${selectedRepo}&root=true`)
         .then((res) => res.json())
         .then((data) => {
@@ -91,11 +93,53 @@ export function ReviewTab() {
           }
         });
     }
-  }, [selectedRepo]); // removed selectedFolder and selectedFile from dependency to avoid loop resetting
+  }, [selectedRepo]); 
 
   React.useEffect(() => {
     loadFileTree();
   }, [loadFileTree]);
+
+  // Handle Git File Select
+  const handleGitFileSelect = async (file: any) => {
+     setSelectedGitFile(file);
+     // Clear other selections to switch view
+     setSelectedFile(null);
+     setSelectedFolder(null);
+
+     if (projectPath) {
+        // Fetch content for diff
+        // Original: HEAD
+        try {
+          const resOrig = await fetch(`/api/git?action=content&path=${encodeURIComponent(projectPath)}&file=${encodeURIComponent(file.path)}&ref=HEAD`);
+          if (resOrig.ok) {
+             const data = await resOrig.json();
+             setDiffOriginal(data.content || "");
+          } else {
+             setDiffOriginal(""); // New file?
+          }
+        } catch {
+             setDiffOriginal(""); 
+        }
+
+        // Modified: Current content (from disk)
+        // We can use the generic generic /api/file?path=... endpoint which reads fs
+        try {
+           const resMod = await fetch(`/api/file?path=${encodeURIComponent(projectPath + "/" + file.path)}`); // file.path is relative in git status usually! Wait, git status --porcelain usually returns relative to root, but let's double check. 
+           // In LocalChangesPanel we use file.path as returned by porcelain. 
+           // If 'git status' ran in repo root, paths are relative. 
+           // LocalChangesPanel uses repoPath logic, so paths are relative.
+           // API /api/file expects absolute path usually? 
+           // Looking at FileBrowser it sends `node.path` which is usually absolute in this app's logic?
+           // The API /api/project/git returns paths from porcelain. 
+           // I need to construct absolute path for /api/file.
+           const absolutePath = `${projectPath}/${file.path}`.replace(/\/+/g, "/");
+           const resModContent = await fetch(`/api/file?path=${encodeURIComponent(absolutePath)}`).then(r => r.json());
+           setDiffModified(resModContent.content || "");
+        } catch {
+           setDiffModified("");
+        }
+     }
+  };
 
   const handleSaveFileShim = async ({ content }: { content: string }) => {
     if (!selectedFile) return;
@@ -121,12 +165,20 @@ export function ReviewTab() {
   const onFileSelectWrapper = (node: FileNode) => {
      handleFileSelect(node);
      setSelectedFolder(null); // Clear folder selection
+     setSelectedGitFile(null); // Clear git selection
   };
 
   const onFolderSelectWrapper = (node: FileNode) => {
       setSelectedFolder(node);
       setSelectedFile(null); // Clear file selection
+      setSelectedGitFile(null); // Clear git selection
   }
+
+  // Update Left Sidebar View handlers to clear generic selections if switching?
+  // Actually, keeping selection state separate is fine, but we determine what to show based on what is not null?
+  // Or priority? 
+  // Let's rely on what was clicked last.
+  // When switching sidebar view, we might want to stay on current content unless user clicks something.
 
   return (
     <div className="flex flex-1 overflow-hidden h-full bg-background">
@@ -164,16 +216,22 @@ export function ReviewTab() {
           {leftSidebarView === "files" ? (
             <FileBrowser
               fileTree={fileTree}
+              currentPath={currentPath}
               onFileSelect={onFileSelectWrapper}
               onFolderSelect={onFolderSelectWrapper}
-              currentPath={currentPath}
               basePath={basePath}
               onRefresh={loadFileTree}
             />
           ) : leftSidebarView === "changes" ? (
-            <div className="p-4 text-sm text-muted-foreground italic">
-              Git changes view not implemented yet.
-            </div>
+            projectPath ? (
+              <LocalChangesPanel 
+                repoPath={projectPath} 
+                onSelectFile={handleGitFileSelect}
+                selectedFile={selectedGitFile?.path}
+              />
+            ) : (
+                <div className="p-4 text-xs text-muted-foreground">Select a repository first</div>
+            )
           ) : (
             <div className="p-4 text-sm text-muted-foreground italic">
               GitHub PRs view not implemented yet.
@@ -193,6 +251,7 @@ export function ReviewTab() {
             if (activeTabId === tab.id) {
                 if (selectedFile) label = selectedFile.path.split('/').pop() || label;
                 else if (selectedFolder) label = selectedFolder.name || label;
+                else if (selectedGitFile) label = `${selectedGitFile.path.split('/').pop()} (Diff)` || label;
             }
 
             return (
@@ -229,7 +288,14 @@ export function ReviewTab() {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden relative">
-           {selectedFile ? (
+           {selectedGitFile ? (
+             <DiffView 
+                original={diffOriginal} 
+                modified={diffModified} 
+                className="bg-background"
+                language={selectedGitFile.path.endsWith('.ts') ? 'typescript' : 'plaintext'} 
+             />
+           ) : selectedFile ? (
             <div className="flex flex-col h-full">
                <FileViewer
                   file={selectedFile}
@@ -267,3 +333,4 @@ export function ReviewTab() {
     </div>
   );
 }
+
