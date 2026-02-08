@@ -552,10 +552,24 @@ export function ReviewTab() {
 
       if (projectPath && activePRDetails) {
            const baseRef = activePRDetails.baseRefName; // target branch (e.g. main)
+           const headRef = activePRDetails.headRefName; // source branch (e.g. dev)
+           
+           // Check current branch to decide if we need checkout
+           let currentBranch = "";
+           try {
+              const branchRes = await fetch(`/api/github?action=current-branch&path=${encodeURIComponent(projectPath)}`);
+              if (branchRes.ok) {
+                 const branchData = await branchRes.json();
+                 currentBranch = branchData.branch || "";
+              }
+           } catch (e) {
+              console.error("Failed to get current branch:", e);
+           }
+
+           const isOnPRBranch = currentBranch === headRef;
            
            // 1. Fetch Original Content (Base)
            try {
-              // Try fetching content from the base ref. This generally works if local repo has that ref.
               const resOrig = await fetch(`/api/git?action=content&path=${encodeURIComponent(projectPath)}&file=${encodeURIComponent(file.path)}&ref=${encodeURIComponent(baseRef)}`);
               if (resOrig.ok) {
                  const data = await resOrig.json();
@@ -567,13 +581,32 @@ export function ReviewTab() {
               setPRDiffOriginal(`// Error fetching original content for ${file.path}`);
            }
 
-           // 2. Fetch Modified Content (Head) -> Harder without checkout
-           // We will try to fetch from the specific PR head ref if available, or just show a fallback.
-           // Ideally we'd use 'gh api' here.
-           // For now, we set a specific message so the Diff Editor knows IT CHANGED.
-           
-           // TODO: Implement 'gh api' to get blob content for remote file.
-           setShowCheckoutOverlay(true);
+           // 2. Fetch Modified Content (Head)
+           if (isOnPRBranch) {
+              // We're on the PR branch, fetch from local working copy
+              try {
+                 const absolutePath = `${projectPath}/${file.path}`.replace(/\/+/g, "/");
+                 const resModContent = await fetch(`/api/file?path=${encodeURIComponent(absolutePath)}`);
+                 if (resModContent.ok) {
+                    const modData = await resModContent.json();
+                    setPRDiffModified(modData.content || "");
+                 } else {
+                    // Try fetching from the head ref instead
+                    const resHead = await fetch(`/api/git?action=content&path=${encodeURIComponent(projectPath)}&file=${encodeURIComponent(file.path)}&ref=${encodeURIComponent(headRef)}`);
+                    if (resHead.ok) {
+                       const headData = await resHead.json();
+                       setPRDiffModified(headData.content || "");
+                    } else {
+                       setPRDiffModified(`// Could not fetch modified content for ${file.path}`);
+                    }
+                 }
+              } catch (e) {
+                 setPRDiffModified(`// Error fetching modified content for ${file.path}`);
+              }
+           } else {
+              // Not on the PR branch, show checkout overlay
+              setShowCheckoutOverlay(true);
+           }
       }
   };
 
