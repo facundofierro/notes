@@ -148,7 +148,7 @@ export function usePromptBuilder() {
 
       if (operation === "work_on_task") {
         return [
-          `Use the task document at "${filePath}" as the source of requirements and acceptance criteria.`,
+          `Work on the task document at "${filePath}" as the source of requirements and acceptance criteria.`,
           "",
           "User instructions:",
           trimmed,

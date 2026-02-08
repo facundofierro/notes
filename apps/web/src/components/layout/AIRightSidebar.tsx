@@ -75,7 +75,23 @@ export function AIRightSidebar({
   const [pendingOpenCodeWebMessage, setPendingOpenCodeWebMessage] = React.useState<any>(null);
   const [promptMode, setPromptMode] = React.useState<"agent" | "plan" | "chat">("agent");
   const [docAiMode, setDocAiMode] = React.useState<"modify" | "start">("modify");
-  const [promptText, setPromptText] = React.useState("");
+  const docAiModeRef = React.useRef(docAiMode);
+  React.useEffect(() => { docAiModeRef.current = docAiMode; }, [docAiMode]);
+
+  const [prompts, setPrompts] = React.useState<{ modify: string; start: string }>({
+    modify: "",
+    start: "Let's work on this task",
+  });
+  const promptText = prompts[docAiMode];
+
+  const setPromptText = React.useCallback((value: string | ((prev: string) => string)) => {
+    setPrompts((prev) => {
+      const mode = docAiModeRef.current;
+      const current = prev[mode];
+      const next = typeof value === "function" ? value(current) : value;
+      return { ...prev, [mode]: next };
+    });
+  }, []);
   const [isRecording, setIsRecording] = React.useState(false);
   const [filePickerOpen, setFilePickerOpen] = React.useState(false);
   const [fileSearch, setFileSearch] = React.useState("");
@@ -188,8 +204,10 @@ export function AIRightSidebar({
 
 Cancelled` : "Cancelled"));
     setRightSidebarView("prompt");
-    refreshCurrentFile();
-  }, [terminalProcessId, contextKey, updateTerminalSession, refreshCurrentFile]);
+    if (docAiMode === "modify") {
+      refreshCurrentFile();
+    }
+  }, [terminalProcessId, contextKey, updateTerminalSession, refreshCurrentFile, docAiMode]);
 
   const openInteractiveTerminal = React.useCallback(async () => {
     const cwd = projectPath || (basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined);
@@ -575,7 +593,7 @@ Cancelled` : "Cancelled");
             {isTerminalRunning && (
               <button onClick={cancelTerminal} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border border-red-800 bg-red-900/50 hover:bg-red-900">Close</button>
             )}
-            <button onClick={() => { setRightSidebarView("prompt"); refreshCurrentFile(); }} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border bg-secondary border-border hover:bg-accent">
+            <button onClick={() => { setRightSidebarView("prompt"); if (docAiMode === "modify") refreshCurrentFile(); }} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border bg-secondary border-border hover:bg-accent">
               {isTerminalRunning ? "Return to Prompt" : "Back to Prompt"}
             </button>
           </div>
