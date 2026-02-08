@@ -30,7 +30,7 @@ export function ChangeGroup({ title, count, color, children, defaultOpen = true,
           <span className="text-[10px] text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded-full border border-border/50">{count}</span>
        </button>
        {isOpen && (
-         <div className="pl-0 pb-2 overflow-y-auto max-h-[300px]">
+         <div className="pl-0 pb-2 w-full">
             {children}
          </div>
        )}
@@ -70,7 +70,7 @@ export function FileItem({
 
     return (
         <div 
-            className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group ${selected ? "bg-accent text-accent-foreground" : ""}`}
+            className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group min-w-0 ${selected ? "bg-accent text-accent-foreground" : ""}`}
             onClick={() => onSelect(file)}
         >
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass || "bg-muted"}`} />
@@ -135,10 +135,10 @@ export function FileGroupList({
     const groupedFiles = React.useMemo(() => groupFilesByFolder(files), [files]);
 
     return (
-        <div className="px-3">
+        <div className="px-3 w-full min-w-0">
             {Object.entries(groupedFiles).map(([folder, folderFiles]) => (
-                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
-                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" style={{ direction: "rtl" }} title={folder}>
+                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full min-w-0">
+                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right w-full" style={{ direction: "rtl" }} title={folder}>
                         &lrm;{folder}&lrm;
                     </div>
                     <div className="">

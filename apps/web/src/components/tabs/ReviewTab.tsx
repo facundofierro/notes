@@ -17,9 +17,10 @@ import {
   Layers, 
   Bot,
   FileDiff,
-  Info
+  Info,
+  RefreshCw
 } from "lucide-react";
-import { cn } from "@agelum/shadcn";
+import { cn, Button } from "@agelum/shadcn";
 
 interface FileNode {
   name: string;
@@ -202,7 +203,10 @@ const PRsCentralArea = ({
   selectedPRFile,
   diffOriginal, 
   diffModified,
-  prDetails
+  prDetails,
+  onCheckout,
+  isCheckingOut,
+  showCheckoutOverlay
 }: any) => {
   const [activeTab, setActiveTab] = React.useState<PRsTab>("info");
 
@@ -303,12 +307,30 @@ const PRsCentralArea = ({
              )
          ) : (
             selectedPRFile ? (
+                showCheckoutOverlay ? (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center bg-background/50">
+                        <div className="max-w-md space-y-4 flex flex-col items-center">
+                            <p className="font-medium text-foreground">To see the full specific diff, please Checkout the PR.</p>
+                            <p className="text-xs opacity-70 max-w-[300px] leading-relaxed">Remote file content fetching is not yet implemented without checkout.</p>
+                             <Button 
+                                variant="default"
+                                size="sm"
+                                onClick={() => prDetails && onCheckout && onCheckout(prDetails.number)}
+                                disabled={isCheckingOut === prDetails?.number}
+                            >
+                                {isCheckingOut === prDetails?.number ? <RefreshCw className="w-3.5 h-3.5 mr-2 animate-spin" /> : <GitBranch className="w-3.5 h-3.5 mr-2" />}
+                                Checkout PR #{prDetails?.number}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
                 <DiffView 
                     original={diffOriginal} 
                     modified={diffModified} 
                     className="bg-background"
                     language={selectedPRFile.path?.endsWith('.ts') || selectedPRFile.path?.endsWith('.tsx') ? 'typescript' : 'plaintext'} 
                 />
+                )
             ) : (
              <div className="flex flex-1 justify-center items-center text-muted-foreground h-full">
                Select a file in PR to view diff
@@ -374,6 +396,42 @@ export function ReviewTab() {
   const [selectedPRFile, setSelectedPRFile] = React.useState<any | null>(null);
   const [prDiffOriginal, setPRDiffOriginal] = React.useState("");
   const [prDiffModified, setPRDiffModified] = React.useState("");
+  const [checkoutLoading, setCheckoutLoading] = React.useState<number | null>(null);
+  const [showCheckoutOverlay, setShowCheckoutOverlay] = React.useState(false);
+
+  // -- Resizable Sidebar State --
+  const [sidebarWidth, setSidebarWidth] = React.useState(320);
+  const [isResizing, setIsResizing] = React.useState(false);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
+
+  const startResizing = React.useCallback(() => {
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = React.useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = React.useCallback(
+    (mouseMoveEvent: MouseEvent) => {
+      if (isResizing) {
+        const newWidth = mouseMoveEvent.clientX; // Assuming sidebar starts at 0
+        if (newWidth > 150 && newWidth < 800) {
+             setSidebarWidth(newWidth);
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  React.useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   const loadFileTree = React.useCallback(() => {
     if (selectedRepo) {
@@ -444,6 +502,7 @@ export function ReviewTab() {
       setSelectedPRFile(file);
       setPRDiffOriginal(""); 
       setPRDiffModified("");
+      setShowCheckoutOverlay(false);
 
       if (projectPath && activePRDetails) {
            const baseRef = activePRDetails.baseRefName; // target branch (e.g. main)
@@ -468,8 +527,42 @@ export function ReviewTab() {
            // For now, we set a specific message so the Diff Editor knows IT CHANGED.
            
            // TODO: Implement 'gh api' to get blob content for remote file.
-           setPRDiffModified(`// Viewing: ${file.path}\n// \n// To see the full specific diff, please Checkout the PR.\n// (Remote file content fetching is not yet implemented without checkout)`);
+           setShowCheckoutOverlay(true);
       }
+  };
+
+  const handleCheckout = async (prNumber: number) => {
+    if (!projectPath) return;
+    setCheckoutLoading(prNumber);
+    try {
+      const res = await fetch("/api/github", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "checkout",
+          repoPath: projectPath,
+          prNumber: prNumber,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error(data.error);
+      } else {
+        // Refresh everything?
+        loadFileTree();
+        // If we successfully checkout, we can now likely show the diff content if we refresh.
+        // Re-selecting the file might trigger logical update if needed, but for now user can just re-click.
+        // Actually, let's just hide the overlay if it was open, though we might still need to fetch content.
+        // Best UX: re-trigger retrieval.
+        if (selectedPRFile) {
+            // Slight delay to ensure git ops are done?
+            setTimeout(() => handlePRFileSelect(selectedPRFile), 500);
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setCheckoutLoading(null);
+    }
   };
 
   const handleSaveFileShim = async ({ content }: { content: string }) => {
@@ -507,7 +600,11 @@ export function ReviewTab() {
   return (
     <div className="flex flex-1 overflow-hidden h-full bg-background">
       {/* Left Sidebar */}
-      <div className={`flex flex-col overflow-hidden bg-secondary/5 ${leftSidebarView ? "w-64 border-r border-border" : ""}`}>
+      <div 
+        ref={sidebarRef}
+        className={cn("flex flex-col overflow-hidden bg-secondary/5 relative group/sidebar", leftSidebarView ? "border-r border-border" : "")}
+        style={{ width: leftSidebarView ? sidebarWidth : 0, transition: isResizing ? 'none' : 'width 0.2s' }}
+      >
         {/* Navigation Header */}
         <div className="flex items-center border-b border-border bg-background/50">
           <button 
@@ -559,6 +656,7 @@ export function ReviewTab() {
               onFolderSelect={onFolderSelectWrapper}
               basePath={basePath}
               onRefresh={loadFileTree}
+              resizable={false}
             />
           </div>
 
@@ -582,12 +680,22 @@ export function ReviewTab() {
                  onPRSelect={setActivePRDetails}
                  onSelectFile={handlePRFileSelect}
                  selectedFile={selectedPRFile?.path}
+                 onCheckout={handleCheckout}
+                 isCheckingOut={checkoutLoading}
               />
             ) : (
               <div className="p-4 text-xs text-muted-foreground">Select a repository first</div>
             )}
           </div>
         </div>
+        
+        {/* Resize Handle */}
+        {leftSidebarView && (
+            <div
+                className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-amber-500/50 active:bg-amber-500 transition-colors z-50"
+                onMouseDown={startResizing}
+            />
+        )}
       </div>
 
       {/* Central Content Areas - Rendered ALL 3 times as requested */}
@@ -623,6 +731,9 @@ export function ReviewTab() {
             diffOriginal={prDiffOriginal}
             diffModified={prDiffModified}
             prDetails={activePRDetails}
+            onCheckout={handleCheckout}
+            isCheckingOut={checkoutLoading}
+            showCheckoutOverlay={showCheckoutOverlay}
          />
       </div>
 

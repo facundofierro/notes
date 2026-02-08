@@ -40,6 +40,7 @@ interface FileBrowserProps {
   onRefresh?: () => void;
   onRunFolder?: (path: string) => void;
   viewMode?: string;
+  resizable?: boolean;
 }
 
 const SIDEBAR_MIN_WIDTH = 150;
@@ -335,6 +336,7 @@ export default function FileBrowser({
   onRefresh,
   onRunFolder,
   viewMode,
+  resizable = true,
 }: FileBrowserProps) {
   const { toast } = useToast();
   const [
@@ -623,19 +625,21 @@ export default function FileBrowser({
   return (
     <>
       <div
-        className="flex relative flex-col border-r shrink-0 border-border bg-background h-full"
-        style={{ width: sidebarWidth }}
+        className={`flex relative flex-col shrink-0 bg-background h-full ${resizable ? "border-r border-border" : "w-full"}`}
+        style={resizable ? { width: sidebarWidth } : {}}
       >
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-valuenow={sidebarWidth}
-          tabIndex={0}
-          className="absolute top-0 right-0 z-10 w-2 h-full border-r border-transparent transition-colors select-none cursor-col-resize hover:border-muted-foreground hover:bg-secondary active:bg-accent"
-          onMouseDown={
-            handleResizeStart
-          }
-        />
+        {resizable && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuenow={sidebarWidth}
+            tabIndex={0}
+            className="absolute top-0 right-0 z-10 w-2 h-full border-r border-transparent transition-colors select-none cursor-col-resize hover:border-muted-foreground hover:bg-secondary active:bg-accent"
+            onMouseDown={
+              handleResizeStart
+            }
+          />
+        )}
         <div className="overflow-y-auto flex-1 p-2">
           {fileTree ? (
             <FileTreeNode

@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       if (!prNumber) {
         return NextResponse.json({ error: "PR number is required" }, { status: 400 });
       }
-      const cmd = `gh pr view ${prNumber} --json number,title,body,author,updatedAt,url,state,comments,reviewDecision,statusCheckRollup,files,reviews,headRefName,baseRefName`;
+      const cmd = `gh pr view ${prNumber} --json number,title,body,author,updatedAt,url,state,comments,reviewDecision,statusCheckRollup,files,reviews,headRefName,baseRefName,mergeable`;
       const { stdout } = await execPromise(cmd, repoPath);
       const pr = JSON.parse(stdout);
       return NextResponse.json({ pr });
@@ -92,6 +92,29 @@ export async function POST(request: Request) {
 
       const { stdout } = await execPromise(cmd, repoPath);
       return NextResponse.json({ success: true, output: stdout });
+    } else if (action === "merge") {
+        if (!prNumber) {
+            return NextResponse.json({ error: "PR number is required" }, { status: 400 });
+        }
+        // Merge with rebase by default or squash? The user didn't specify, but often squash or merge is safer. 
+        // Let's use --merge (default) or --auto if available. 
+        // For now, simple merge: gh pr merge <number> --merge --delete-branch
+        // User asked "merge PR if that option is enabled, in this case is not requiring reviews"
+        // We will just try `gh pr merge <number> --merge` (or --squash if preferred, but --merge preserves history).
+        // Let's go with --merge.
+        // Also added --admin to bypass requirements if needed? No, user said "if that option is enabled".
+        
+        const cmd = `gh pr merge ${prNumber} --merge --delete-branch`;
+        const { stdout } = await execPromise(cmd, repoPath);
+        return NextResponse.json({ success: true, output: stdout });
+
+    } else if (action === "close") {
+        if (!prNumber) {
+            return NextResponse.json({ error: "PR number is required" }, { status: 400 });
+        }
+        const cmd = `gh pr close ${prNumber}`;
+        const { stdout } = await execPromise(cmd, repoPath);
+        return NextResponse.json({ success: true, output: stdout });
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
