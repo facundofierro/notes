@@ -744,9 +744,9 @@ export function ReviewTab() {
         </div>
 
         {/* Sidebar Content - Rendered all 3 with display toggle */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative min-w-0">
           
-          <div className={cn("h-full w-full", leftSidebarView === "files" ? "block" : "hidden")}>
+          <div className={cn("h-full w-full min-w-0", leftSidebarView === "files" ? "block" : "hidden")}>
              <FileBrowser
               fileTree={fileTree}
               currentPath={currentPath}
@@ -758,7 +758,7 @@ export function ReviewTab() {
             />
           </div>
 
-          <div className={cn("h-full w-full flex flex-col", leftSidebarView === "changes" ? "flex" : "hidden")}>
+          <div className={cn("h-full w-full flex flex-col min-w-0", leftSidebarView === "changes" ? "flex" : "hidden")}>
              {projectPath ? (
               <LocalChangesPanel 
                 repoPath={projectPath} 
@@ -772,7 +772,7 @@ export function ReviewTab() {
             )}
           </div>
 
-          <div className={cn("h-full w-full flex flex-col", leftSidebarView === "prs" ? "flex" : "hidden")}>
+          <div className={cn("h-full w-full flex flex-col min-w-0", leftSidebarView === "prs" ? "flex" : "hidden")}>
              {projectPath ? (
               <GitHubPRsPanel 
                  repoPath={projectPath} 

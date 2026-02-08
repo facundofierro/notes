@@ -272,7 +272,7 @@ export function GitHubPRsPanel({
   }
   
   return (
-    <div className="flex flex-col h-full min-w-0">
+    <div className="flex flex-col h-full min-w-0 overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-2">
             {selectedPRNumber ? (
@@ -298,17 +298,17 @@ export function GitHubPRsPanel({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:h-full">
+      <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:h-full [&>[data-radix-scroll-area-viewport]>[div]:!block">
         {selectedPRNumber ? (
             // DETAIL VIEW (Files Only)
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full min-w-0">
                 {detailsLoading && !prDetails ? (
                      <div className="p-4 space-y-4">
                         <Skeleton className="h-6 w-3/4" />
                         <Skeleton className="h-20 w-full" />
                      </div>
                 ) : (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full min-w-0">
                         <div className="p-3 border-b border-border bg-secondary/5">
                             <div className="flex items-center gap-2 mb-2">
                                 <Badge variant={prDetails?.state === "OPEN" ? "default" : "secondary"} className="h-5 px-1.5">{prDetails?.state}</Badge>
@@ -318,7 +318,7 @@ export function GitHubPRsPanel({
                             <div className="text-xs text-muted-foreground truncate">{prDetails?.author.login}</div>
                         </div>
 
-                         <div className="flex-1 m-0 overflow-y-auto">
+                         <div className="flex-1 m-0 overflow-y-auto min-w-0">
                             <div className="p-0 w-full max-w-full min-w-0">
                                 {files.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground text-sm">No files changed</div>

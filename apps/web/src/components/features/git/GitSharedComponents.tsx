@@ -136,8 +136,8 @@ export function FileGroupList({
     return (
         <div className="px-3 w-full min-w-0">
             {Object.entries(groupedFiles).map(([folder, folderFiles]) => (
-                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full max-w-full min-w-0 flex flex-col">
-                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground text-right w-full max-w-full min-w-0 overflow-hidden" title={folder}>
+                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors w-full max-w-full min-w-0">
+                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground text-right overflow-hidden" title={folder}>
                         <div className="truncate" style={{ direction: "rtl", unicodeBidi: "plaintext" }}>
                             {folder}
                         </div>

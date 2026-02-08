@@ -246,7 +246,7 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
       </div>
 
       {/* 3. Main List (Scrollable) */}
-      <div className="flex-1 overflow-y-auto p-0">
+      <div className="flex-1 overflow-y-auto p-0 min-w-0">
         
         {/* STAGED FILES GROUP */}
         <ChangeGroup title={`Staged Changes (${stagedFiles.length})`} count={stagedFiles.length} color="bg-green-500">
