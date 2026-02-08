@@ -98,11 +98,6 @@ export function usePromptBuilder() {
         return [
           `Modify the file at "${filePath}" with these user instructions:`,
           trimmed,
-          "",
-          "Rules:",
-          "- Locate/open the file by path (do not expect its contents in this prompt).",
-          "- Apply changes directly to that file.",
-          "- If you create new files, use valid filenames and place them in the correct directories.",
         ].join("\n");
       }
 
@@ -152,10 +147,6 @@ export function usePromptBuilder() {
           "",
           "User instructions:",
           trimmed,
-          "",
-          "Rules:",
-          "- Locate/open the file by path (do not expect its contents in this prompt).",
-          "- Make the necessary repository changes to complete the task.",
         ].join("\n");
       }
 
@@ -164,9 +155,6 @@ export function usePromptBuilder() {
         "",
         "User instructions:",
         trimmed,
-        "",
-        "Rules:",
-        "- Locate/open the file by path (do not expect its contents in this prompt).",
       ].join("\n");
     },
     []

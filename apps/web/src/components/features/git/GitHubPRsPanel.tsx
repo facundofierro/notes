@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button, ScrollArea, Skeleton, Badge, cn, Tabs, TabsList, TabsTrigger, TabsContent } from "@agelum/shadcn";
 import { CreatePRDialog } from "./CreatePRDialog";
-import { GitFile, ChangeGroup, FileItem, groupFilesByFolder, truncatePath } from "./GitSharedComponents";
+import { GitFile, ChangeGroup, FileItem, FileGroupList, groupFilesByFolder, truncatePath } from "./GitSharedComponents";
 
 interface PR {
   number: number;
@@ -53,17 +53,33 @@ interface PRDetails extends PR {
 
 interface GitHubPRsPanelProps {
   repoPath: string;
+  onPRSelect?: (pr: PRDetails | null) => void;
+  selectedPRNumber?: number | null;
+  onSelectPRNumber?: (n: number | null) => void;
+  onBack?: () => void;
+  onSelectFile?: (file: GitFile) => void;
+  selectedFile?: string | null;
 }
 
-export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
+export function GitHubPRsPanel({ 
+    repoPath, 
+    onPRSelect, 
+    selectedPRNumber: externalSelectedPRNumber, 
+    onSelectPRNumber,
+    onBack,
+    onSelectFile,
+    selectedFile
+}: GitHubPRsPanelProps) {
   const [prs, setPrs] = React.useState<PR[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = React.useState<number | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   
-  // Navigation State
-  const [selectedPRNumber, setSelectedPRNumber] = React.useState<number | null>(null);
+  // Internal state if not controlled
+  const [internalSelectedPRNumber, setInternalSelectedPRNumber] = React.useState<number | null>(null);
+  const selectedPRNumber = externalSelectedPRNumber !== undefined ? externalSelectedPRNumber : internalSelectedPRNumber;
+
   const [prDetails, setPrDetails] = React.useState<PRDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = React.useState(false);
 
@@ -89,17 +105,20 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
   const fetchPRDetails = React.useCallback(async (number: number) => {
       setDetailsLoading(true);
       setPrDetails(null);
+      if (onPRSelect) onPRSelect(null);
+
       try {
         const res = await fetch(`/api/github?action=details&path=${encodeURIComponent(repoPath)}&pr=${number}`);
         if (!res.ok) throw new Error("Failed to fetch details");
         const data = await res.json();
         setPrDetails(data.pr);
+        if (onPRSelect) onPRSelect(data.pr);
       } catch (err) {
           console.error(err);
       } finally {
           setDetailsLoading(false);
       }
-  }, [repoPath]);
+  }, [repoPath, onPRSelect]);
 
   React.useEffect(() => {
     fetchPRs();
@@ -108,6 +127,9 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
   React.useEffect(() => {
     if (selectedPRNumber) {
         fetchPRDetails(selectedPRNumber);
+    } else {
+        setPrDetails(null);
+        if (onPRSelect) onPRSelect(null);
     }
   }, [selectedPRNumber, fetchPRDetails]);
 
@@ -146,7 +168,20 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
       return null;
   };
 
-  const selectedPR = prDetails || prs.find(p => p.number === selectedPRNumber);
+  const handleSelectPR = (number: number) => {
+      if (externalSelectedPRNumber === undefined) {
+          setInternalSelectedPRNumber(number);
+      }
+      if (onSelectPRNumber) onSelectPRNumber(number);
+  };
+
+  const handleBack = () => {
+      if (externalSelectedPRNumber === undefined) {
+          setInternalSelectedPRNumber(null);
+      }
+      if (onSelectPRNumber) onSelectPRNumber(null);
+      if (onBack) onBack();
+  };
 
   if (!repoPath) {
     return (
@@ -162,21 +197,19 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
       if (!prDetails?.files) return [];
       return prDetails.files.map(f => ({
           path: f.path,
-          status: "modified", // Simply mark as modified for view purpose
+          status: "modified", 
           code: "",
           additions: f.additions,
           deletions: f.deletions
       }));
   }, [prDetails]);
   
-  const groupedFiles = React.useMemo(() => groupFilesByFolder(files), [files]);
-
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-3 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-2">
             {selectedPRNumber ? (
-                <Button variant="ghost" size="icon" className="h-7 w-7 -ml-2" onClick={() => setSelectedPRNumber(null)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 -ml-2" onClick={handleBack}>
                     <ChevronLeft className="w-4 h-4" />
                 </Button>
             ) : (
@@ -200,30 +233,18 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
 
       <ScrollArea className="flex-1">
         {selectedPRNumber ? (
-            // DETAIL VIEW
+            // DETAIL VIEW (Files Only)
             <div className="flex flex-col h-full">
                 {detailsLoading && !prDetails ? (
                      <div className="p-4 space-y-4">
                         <Skeleton className="h-6 w-3/4" />
                         <Skeleton className="h-20 w-full" />
-                        <Skeleton className="h-40 w-full" />
                      </div>
                 ) : (
                     <div className="flex flex-col h-full">
-                         <div className="p-4 border-b border-border">
-                             <h2 className="text-lg font-semibold leading-tight mb-2">{prDetails?.title}</h2>
-                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
+                        <div className="p-3 border-b border-border bg-secondary/5">
+                            <div className="flex items-center justify-between mb-2">
                                 <Badge variant={prDetails?.state === "OPEN" ? "default" : "secondary"} className="h-5 px-1.5">{prDetails?.state}</Badge>
-                                <span className="font-medium text-foreground">{prDetails?.author.login}</span>
-                                <span>merged into <span className="font-mono bg-muted px-1 rounded">{prDetails?.baseRefName}</span></span>
-                                <span>from <span className="font-mono bg-muted px-1 rounded">{prDetails?.headRefName}</span></span>
-                             </div>
-                             
-                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                     {getStatusIcon(prDetails?.statusCheckRollup?.state)}
-                                     {getReviewBadge(prDetails?.reviewDecision)}
-                                </div>
                                 <Button 
                                     size="sm" 
                                     variant="outline" 
@@ -234,71 +255,27 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
                                     {checkoutLoading === prDetails?.number ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                                     Checkout
                                 </Button>
-                             </div>
+                            </div>
+                            <h2 className="text-sm font-semibold leading-tight mb-1 line-clamp-2">{prDetails?.title}</h2>
+                            <div className="text-xs text-muted-foreground truncate">{prDetails?.author.login}</div>
+                        </div>
+
+                         <div className="flex-1 m-0 overflow-y-auto">
+                            <div className="p-0">
+                                {files.length === 0 ? (
+                                    <div className="p-8 text-center text-muted-foreground text-sm">No files changed</div>
+                                ) : (
+                                    <ChangeGroup title={`Changes (${files.length})`} count={files.length} color="bg-blue-500">
+                                       <FileGroupList 
+                                            files={files}
+                                            selectedFile={selectedFile || null}
+                                            onSelect={(file) => onSelectFile && onSelectFile(file)}
+                                            dotClass="bg-blue-400"
+                                       />
+                                    </ChangeGroup>
+                                )}
+                            </div>
                          </div>
-
-                         <Tabs defaultValue="info" className="flex-1 flex flex-col">
-                             <div className="px-4 pt-2 border-b border-border">
-                                <TabsList className="w-full justify-start h-9 bg-transparent p-0 gap-4">
-                                    <TabsTrigger value="info" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2">Overview</TabsTrigger>
-                                    <TabsTrigger value="files" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2">
-                                        Files <span className="ml-1.5 text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{prDetails?.files?.length || 0}</span>
-                                    </TabsTrigger>
-                                </TabsList>
-                             </div>
-
-                             <TabsContent value="info" className="flex-1 p-4 m-0 space-y-4">
-                                 <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-muted-foreground">
-                                     {prDetails?.body || <span className="italic opacity-50">No description provided.</span>}
-                                 </div>
-                                 
-                                 {/* Additional info like reviewers could go here */}
-                                 {prDetails?.reviews && prDetails.reviews.length > 0 && (
-                                     <div className="border border-border rounded-lg p-3">
-                                         <h4 className="text-xs font-semibold mb-2">Reviews</h4>
-                                         <div className="space-y-1">
-                                             {prDetails.reviews.map((r, i) => (
-                                                 <div key={i} className="flex items-center justify-between text-xs">
-                                                     <span>{r.author.login}</span>
-                                                     <Badge variant="outline" className="text-[10px] h-4 px-1">{r.state}</Badge>
-                                                 </div>
-                                             ))}
-                                         </div>
-                                     </div>
-                                 )}
-                             </TabsContent>
-                             
-                             <TabsContent value="files" className="flex-1 m-0 overflow-y-auto">
-                                <div className="p-0">
-                                    {files.length === 0 ? (
-                                        <div className="p-8 text-center text-muted-foreground text-sm">No files changed</div>
-                                    ) : (
-                                        <ChangeGroup title={`Changes (${files.length})`} count={files.length} color="bg-blue-500">
-                                           <div className="px-3">
-                                             {Object.entries(groupedFiles).map(([folder, files]) => (
-                                                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm">
-                                                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
-                                                        {truncatePath(folder)}
-                                                    </div>
-                                                    <div>
-                                                        {files.map(file => (
-                                                            <FileItem 
-                                                                key={file.path}
-                                                                file={file}
-                                                                selected={false}
-                                                                onSelect={() => { /* Open file logic? Using standard window.open or similar context since we are in a tab */ }}
-                                                                dotClass={file.path.endsWith('ts') || file.path.endsWith('tsx') ? 'bg-blue-400' : 'bg-zinc-400'}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                             ))}
-                                           </div>
-                                        </ChangeGroup>
-                                    )}
-                                </div>
-                             </TabsContent>
-                         </Tabs>
                     </div>
                 )}
             </div>
@@ -339,7 +316,7 @@ export function GitHubPRsPanel({ repoPath }: GitHubPRsPanelProps) {
     
               {prs.map((pr) => (
                 <div key={pr.number} 
-                    onClick={() => setSelectedPRNumber(pr.number)}
+                    onClick={() => handleSelectPR(pr.number)}
                     className="group flex flex-col gap-2 p-3 border border-border rounded-lg bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
                 >
                   <div className="flex justify-between items-start gap-2">

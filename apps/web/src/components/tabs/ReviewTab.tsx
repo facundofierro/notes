@@ -1,4 +1,5 @@
 import * as React from "react";
+import MarkdownPreview from "@uiw/react-markdown-preview";
 import FileBrowser from "@/components/features/file-system/FileBrowser";
 import FileViewer from "@/components/features/file-system/FileViewer";
 import DiskUsageChart from "@/components/shared/DiskUsageChart"; 
@@ -200,12 +201,17 @@ const ChangesCentralArea = ({
 const PRsCentralArea = ({ 
   selectedPRFile,
   diffOriginal, 
-  diffModified
+  diffModified,
+  prDetails
 }: any) => {
   const [activeTab, setActiveTab] = React.useState<PRsTab>("info");
 
-  // Auto-switch to diff tab if a file is selected (logic similar to Changes)
-  // For now we don't have selectedPRFile trigger fully wired from PR panel likely
+  // Auto-switch to diff tab if a file is selected
+  React.useEffect(() => {
+    if (selectedPRFile) {
+      setActiveTab("diff");
+    }
+  }, [selectedPRFile]);
   
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
@@ -236,18 +242,78 @@ const PRsCentralArea = ({
       {/* Content */}
       <div className="flex-1 overflow-hidden relative bg-background">
          {activeTab === "info" ? (
-             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-                <Github className="w-12 h-12 mb-4 opacity-20" />
-                <h3 className="text-lg font-medium mb-2">Pull Request Details</h3>
-                <p className="max-w-md text-sm opacity-80">
-                  Select a PR to view its description, comments, and review status.
-                </p>
-             </div>
+             prDetails ? (
+                 <div className="flex flex-col h-full overflow-y-auto p-6">
+                     <div className="border-b border-border pb-4 mb-4">
+                         <div className="flex items-center gap-2 mb-2">
+                            <h1 className="text-xl font-bold">{prDetails.title}</h1>
+                            <span className="text-muted-foreground font-mono text-sm">#{prDetails.number}</span>
+                         </div>
+                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                             <div className="flex items-center gap-1">
+                                 <span className="font-medium text-foreground">{prDetails.author.login}</span>
+                                 <span>wants to merge into</span>
+                                 <code className="bg-muted px-1 rounded">{prDetails.baseRefName}</code>
+                                 <span>from</span>
+                                 <code className="bg-muted px-1 rounded">{prDetails.headRefName}</code>
+                             </div>
+                         </div>
+                     </div>
+
+                     <div className="prose prose-sm dark:prose-invert max-w-none w-full">
+                         {prDetails.body ? (
+                             <MarkdownPreview 
+                                 source={prDetails.body} 
+                                 style={{ backgroundColor: 'transparent', color: 'inherit' }} 
+                                 wrapperElement={{ "data-color-mode": "dark" }}
+                             />
+                         ) : (
+                             <span className="italic opacity-50">No description provided.</span>
+                         )}
+                     </div>
+
+                     {prDetails.reviews && prDetails.reviews.length > 0 && (
+                         <div className="mt-8 pt-4 border-t border-border">
+                             <h3 className="text-sm font-semibold mb-3">Reviews</h3>
+                             <div className="space-y-2">
+                                 {prDetails.reviews.map((r: any, i: number) => (
+                                     <div key={i} className="flex items-center justify-between p-2 border border-border rounded bg-secondary/5">
+                                         <span className="text-sm font-medium">{r.author.login}</span>
+                                          {/* Reusing badge styles from PR Panel roughly */}
+                                          <span className={cn(
+                                              "text-[10px] px-2 py-0.5 rounded-full border",
+                                              r.state === "APPROVED" ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground border-border"
+                                          )}>
+                                              {r.state}
+                                          </span>
+                                     </div>
+                                 ))}
+                             </div>
+                         </div>
+                     )}
+                 </div>
+             ) : (
+                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
+                    <Github className="w-12 h-12 mb-4 opacity-20" />
+                    <h3 className="text-lg font-medium mb-2">Select a Pull Request</h3>
+                    <p className="max-w-md text-sm opacity-80">
+                      Choose a PR from the sidebar to view details and changes.
+                    </p>
+                 </div>
+             )
          ) : (
-             /* Diff View Placeholder until wired up */
+            selectedPRFile ? (
+                <DiffView 
+                    original={diffOriginal} 
+                    modified={diffModified} 
+                    className="bg-background"
+                    language={selectedPRFile.path?.endsWith('.ts') || selectedPRFile.path?.endsWith('.tsx') ? 'typescript' : 'plaintext'} 
+                />
+            ) : (
              <div className="flex flex-1 justify-center items-center text-muted-foreground h-full">
                Select a file in PR to view diff
              </div>
+            )
          )}
       </div>
     </div>
@@ -304,7 +370,10 @@ export function ReviewTab() {
   const [changesDiffModified, setChangesDiffModified] = React.useState("");
 
   // -- PRs View State --
+  const [activePRDetails, setActivePRDetails] = React.useState<any | null>(null);
   const [selectedPRFile, setSelectedPRFile] = React.useState<any | null>(null);
+  const [prDiffOriginal, setPRDiffOriginal] = React.useState("");
+  const [prDiffModified, setPRDiffModified] = React.useState("");
 
   const loadFileTree = React.useCallback(() => {
     if (selectedRepo) {
@@ -328,36 +397,30 @@ export function ReviewTab() {
   // Handle Git File Select for Changes View
   const handleGitFileSelect = async (file: any) => {
      setSelectedGitFile(file);
-     // Note: We don't clear selectedFile/selectedFolder anymore as they are separate views
-
+     // ... (fetched content logic reused or abstracted)
      if (projectPath) {
         let refOriginal = "HEAD";
-        let refModified: string | undefined = undefined; // undefined means read from file system
+        let refModified: string | undefined = undefined; 
 
         if (file.commitHash) {
-           // It's a committed file
            refOriginal = `${file.commitHash}~1`;
            refModified = file.commitHash;
         }
 
-        // Fetch content for diff
-        // Original
         try {
           const resOrig = await fetch(`/api/git?action=content&path=${encodeURIComponent(projectPath)}&file=${encodeURIComponent(file.path)}&ref=${encodeURIComponent(refOriginal)}`);
           if (resOrig.ok) {
              const data = await resOrig.json();
              setChangesDiffOriginal(data.content || "");
           } else {
-             setChangesDiffOriginal(""); // New file?
+             setChangesDiffOriginal(""); 
           }
         } catch {
              setChangesDiffOriginal(""); 
         }
 
-        // Modified
         try {
            if (refModified) {
-               // Fetch from git (commit hash)
                const resMod = await fetch(`/api/git?action=content&path=${encodeURIComponent(projectPath)}&file=${encodeURIComponent(file.path)}&ref=${encodeURIComponent(refModified)}`);
                if (resMod.ok) {
                   const data = await resMod.json();
@@ -366,7 +429,6 @@ export function ReviewTab() {
                   setChangesDiffModified(""); 
                }
            } else {
-               // Fetch from FS
                const absolutePath = `${projectPath}/${file.path}`.replace(/\/+/g, "/");
                const resModContent = await fetch(`/api/file?path=${encodeURIComponent(absolutePath)}`).then(r => r.json());
                setChangesDiffModified(resModContent.content || "");
@@ -375,6 +437,39 @@ export function ReviewTab() {
            setChangesDiffModified("");
         }
      }
+  };
+
+  // Handle PR File Select
+  const handlePRFileSelect = async (file: any) => {
+      setSelectedPRFile(file);
+      setPRDiffOriginal(""); 
+      setPRDiffModified("");
+
+      if (projectPath && activePRDetails) {
+           const baseRef = activePRDetails.baseRefName; // target branch (e.g. main)
+           
+           // 1. Fetch Original Content (Base)
+           try {
+              // Try fetching content from the base ref. This generally works if local repo has that ref.
+              const resOrig = await fetch(`/api/git?action=content&path=${encodeURIComponent(projectPath)}&file=${encodeURIComponent(file.path)}&ref=${encodeURIComponent(baseRef)}`);
+              if (resOrig.ok) {
+                 const data = await resOrig.json();
+                 setPRDiffOriginal(data.content || "");
+              } else {
+                 setPRDiffOriginal(`// Could not fetch original content for ${file.path} from base ref '${baseRef}'.\n// Ensure you have fetched origin.`);
+              }
+           } catch (e) {
+              setPRDiffOriginal(`// Error fetching original content for ${file.path}`);
+           }
+
+           // 2. Fetch Modified Content (Head) -> Harder without checkout
+           // We will try to fetch from the specific PR head ref if available, or just show a fallback.
+           // Ideally we'd use 'gh api' here.
+           // For now, we set a specific message so the Diff Editor knows IT CHANGED.
+           
+           // TODO: Implement 'gh api' to get blob content for remote file.
+           setPRDiffModified(`// Viewing: ${file.path}\n// \n// To see the full specific diff, please Checkout the PR.\n// (Remote file content fetching is not yet implemented without checkout)`);
+      }
   };
 
   const handleSaveFileShim = async ({ content }: { content: string }) => {
@@ -482,7 +577,12 @@ export function ReviewTab() {
 
           <div className={cn("h-full w-full flex flex-col", leftSidebarView === "prs" ? "flex" : "hidden")}>
              {projectPath ? (
-              <GitHubPRsPanel repoPath={projectPath} />
+              <GitHubPRsPanel 
+                 repoPath={projectPath} 
+                 onPRSelect={setActivePRDetails}
+                 onSelectFile={handlePRFileSelect}
+                 selectedFile={selectedPRFile?.path}
+              />
             ) : (
               <div className="p-4 text-xs text-muted-foreground">Select a repository first</div>
             )}
@@ -520,7 +620,9 @@ export function ReviewTab() {
       <div className={cn("flex-1 flex flex-col overflow-hidden h-full", leftSidebarView === "prs" ? "flex" : "hidden")}>
          <PRsCentralArea 
             selectedPRFile={selectedPRFile}
-            // Add diff props later
+            diffOriginal={prDiffOriginal}
+            diffModified={prDiffModified}
+            prDetails={activePRDetails}
          />
       </div>
 

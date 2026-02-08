@@ -16,6 +16,7 @@ import {
   GitFile, 
   ChangeGroup, 
   FileItem, 
+  FileGroupList,
   groupFilesByFolder, 
   truncatePath 
 } from "./GitSharedComponents";
@@ -143,8 +144,8 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
   const stagedFiles = status?.files.filter(f => f.status === "staged") || [];
   const unstagedFiles = status?.files.filter(f => f.status !== "staged") || [];
   
-  const groupedStaged = groupFilesByFolder(stagedFiles);
-  const groupedUnstaged = groupFilesByFolder(unstagedFiles);
+  // const groupedStaged = groupFilesByFolder(stagedFiles);
+  // const groupedUnstaged = groupFilesByFolder(unstagedFiles);
 
   const hasStaged = stagedFiles.length > 0;
   const hasUnstaged = unstagedFiles.length > 0;
@@ -241,30 +242,16 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
            {stagedFiles.length === 0 ? (
                <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No staged changes</div>
            ) : (
-             <div className="px-3">
-               {Object.entries(groupedStaged).map(([folder, files]) => (
-                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
-                        <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
-                            {truncatePath(folder)}
-                        </div>
-                        <div className="">
-                            {files.map(file => (
-                                <FileItem 
-                                    key={file.path}
-                                    file={file}
-                                    selected={selectedFile === file.path}
-                                    onSelect={onSelectFile}
-                                    onAction={handleUnstage}
-                                    actionIcon={Minus}
-                                    actionTitle="Unstage"
-                                    dotClass="hidden"
-                                    actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ))}
-             </div>
+              <FileGroupList 
+                files={stagedFiles}
+                selectedFile={selectedFile}
+                onSelect={onSelectFile}
+                onAction={handleUnstage}
+                actionIcon={Minus}
+                actionTitle="Unstage"
+                dotClass="hidden"
+                actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
+              />
            )}
         </ChangeGroup>
 
@@ -273,30 +260,16 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
             {unstagedFiles.length === 0 ? (
                <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No changes</div>
             ) : (
-              <div className="px-3">
-                {Object.entries(groupedUnstaged).map(([folder, files]) => (
-                    <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
-                        <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
-                            {truncatePath(folder)}
-                        </div>
-                        <div className="">
-                            {files.map(file => (
-                                <FileItem 
-                                    key={file.path}
-                                    file={file}
-                                    selected={selectedFile === file.path}
-                                    onSelect={onSelectFile}
-                                    onAction={handleStage}
-                                    actionIcon={Plus}
-                                    actionTitle="Stage"
-                                    dotClass="hidden"
-                                    actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ))}
-              </div>
+              <FileGroupList 
+                files={unstagedFiles}
+                selectedFile={selectedFile}
+                onSelect={onSelectFile}
+                onAction={handleStage}
+                actionIcon={Plus}
+                actionTitle="Stage"
+                dotClass="hidden"
+                actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
+              />
             )}
         </ChangeGroup>
 
@@ -323,28 +296,17 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
                                 <span className="truncate max-w-[100px]">{commit.author}</span>
                            </div>
 
-                           {commit.files && Object.entries(groupFilesByFolder(commit.files)).map(([folder, files]) => (
-                                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
-                                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
-                                        {truncatePath(folder)}
-                                    </div>
-                                    <div className="">
-                                        {files.map(file => (
-                                            <FileItem 
-                                                key={file.path}
-                                                file={{...file, commitHash: commit.hash}}
-                                                selected={selectedFile === file.path}
-                                                onSelect={onSelectFile}
-                                                onAction={() => {}} 
-                                                actionIcon={Check}
-                                                actionTitle="Committed"
-                                                dotClass="bg-purple-500"
-                                                actionButtonClass="hidden"
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                           ))}
+                            {commit.files && (
+                                <FileGroupList 
+                                    files={commit.files.map(file => ({...file, commitHash: commit.hash}))}
+                                    selectedFile={selectedFile}
+                                    onSelect={onSelectFile}
+                                    actionIcon={Check}
+                                    actionTitle="Committed"
+                                    dotClass="bg-purple-500"
+                                    actionButtonClass="hidden"
+                                />
+                            )}
                         </div>
                     </ChangeGroup>
                 ))}

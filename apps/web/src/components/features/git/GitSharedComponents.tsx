@@ -110,3 +110,54 @@ export const truncatePath = (path: string) => {
      }
      return path;
 };
+
+interface FileGroupListProps {
+    files: GitFile[];
+    selectedFile: string | null;
+    onSelect: (file: GitFile) => void;
+    onAction?: (path: string) => void;
+    actionIcon?: React.ElementType;
+    actionTitle?: string;
+    dotClass?: string;
+    actionButtonClass?: string;
+}
+
+export function FileGroupList({
+    files,
+    selectedFile,
+    onSelect,
+    onAction,
+    actionIcon,
+    actionTitle,
+    dotClass,
+    actionButtonClass
+}: FileGroupListProps) {
+    const groupedFiles = React.useMemo(() => groupFilesByFolder(files), [files]);
+
+    return (
+        <div className="px-3">
+            {Object.entries(groupedFiles).map(([folder, folderFiles]) => (
+                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
+                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" style={{ direction: "rtl" }} title={folder}>
+                        &lrm;{folder}&lrm;
+                    </div>
+                    <div className="">
+                        {folderFiles.map(file => (
+                            <FileItem 
+                                key={file.path}
+                                file={file}
+                                selected={selectedFile === file.path}
+                                onSelect={onSelect}
+                                onAction={onAction}
+                                actionIcon={actionIcon}
+                                actionTitle={actionTitle}
+                                dotClass={dotClass}
+                                actionButtonClass={actionButtonClass}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
