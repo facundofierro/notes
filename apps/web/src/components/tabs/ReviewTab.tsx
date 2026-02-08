@@ -156,7 +156,7 @@ export function ReviewTab() {
       </div>
 
       {/* Left Content Sidebar (File Browser / Changes / PRs) */}
-      <div className="w-64 border-r border-border flex flex-col overflow-hidden bg-secondary/5">
+      <div className={`flex flex-col overflow-hidden bg-secondary/5 ${leftSidebarView !== "files" ? "w-64 border-r border-border" : ""}`}>
         <div className="p-3 border-b border-border font-medium text-xs uppercase tracking-wider text-muted-foreground flex justify-between items-center">
           <span>{leftSidebarView === "files" ? "Project Files" : leftSidebarView === "changes" ? "Local Changes" : "GitHub PRs"}</span>
         </div>

@@ -236,15 +236,12 @@ export default function FileViewer({
         )
       : displayedFileName;
 
-  const isMarkdown =
-    displayedFileName.endsWith(".md");
-  const isJSON =
-    displayedFileName.endsWith(".json");
-  const isTypeScript =
-    displayedFileName.endsWith(".ts") ||
-    displayedFileName.endsWith(".tsx");
-  const isTSX =
-    displayedFileName.endsWith(".tsx");
+  const isMarkdown = displayedFileName.endsWith(".md");
+  const isJSON = displayedFileName.endsWith(".json");
+  const isTypeScript = displayedFileName.endsWith(".ts") || displayedFileName.endsWith(".tsx");
+  const isTSX = displayedFileName.endsWith(".tsx");
+  const isJavaScript = displayedFileName.endsWith(".js") || displayedFileName.endsWith(".jsx") || displayedFileName.endsWith(".mjs") || displayedFileName.endsWith(".cjs");
+  const isJSX = displayedFileName.endsWith(".jsx");
 
   const commitRename =
     useCallback(async () => {
@@ -626,15 +623,15 @@ export default function FileViewer({
             }
             path={file.path}
             language={
-              isTypeScript
-                ? isTSX
-                  ? "typescriptreact"
-                  : "typescript"
-                : isJSON
-                  ? "json"
-                  : displayedFileName.endsWith(".css") ? "css"
-                  : displayedFileName.endsWith(".html") ? "html"
-                  : "plaintext"
+              isTypeScript || isTSX
+                ? "typescript" // Monaco's typescript mode handles .ts and .tsx (via compiler options) usually, but 'typescriptreact' is safer for coloring if configured
+                : isJavaScript || isJSX
+                  ? "javascript"
+                  : isJSON
+                    ? "json"
+                    : displayedFileName.endsWith(".css") ? "css"
+                    : displayedFileName.endsWith(".html") ? "html"
+                    : "plaintext"
             }
             theme="vs-dark"
             height="100%"
@@ -671,7 +668,7 @@ export default function FileViewer({
                       .typescript
                       .ModuleResolutionKind
                       .NodeJs,
-                  jsx: isTSX
+                  jsx: isTSX || isJSX
                     ? monaco.languages
                         .typescript
                         .JsxEmit

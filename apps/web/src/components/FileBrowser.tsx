@@ -373,19 +373,9 @@ export default function FileBrowser({
   useEffect(() => {
     if (!fileTree) return;
 
-    const allPaths = new Set<string>();
-    const collectPaths = (
-      node: FileNode,
-    ) => {
-      if (node.type === "directory") {
-        allPaths.add(node.path);
-        node.children?.forEach(
-          collectPaths,
-        );
-      }
-    };
-    collectPaths(fileTree);
-    setExpandedPaths(allPaths);
+    if (fileTree && fileTree.type === 'directory') {
+       setExpandedPaths(new Set([fileTree.path]));
+    }
   }, [fileTree]);
 
   const toggleExpand = (
@@ -633,7 +623,7 @@ export default function FileBrowser({
   return (
     <>
       <div
-        className="flex relative flex-col border-r shrink-0 border-border bg-background"
+        className="flex relative flex-col border-r shrink-0 border-border bg-background h-full"
         style={{ width: sidebarWidth }}
       >
         <div
