@@ -397,7 +397,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
               </div>
             </div>
             {isElectron ? (
-              <div ref={browserViewPlaceholderRef} className="flex-1 w-full bg-white">
+              <div ref={browserViewPlaceholderRef} className="flex-1 w-full bg-zinc-900">
                 {!iframeUrl && (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
                     Enter a URL to preview the application
@@ -415,7 +415,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                       <iframe
                         src={effectiveUrl}
                         ref={activeBrowserPageIndex === idx ? browserIframeRef : undefined}
-                        className="flex-1 w-full border-none bg-white"
+                        className="flex-1 w-full border-none bg-zinc-900"
                         title={`App Browser ${idx}`}
                         allow="camera; microphone; display-capture"
                         sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"

@@ -179,13 +179,34 @@ export function ProjectSelector({
         .includes(search.toLowerCase()),
     );
 
+  // Hide Electron browser view when popover is open
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI?.browserView) {
+      if (open) {
+        window.electronAPI.browserView.hide();
+      } else {
+        window.electronAPI.browserView.show();
+      }
+    }
+  }, [open]);
+
   return (
-    <div
-      className={cn(
-        "relative flex items-center",
-        className,
+    <>
+      {/* Backdrop overlay - covers everything below header */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+          style={{ top: '80px' }} // Starts exactly below the header
+          onClick={() => setOpen(false)}
+        />
       )}
-    >
+      
+      <div
+        className={cn(
+          "relative flex items-center",
+          className,
+        )}
+      >
       <Popover
         open={open}
         onOpenChange={setOpen}
@@ -193,9 +214,9 @@ export function ProjectSelector({
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
-            className="h-9 px-3 hover:bg-white/10 flex items-center gap-2 transition-all group rounded-xl border border-transparent hover:border-white/10"
+            className="h-14 px-3 hover:bg-white/10 flex items-center gap-2 transition-all group rounded-2xl border border-transparent hover:border-white/10"
           >
-            <div className="flex flex-col items-start">
+            <div className="flex flex-col items-end pt-4">
               <span className="font-semibold text-zinc-100 group-hover:text-white transition-colors text-sm">
                 {selectedRepo ||
                   "Select Project"}
@@ -215,7 +236,7 @@ export function ProjectSelector({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[640px] p-0 border-white/[0.08] bg-zinc-950 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] rounded-[24px] overflow-hidden backdrop-blur-3xl ring-1 ring-white/10"
+          className="w-[640px] p-0 border-white/[0.08] bg-zinc-950 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] rounded-[24px] overflow-hidden backdrop-blur-3xl ring-1 ring-white/10 z-50"
           align="start"
           sideOffset={12}
         >
@@ -443,5 +464,6 @@ export function ProjectSelector({
         </PopoverContent>
       </Popover>
     </div>
+    </>
   );
 }
