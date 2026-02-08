@@ -44,6 +44,8 @@ export {
   CardContent,
 } from './ui/card'
 
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
+
 export { Skeleton } from './ui/skeleton'
 
 // Logo components

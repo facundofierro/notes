@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   try {
     if (action === "list") {
       // List open PRs
-      const cmd = `gh pr list --json number,title,author,updatedAt,url,state,headRefName,baseRefName`;
+      const cmd = `gh pr list --json number,title,author,updatedAt,url,state,headRefName,baseRefName,reviewDecision,statusCheckRollup`;
       const { stdout } = await execPromise(cmd, repoPath);
       const prs = JSON.parse(stdout);
       return NextResponse.json({ prs });
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       if (!prNumber) {
         return NextResponse.json({ error: "PR number is required" }, { status: 400 });
       }
-      const cmd = `gh pr view ${prNumber} --json number,title,body,author,updatedAt,url,state,comments`;
+      const cmd = `gh pr view ${prNumber} --json number,title,body,author,updatedAt,url,state,comments,reviewDecision,statusCheckRollup,files,reviews,headRefName,baseRefName`;
       const { stdout } = await execPromise(cmd, repoPath);
       const pr = JSON.parse(stdout);
       return NextResponse.json({ pr });
