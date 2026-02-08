@@ -43,13 +43,7 @@ export function CreatePRDialog({
   const [isDraft, setIsDraft] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (open && repoPath) {
-      fetchBranches();
-    }
-  }, [open, repoPath]);
-
-  const fetchBranches = async () => {
+  const fetchBranches = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -85,7 +79,13 @@ export function CreatePRDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [repoPath, title]);
+
+  React.useEffect(() => {
+    if (open && repoPath) {
+      fetchBranches();
+    }
+  }, [open, repoPath, fetchBranches]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

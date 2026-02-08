@@ -231,7 +231,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       window.removeEventListener("resize", syncBounds);
       api.hide();
     };
-  }, [isElectron, isBrowserVisible]);
+  }, [isElectron, isBrowserVisible, currentProjectConfig?.url, iframeUrl, loadInElectron, setIframeUrlLocal]);
 
   // Listen for navigation events from WebContentsView
   React.useEffect(() => {

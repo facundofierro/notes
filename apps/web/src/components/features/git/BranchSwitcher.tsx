@@ -34,13 +34,7 @@ export function BranchSwitcher({
   const [search, setSearch] = React.useState("");
   const [actionLoading, setActionLoading] = React.useState(false);
 
-  React.useEffect(() => {
-    if (open && repoPath) {
-      fetchBranches();
-    }
-  }, [open, repoPath]);
-
-  const fetchBranches = async () => {
+  const fetchBranches = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -56,7 +50,13 @@ export function BranchSwitcher({
     } finally {
       setLoading(false);
     }
-  };
+  }, [repoPath]);
+
+  React.useEffect(() => {
+    if (open && repoPath) {
+      fetchBranches();
+    }
+  }, [open, repoPath, fetchBranches]);
 
   const handleCheckout = async (branch: string) => {
     setActionLoading(true);
@@ -160,7 +160,7 @@ export function BranchSwitcher({
                     className="relative flex cursor-pointer select-none items-center rounded-md px-2.5 py-2 text-xs outline-none bg-primary/5 hover:bg-primary/10 text-primary font-semibold border-t border-border/50 mt-1.5 pt-2 whitespace-nowrap overflow-hidden transition-all"
                 >
                     <Plus className="mr-2.5 h-3.5 w-3.5" />
-                    <span>Create branch: <span className="underline decoration-primary/30 underline-offset-2 ml-1">"{search}"</span></span>
+                    <span>Create branch: <span className="underline decoration-primary/30 underline-offset-2 ml-1">&quot;{search}&quot;</span></span>
                 </div>
             )}
             </ScrollArea>

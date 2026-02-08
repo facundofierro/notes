@@ -491,7 +491,7 @@ export function ReviewTab() {
           }
         });
     }
-  }, [selectedRepo]); 
+  }, [selectedRepo, selectedFile, selectedFolder]); 
 
   React.useEffect(() => {
     loadFileTree();

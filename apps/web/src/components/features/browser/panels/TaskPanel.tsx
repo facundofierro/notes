@@ -1213,6 +1213,7 @@ export function TaskPanel({
     insertPromptReference,
     updateOverlayForElement,
     ensureOverlay,
+    iframeRef,
   ]);
 
   useEffect(() => {

@@ -146,7 +146,7 @@ export function GitHubPRsPanel({
         setPrDetails(null);
         if (onPRSelect) onPRSelect(null);
     }
-  }, [selectedPRNumber, fetchPRDetails]);
+  }, [selectedPRNumber, fetchPRDetails, onPRSelect]);
 
   const handleCheckout = async (prNumber: number) => {
     if (onCheckout) {

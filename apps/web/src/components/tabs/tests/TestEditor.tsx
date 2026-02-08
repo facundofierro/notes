@@ -61,11 +61,7 @@ export function TestEditor({ testId, onBack }: TestEditorProps) {
   const [editingStepIndex, setEditingStepIndex] = React.useState<number | null>(null);
   const [currentStep, setCurrentStep] = React.useState<TestStep>({ action: "click" });
 
-  React.useEffect(() => {
-    fetchTest();
-  }, [testId]);
-
-  const fetchTest = async () => {
+  const fetchTest = React.useCallback(async () => {
     try {
       const res = await fetch(`/api/tests/${testId}`);
       if (res.ok) {
@@ -79,7 +75,11 @@ export function TestEditor({ testId, onBack }: TestEditorProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [testId]);
+
+  React.useEffect(() => {
+    fetchTest();
+  }, [fetchTest]);
 
   const handleSave = async () => {
     setSaving(true);

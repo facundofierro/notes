@@ -180,7 +180,7 @@ export function AIRightSidebar({
       setIsTerminalRunning(false);
       if (contextKey) updateTerminalSession(processId, { isRunning: false });
     }
-  }, [contextKey, removeTerminalSession, updateTerminalSession]);
+  }, [contextKey, removeTerminalSession, updateTerminalSession, triggerLoadingIndicator]);
 
   React.useEffect(() => {
     if (!contextKey) return;
@@ -293,7 +293,7 @@ Error: ${error.message}`);
         updateTerminalSession(localProcessId, { isRunning: false });
       }
     }
-  }, [selectedRepo, basePath, projectPath, contextKey, registerTerminalSession, updateTerminalSession]);
+  }, [selectedRepo, basePath, projectPath, contextKey, registerTerminalSession, updateTerminalSession, termSize.cols, termSize.rows, triggerLoadingIndicator]);
 
   const handleTerminalInput = React.useCallback(async (data: string) => {
     if (!terminalProcessId) return;
@@ -460,7 +460,7 @@ Cancelled` : "Cancelled");
         updateTerminalSession(terminalProcessId, { isRunning: false });
       }
     }
-  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt, contextKey, registerTerminalSession, updateTerminalSession, terminalProcessId]);
+  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt, contextKey, registerTerminalSession, updateTerminalSession, terminalProcessId, agentTools, termSize.cols, termSize.rows, triggerLoadingIndicator]);
 
   const ensureModelsForTool = React.useCallback(async (toolName: string) => {
     if (toolModelsByTool[toolName] || isToolModelsLoading[toolName]) return;
@@ -523,7 +523,7 @@ Cancelled` : "Cancelled");
     recognition.onerror = () => setIsRecording(false);
     recognitionRef.current = recognition;
     recognition.start();
-  }, [isRecording]);
+  }, [isRecording, setPromptText]);
 
   const handleFileUpload = React.useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -540,7 +540,7 @@ Cancelled` : "Cancelled");
     } catch (error) {
       console.error("Upload failed:", error);
     }
-  }, []);
+  }, [setPromptText]);
 
   const handleCopyFullPrompt = React.useCallback(() => {
     const prompt = buildToolPrompt({
