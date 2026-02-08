@@ -81,15 +81,34 @@ export async function GET(request: Request) {
 
     // 2. Get Local Commits (not pushed)
     // We need commits that are ahead of upstream
+    // 2. Get Local Commits (not pushed)
+    // We need commits that are ahead of upstream
     let localCommits: any[] = [];
     if (branchVal.ahead > 0 && branchVal.upstream) {
-       const logCmd = `git log ${branchVal.upstream}..HEAD --pretty=format:"%H|%s|%an|%ad" --date=short`;
+       const logCmd = `git log ${branchVal.upstream}..HEAD --pretty=format:"COMMIT:%H|%s|%an|%ad" --date=short --name-status`;
        try {
          const { stdout: logOutput } = await execPromise(logCmd, repoPath);
-         localCommits = logOutput.split("\n").filter(Boolean).map(line => {
-            const [hash, message, author, date] = line.split("|");
-            return { hash, message, author, date };
+         
+         const lines = logOutput.split("\n");
+         let currentCommit: any = null;
+
+         lines.forEach(line => {
+            if (!line.trim()) return;
+            
+            if (line.startsWith("COMMIT:")) {
+                if (currentCommit) localCommits.push(currentCommit);
+                const [hash, message, author, date] = line.substring(7).split("|");
+                currentCommit = { hash, message, author, date, files: [] };
+            } else if (currentCommit) {
+                const parts = line.split("\t");
+                const statusRaw = parts[0];
+                const filePath = parts[parts.length - 1]; // Handle renames if necessary by taking the last part
+                
+                currentCommit.files.push({ path: filePath, status: "committed", code: statusRaw });
+            }
          });
+         if (currentCommit) localCommits.push(currentCommit);
+
        } catch (e) {
           console.error("Failed to get local commits", e);
        }

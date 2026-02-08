@@ -17,8 +17,9 @@ import {
 
 interface GitFile {
   path: string;
-  status: "staged" | "modified" | "untracked";
+  status: "staged" | "modified" | "untracked" | "committed";
   code: string;
+  commitHash?: string;
 }
 
 interface GitCommit {
@@ -26,6 +27,7 @@ interface GitCommit {
   message: string;
   author: string;
   date: string;
+  files: GitFile[];
 }
 
 interface GitStatus {
@@ -253,49 +255,46 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
       </div>
 
       {/* 3. Main List (Scrollable) */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+      <div className="flex-1 overflow-y-auto p-0">
         
         {/* STAGED FILES GROUP */}
-        {hasStaged && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2 pl-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    Staged Changes ({stagedFiles.length})
-                </h3>
-                
-                {Object.entries(groupedStaged).map(([folder, files]) => (
+        <ChangeGroup title="Staged Changes" count={stagedFiles.length} color="bg-green-500">
+           {stagedFiles.length === 0 ? (
+               <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No staged changes</div>
+           ) : (
+             <div className="px-3">
+               {Object.entries(groupedStaged).map(([folder, files]) => (
                     <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
                         <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
                             {truncatePath(folder)}
                         </div>
                         <div className="">
                             {files.map(file => (
-                                <div 
-                                key={file.path} 
-                                className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
-                                onClick={() => onSelectFile(file)}
-                                >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                                    <span className="flex-1 truncate font-medium">{file.path.split("/").pop()}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); handleUnstage(file.path); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 rounded transition-all" title="Unstage">
-                                        <Minus className="w-3 h-3" />
-                                    </button>
-                                </div>
+                                <FileItem 
+                                    key={file.path}
+                                    file={file}
+                                    selected={selectedFile === file.path}
+                                    onSelect={onSelectFile}
+                                    onAction={handleUnstage}
+                                    actionIcon={Minus}
+                                    actionTitle="Unstage"
+                                    dotClass="hidden"
+                                    actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
+                                />
                             ))}
                         </div>
                     </div>
                 ))}
-            </div>
-        )}
+             </div>
+           )}
+        </ChangeGroup>
 
         {/* UNSTAGED FILES GROUP */}
-        {hasUnstaged && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200 delay-75">
-                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2 pl-1">
-                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                     Changes ({unstagedFiles.length})
-                </h3>
-
+        <ChangeGroup title="Changes" count={unstagedFiles.length} color="bg-amber-500">
+            {unstagedFiles.length === 0 ? (
+               <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No changes</div>
+            ) : (
+              <div className="px-3">
                 {Object.entries(groupedUnstaged).map(([folder, files]) => (
                     <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
                         <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
@@ -303,66 +302,161 @@ export function LocalChangesPanel({ repoPath, onSelectFile, selectedFile, classN
                         </div>
                         <div className="">
                             {files.map(file => (
-                                <div 
-                                key={file.path} 
-                                className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group ${selectedFile === file.path ? "bg-accent text-accent-foreground" : ""}`}
-                                onClick={() => onSelectFile(file)}
-                                >
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${file.status === "modified" ? "bg-amber-500" : "bg-slate-500"}`} />
-                                    <span className="flex-1 truncate font-medium">{file.path.split("/").pop()}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); handleStage(file.path); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500 rounded transition-all" title="Stage">
-                                        <Plus className="w-3 h-3" />
-                                    </button>
-                                </div>
+                                <FileItem 
+                                    key={file.path}
+                                    file={file}
+                                    selected={selectedFile === file.path}
+                                    onSelect={onSelectFile}
+                                    onAction={handleStage}
+                                    actionIcon={Plus}
+                                    actionTitle="Stage"
+                                    dotClass="hidden"
+                                    actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
+                                />
                             ))}
                         </div>
                     </div>
                 ))}
-            </div>
-        )}
+              </div>
+            )}
+        </ChangeGroup>
 
         {/* LOCAL COMMITS GROUPS */}
         {status?.localCommits && status.localCommits.length > 0 && (
-             <div className="animate-in fade-in slide-in-from-top-2 duration-200 delay-100">
-                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2 pl-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                    Outgoing Commits ({status.localCommits.length})
-                </h3>
-                <div className="space-y-3">
-                    {status.localCommits.map(commit => (
-                        <div key={commit.hash} className="bg-background border border-border rounded-xl p-3 shadow-sm hover:border-primary/30 transition-colors">
-                             <div className="flex items-start gap-2.5">
-                                <GitCommit className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-medium text-foreground break-words leading-relaxed">
-                                        {commit.message}
+             <>
+                {status.localCommits.map(commit => (
+                    <ChangeGroup 
+                        key={commit.hash} 
+                        title={commit.message.split("\n")[0]} 
+                        count={commit.files ? commit.files.length : 0} 
+                        color="bg-purple-500"
+                        defaultOpen={false}
+                        uppercase={false}
+                    >
+                        <div className="px-3">
+                           {/* Commit Details Header */}
+                           <div className="mb-2 px-2 text-[10px] text-muted-foreground flex items-center gap-2">
+                                <div className="flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded-full">
+                                    <GitCommit className="w-3 h-3" />
+                                    <span className="font-mono">{commit.hash.substring(0, 7)}</span>
+                                </div>
+                                <span>{commit.date}</span>
+                                <span className="truncate max-w-[100px]">{commit.author}</span>
+                           </div>
+
+                           {commit.files && Object.entries(groupFilesByFolder(commit.files)).map(([folder, files]) => (
+                                <div key={folder} className="bg-background border border-border rounded-xl overflow-hidden mb-1 shadow-sm group/card hover:border-border/80 transition-colors">
+                                    <div className="px-3 py-1 bg-secondary/30 text-[10px] font-mono text-muted-foreground truncate text-right" title={folder}>
+                                        {truncatePath(folder)}
                                     </div>
-                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2">
-                                        <div className="flex items-center gap-2 bg-secondary/50 pl-1 pr-2 py-0.5 rounded-full">
-                                            <span className="font-mono text-primary/70">#</span>
-                                            <span className="font-mono">{commit.hash.substring(0, 7)}</span>
-                                        </div>
-                                        <span>{commit.date}</span>
+                                    <div className="">
+                                        {files.map(file => (
+                                            <FileItem 
+                                                key={file.path}
+                                                file={{...file, commitHash: commit.hash}}
+                                                selected={selectedFile === file.path}
+                                                onSelect={onSelectFile}
+                                                onAction={() => {}} 
+                                                actionIcon={Check}
+                                                actionTitle="Committed"
+                                                dotClass="bg-purple-500"
+                                                actionButtonClass="hidden"
+                                            />
+                                        ))}
                                     </div>
                                 </div>
-                             </div>
+                           ))}
                         </div>
-                    ))}
-                </div>
-             </div>
+                    </ChangeGroup>
+                ))}
+            </>
         )}
 
-        {/* EMPTY STATE */}
-        {!hasStaged && !hasUnstaged && (!status?.localCommits || status.localCommits.length === 0) && (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
-               <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mb-3">
-                    <Check className="w-6 h-6" />
-               </div>
-               <span className="text-xs font-medium">All clean</span>
-            </div>
-        )}
+
 
       </div>
     </div>
   );
+}
+
+interface ChangeGroupProps {
+  title: string;
+  count: number;
+  color: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  uppercase?: boolean;
+}
+
+function ChangeGroup({ title, count, color, children, defaultOpen = true, uppercase = true }: ChangeGroupProps) {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+  return (
+    <div className="flex flex-col border-b border-border/50">
+       <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-2 p-2 hover:bg-secondary/20 transition-colors w-full text-left group">
+          {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/70" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/70" />}
+          <span className={`w-2 h-2 rounded-full ${count === 0 ? "bg-zinc-500/50" : color} shadow-sm`} />
+          <span className={`text-[11px] font-semibold text-muted-foreground tracking-wider flex-1 group-hover:text-foreground transition-colors truncate ${uppercase ? "uppercase" : ""}`}>{title}</span>
+          <span className="text-[10px] text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded-full border border-border/50">{count}</span>
+       </button>
+       {isOpen && (
+         <div className="pl-0 pb-2 overflow-y-auto max-h-[300px]">
+            {children}
+         </div>
+       )}
+    </div>
+  );
+}
+
+interface FileItemProps {
+  file: GitFile;
+  selected: boolean;
+  onSelect: (file: GitFile) => void;
+  onAction: (path: string) => void;
+  actionIcon: React.ElementType;
+  actionTitle: string;
+  dotClass: string;
+  actionButtonClass: string;
+}
+
+function FileItem({ 
+  file, 
+  selected, 
+  onSelect, 
+  onAction, 
+  actionIcon: Icon, 
+  actionTitle, 
+  dotClass, 
+  actionButtonClass 
+}: FileItemProps) {
+    const textRef = React.useRef<HTMLSpanElement>(null);
+    const [isTight, setIsTight] = React.useState(false);
+
+    React.useEffect(() => {
+        if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
+            setIsTight(true);
+        }
+    }, [file.path]); 
+
+    return (
+        <div 
+            className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group ${selected ? "bg-accent text-accent-foreground" : ""}`}
+            onClick={() => onSelect(file)}
+        >
+            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
+            <span 
+                ref={textRef}
+                className={`flex-1 truncate font-medium transition-all ${isTight ? "text-[10px] leading-tight" : ""}`}
+                title={file.path.split("/").pop()}
+            >
+                {file.path.split("/").pop()}
+            </span>
+            <button 
+                onClick={(e) => { e.stopPropagation(); onAction(file.path); }} 
+                className={`opacity-0 group-hover:opacity-100 p-0.5 rounded transition-all ${actionButtonClass}`} 
+                title={actionTitle}
+            >
+                <Icon className="w-3 h-3" />
+            </button>
+        </div>
+    );
 }
