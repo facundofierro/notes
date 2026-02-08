@@ -35,6 +35,10 @@ interface ProjectStatus {
   pid: number | null;
 }
 
+interface BranchInfo {
+  currentBranch: string | null;
+}
+
 interface ProjectSelectorProps {
   repositories: Repository[];
   selectedRepo: string | null;
@@ -54,6 +58,12 @@ export function ProjectSelector({
   ] = React.useState<
     Record<string, ProjectStatus>
   >({});
+  const [
+    branchInfo,
+    setBranchInfo,
+  ] = React.useState<BranchInfo>({
+    currentBranch: null,
+  });
   const [search, setSearch] =
     React.useState("");
   const [open, setOpen] =
@@ -139,8 +149,28 @@ export function ProjectSelector({
       } catch (error) {}
     };
 
+    const fetchBranch = async () => {
+      try {
+        const repo = repositories.find(r => r.name === selectedRepo);
+        if (!repo) return;
+        
+        const res = await fetch(
+          `/api/git?path=${encodeURIComponent(repo.path)}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setBranchInfo({
+            currentBranch: data.branch || null,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch branch:', error);
+      }
+    };
+
     fetchStatus();
-  }, [selectedRepo]);
+    fetchBranch();
+  }, [selectedRepo, repositories]);
 
   const filteredRepos =
     repositories.filter((repo) =>
@@ -165,10 +195,17 @@ export function ProjectSelector({
             variant="ghost"
             className="h-9 px-3 hover:bg-white/10 flex items-center gap-2 transition-all group rounded-xl border border-transparent hover:border-white/10"
           >
-            <span className="font-semibold text-zinc-100 group-hover:text-white transition-colors text-sm">
-              {selectedRepo ||
-                "Select Project"}
-            </span>
+            <div className="flex flex-col items-start">
+              <span className="font-semibold text-zinc-100 group-hover:text-white transition-colors text-sm">
+                {selectedRepo ||
+                  "Select Project"}
+              </span>
+              {branchInfo.currentBranch && (
+                <span className="text-[10px] text-zinc-500 font-normal">
+                  {branchInfo.currentBranch}
+                </span>
+              )}
+            </div>
             <ChevronDown
               className={cn(
                 "h-4 w-4 text-zinc-500 group-hover:text-zinc-300 transition-all duration-300",

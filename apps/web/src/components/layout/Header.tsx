@@ -4,7 +4,6 @@ import * as React from "react";
 import { 
   Play, 
   Square, 
-  Terminal, 
   ScrollText, 
   MoreVertical, 
   RotateCw, 
@@ -126,15 +125,6 @@ export function Header() {
                 title="Stop App"
               >
                 <Square className="w-4 h-4" />
-              </button>
-            )}
-            {!isAppRunning && (
-              <button 
-                onClick={() => { /* Terminal logic can be added to store if needed */ }} 
-                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" 
-                title="Open Terminal"
-              >
-                <Terminal className="w-4 h-4" />
               </button>
             )}
             <div className="relative">

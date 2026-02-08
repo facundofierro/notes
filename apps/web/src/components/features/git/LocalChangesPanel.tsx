@@ -249,7 +249,7 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
       <div className="flex-1 overflow-y-auto p-0">
         
         {/* STAGED FILES GROUP */}
-        <ChangeGroup title="Staged Changes" count={stagedFiles.length} color="bg-green-500">
+        <ChangeGroup title={`Staged Changes (${stagedFiles.length})`} count={stagedFiles.length} color="bg-green-500">
            {stagedFiles.length === 0 ? (
                <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No staged changes</div>
            ) : (
@@ -267,7 +267,7 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
         </ChangeGroup>
 
         {/* UNSTAGED FILES GROUP */}
-        <ChangeGroup title="Changes" count={unstagedFiles.length} color="bg-amber-500">
+        <ChangeGroup title={`Changes (${unstagedFiles.length})`} count={unstagedFiles.length} color="bg-amber-500">
             {unstagedFiles.length === 0 ? (
                <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No changes</div>
             ) : (
@@ -290,7 +290,7 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
                 {status.localCommits.map(commit => (
                     <ChangeGroup 
                         key={commit.hash} 
-                        title={commit.message.split("\n")[0]} 
+                        title={`${commit.message.split("\n")[0]} (${commit.files ? commit.files.length : 0})`} 
                         count={commit.files ? commit.files.length : 0} 
                         color="bg-purple-500"
                         defaultOpen={false}

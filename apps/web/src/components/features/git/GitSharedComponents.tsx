@@ -27,7 +27,6 @@ export function ChangeGroup({ title, count, color, children, defaultOpen = true,
           {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/70" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/70" />}
           <span className={`w-2 h-2 rounded-full ${count === 0 ? "bg-zinc-500/50" : color} shadow-sm`} />
           <span className={`text-[11px] font-semibold text-muted-foreground tracking-wider flex-1 group-hover:text-foreground transition-colors truncate ${uppercase ? "uppercase" : ""}`}>{title}</span>
-          <span className="text-[10px] text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded-full border border-border/50">{count}</span>
        </button>
        {isOpen && (
          <div className="pl-0 pb-2 w-full min-w-0 overflow-hidden">
