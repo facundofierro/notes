@@ -71,25 +71,60 @@ export function TerminalViewer({
     term.loadAddon(fitAddon);
 
     term.open(containerRef.current);
-    
-    // Initial fit
-    setTimeout(() => {
-      if (fitAddonRef.current && terminalRef.current) {
+
+    // Wait for fonts to load before fitting so character measurements are accurate
+    const doInitialFit = () => {
+      if (fitAddonRef.current && terminalRef.current && containerRef.current) {
         fitAddonRef.current.fit();
+
+        // Manual dimension calculation with buffer to maximize space usage
+        const container = containerRef.current;
+        const core = (terminalRef.current as any)._core;
+        const charWidth = core._renderService.dimensions.actualCellWidth;
+        const charHeight = core._renderService.dimensions.actualCellHeight;
+
+        if (charWidth && charHeight) {
+          const cols = Math.floor(container.clientWidth / charWidth);
+          const rows = Math.floor(container.clientHeight / charHeight);
+
+          // Only resize if our calculation differs from fit's calculation
+          if (cols !== terminalRef.current.cols || rows !== terminalRef.current.rows) {
+            terminalRef.current.resize(cols, rows);
+          }
+        }
+
         terminalRef.current.scrollToBottom();
         if (onResizeRef.current) {
           onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
         }
       }
-    }, 100);
+    };
+    document.fonts.ready.then(doInitialFit);
 
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
 
     // Handle window resize
     const handleResize = () => {
-      if (fitAddonRef.current && terminalRef.current) {
+      if (fitAddonRef.current && terminalRef.current && containerRef.current) {
         fitAddonRef.current.fit();
+
+        // Manual dimension calculation with buffer to maximize space usage
+        const container = containerRef.current;
+        const core = (terminalRef.current as any)._core;
+        const charWidth = core._renderService.dimensions.actualCellWidth;
+        const charHeight = core._renderService.dimensions.actualCellHeight;
+
+        if (charWidth && charHeight) {
+          const cols = Math.floor(container.clientWidth / charWidth);
+          const rows = Math.floor(container.clientHeight / charHeight);
+
+          // Only resize if our calculation differs from fit's calculation
+          if (cols !== terminalRef.current.cols || rows !== terminalRef.current.rows) {
+            terminalRef.current.resize(cols, rows);
+          }
+        }
+
         terminalRef.current.scrollToBottom();
         if (onResizeRef.current) {
           onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
@@ -144,8 +179,25 @@ export function TerminalViewer({
   React.useEffect(() => {
     const observer = new ResizeObserver(
       () => {
-        if (fitAddonRef.current && terminalRef.current) {
+        if (fitAddonRef.current && terminalRef.current && containerRef.current) {
           fitAddonRef.current.fit();
+
+          // Manual dimension calculation with buffer to maximize space usage
+          const container = containerRef.current;
+          const core = (terminalRef.current as any)._core;
+          const charWidth = core._renderService.dimensions.actualCellWidth;
+          const charHeight = core._renderService.dimensions.actualCellHeight;
+
+          if (charWidth && charHeight) {
+            const cols = Math.floor(container.clientWidth / charWidth);
+            const rows = Math.floor(container.clientHeight / charHeight);
+
+            // Only resize if our calculation differs from fit's calculation
+            if (cols !== terminalRef.current.cols || rows !== terminalRef.current.rows) {
+              terminalRef.current.resize(cols, rows);
+            }
+          }
+
           terminalRef.current.scrollToBottom();
           if (onResizeRef.current) {
             onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
@@ -164,9 +216,10 @@ export function TerminalViewer({
   }, []);
   return (
     <div
-      ref={containerRef}
       className={`h-full w-full overflow-hidden relative p-3 bg-[#09090b] ${className || ""}`}
       style={{ minHeight: "100px" }}
-    />
+    >
+      <div ref={containerRef} className="h-full w-full overflow-hidden" />
+    </div>
   );
 }

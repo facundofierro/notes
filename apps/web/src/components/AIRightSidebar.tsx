@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Globe,
   Monitor,
+  Loader2,
 } from "lucide-react";
 import { usePromptBuilder, PromptBuilderOptions } from "@/hooks/usePromptBuilder";
 import { inferTestExecutionStatus } from "@/lib/test-output";
@@ -56,7 +57,7 @@ export function AIRightSidebar({
   contextKey = "",
 }: AIRightSidebarProps) {
   const { buildToolPrompt } = usePromptBuilder();
-  const { registerTerminalSession, updateTerminalSession, removeTerminalSession, getTerminalSessionForContext } = useHomeStore();
+  const { registerTerminalSession, updateTerminalSession, removeTerminalSession, getTerminalSessionForContext, setTabFile, setSelectedFile } = useHomeStore();
   const terminalAbortControllerRef = React.useRef<AbortController | null>(null);
   const recognitionRef = React.useRef<any>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -84,6 +85,23 @@ export function AIRightSidebar({
   const [toolModelByTool, setToolModelByTool] = React.useState<Record<string, string>>({});
   const [isToolModelsLoading, setIsToolModelsLoading] = React.useState<Record<string, boolean>>({});
   const [termSize, setTermSize] = React.useState({ cols: 100, rows: 30 });
+
+  const refreshCurrentFile = React.useCallback(async () => {
+    if (!file?.path) return;
+    try {
+      const res = await fetch(`/api/file?path=${encodeURIComponent(file.path)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (["tasks", "epics", "ideas"].includes(viewMode)) {
+          setTabFile(viewMode, { path: file.path, content: data.content });
+        } else {
+          setSelectedFile({ path: file.path, content: data.content });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh file:", error);
+    }
+  }, [file, viewMode, setTabFile, setSelectedFile]);
 
   const reconnectToSession = React.useCallback(async (processId: string, toolName: string) => {
     terminalAbortControllerRef.current?.abort();
@@ -156,7 +174,9 @@ export function AIRightSidebar({
     setTerminalOutput((prev) => (prev ? `${prev}
 
 Cancelled` : "Cancelled"));
-  }, [terminalProcessId, contextKey, updateTerminalSession]);
+    setRightSidebarView("prompt");
+    refreshCurrentFile();
+  }, [terminalProcessId, contextKey, updateTerminalSession, refreshCurrentFile]);
 
   const openInteractiveTerminal = React.useCallback(async () => {
     const cwd = projectPath || (basePath && selectedRepo ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/") : undefined);
@@ -487,22 +507,26 @@ Cancelled` : "Cancelled");
         {/* Terminal View */}
         <div className={`flex overflow-hidden flex-col flex-1 h-full ${ rightSidebarView === "terminal" ? "" : "hidden" }`}>
           <div className="flex-1 min-h-0 bg-black relative">
-            {terminalOutput || isTerminalRunning ? (
+            {terminalOutput ? (
               <TerminalViewer 
-                output={terminalOutput || "Initializing..."} 
+                output={terminalOutput} 
                 className="w-full h-full" 
                 onInput={handleTerminalInput}
                 onResize={(cols, rows) => setTermSize({ cols, rows })}
               />
+            ) : isTerminalRunning ? (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
             ) : (
               <div className="flex justify-center items-center h-full text-xs text-muted-foreground">No terminal output</div>
             )}
           </div>
           <div className="flex gap-2 p-2 border-t border-border">
             {isTerminalRunning && (
-              <button onClick={cancelTerminal} className="flex-1 px-3 py-2 text-sm text-white rounded border border-red-800 bg-red-900/50 hover:bg-red-900">Cancel</button>
+              <button onClick={cancelTerminal} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border border-red-800 bg-red-900/50 hover:bg-red-900">Close</button>
             )}
-            <button onClick={() => setRightSidebarView("prompt")} className="flex-1 px-3 py-2 text-sm text-white rounded border bg-secondary border-border hover:bg-accent">
+            <button onClick={() => { setRightSidebarView("prompt"); refreshCurrentFile(); }} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border bg-secondary border-border hover:bg-accent">
               {isTerminalRunning ? "Return to Prompt" : "Back to Prompt"}
             </button>
           </div>

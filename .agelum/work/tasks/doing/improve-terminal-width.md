@@ -52,6 +52,6 @@ Ensure that the `xterm-screen` and `xterm-viewport` are not being constrained by
 ## Implementation Steps (Plan)
 
 - [x] Add internal padding to the terminal viewport (Done by adding `p-3` and matching background in `TerminalViewer.tsx`)
-- [ ] Implement `document.fonts.ready` check before fitting.
-- [ ] Add a small "buffer" to the width calculation to ensure it fills the space.
-- [ ] Debug the `onResize` synchronization between frontend and backend.
+- [x] Implement `document.fonts.ready` check before fitting.
+- [x] Add a small "buffer" to the width calculation to ensure it fills the space.
+- [x] Debug the `onResize` synchronization between frontend and backend.
