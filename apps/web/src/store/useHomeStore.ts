@@ -28,6 +28,15 @@ export interface TerminalSessionInfo {
   startedAt: number;
 }
 
+export interface TabState {
+  selectedFile: {
+    path: string;
+    content: string;
+  } | null;
+  workEditorEditing: boolean;
+  workDocIsDraft: boolean;
+}
+
 export interface ProjectState {
   viewMode: ViewMode;
   testViewMode:
@@ -70,6 +79,7 @@ export interface ProjectState {
   terminals: TerminalState[];
   activeTerminalId: string;
   terminalSessions: TerminalSessionInfo[];
+  tabs: Record<string, TabState>;
 }
 
 const createDefaultProjectState =
@@ -104,6 +114,23 @@ const createDefaultProjectState =
     terminals: [],
     activeTerminalId: "logs",
     terminalSessions: [],
+    tabs: {
+      tasks: {
+        selectedFile: null,
+        workEditorEditing: false,
+        workDocIsDraft: false,
+      },
+      epics: {
+        selectedFile: null,
+        workEditorEditing: false,
+        workDocIsDraft: false,
+      },
+      ideas: {
+        selectedFile: null,
+        workEditorEditing: false,
+        workDocIsDraft: false,
+      },
+    },
   });
 
 export interface HomeState {
@@ -240,6 +267,11 @@ export interface HomeState {
     kind: "epic" | "task" | "idea";
     state: string;
   }) => void;
+  setTabFile: (
+    tabId: string,
+    file: { path: string; content: string } | null
+  ) => void;
+  setTabEditing: (tabId: string, editing: boolean) => void;
 }
 
 const defaultSettings: UserSettings = {
@@ -544,6 +576,30 @@ export const useHomeStore =
           return state.terminalSessions.find(
             (s) => s.contextKey === contextKey
           );
+        },
+
+        setTabFile: (tabId, file) => {
+          get().setProjectState((prev) => ({
+            tabs: {
+              ...prev.tabs,
+              [tabId]: {
+                ...prev.tabs[tabId] || { workEditorEditing: false, workDocIsDraft: false },
+                selectedFile: file,
+              },
+            },
+          }));
+        },
+
+        setTabEditing: (tabId, editing) => {
+          get().setProjectState((prev) => ({
+            tabs: {
+              ...prev.tabs,
+              [tabId]: {
+                ...prev.tabs[tabId],
+                workEditorEditing: editing,
+              },
+            },
+          }));
         },
 
         fetchSettings: async () => {
@@ -1209,18 +1265,21 @@ export const useHomeStore =
             task.path || fallbackPath;
           if (!filePath) return;
 
-          get().setProjectState(() => ({
-            workEditorEditing: false,
-            workDocIsDraft: false,
-          }));
           const data = await fetch(
             `/api/file?path=${encodeURIComponent(filePath)}`,
           ).then((res) => res.json());
-          get().setProjectState(() => ({
-            selectedFile: {
-              path: filePath,
-              content:
-                data.content || "",
+
+          get().setProjectState((prev) => ({
+            tabs: {
+              ...prev.tabs,
+              tasks: {
+                selectedFile: {
+                  path: filePath,
+                  content: data.content || "",
+                },
+                workEditorEditing: false,
+                workDocIsDraft: false,
+              },
             },
           }));
         },
@@ -1244,18 +1303,21 @@ export const useHomeStore =
             epic.path || fallbackPath;
           if (!filePath) return;
 
-          get().setProjectState(() => ({
-            workEditorEditing: false,
-            workDocIsDraft: false,
-          }));
           const data = await fetch(
             `/api/file?path=${encodeURIComponent(filePath)}`,
           ).then((res) => res.json());
-          get().setProjectState(() => ({
-            selectedFile: {
-              path: filePath,
-              content:
-                data.content || "",
+
+          get().setProjectState((prev) => ({
+            tabs: {
+              ...prev.tabs,
+              epics: {
+                selectedFile: {
+                  path: filePath,
+                  content: data.content || "",
+                },
+                workEditorEditing: false,
+                workDocIsDraft: false,
+              },
             },
           }));
         },
@@ -1279,18 +1341,21 @@ export const useHomeStore =
             idea.path || fallbackPath;
           if (!filePath) return;
 
-          get().setProjectState(() => ({
-            workEditorEditing: false,
-            workDocIsDraft: false,
-          }));
           const data = await fetch(
             `/api/file?path=${encodeURIComponent(filePath)}`,
           ).then((res) => res.json());
-          get().setProjectState(() => ({
-            selectedFile: {
-              path: filePath,
-              content:
-                data.content || "",
+
+          get().setProjectState((prev) => ({
+            tabs: {
+              ...prev.tabs,
+              ideas: {
+                selectedFile: {
+                  path: filePath,
+                  content: data.content || "",
+                },
+                workEditorEditing: false,
+                workDocIsDraft: false,
+              },
             },
           }));
         },
@@ -1316,18 +1381,31 @@ export const useHomeStore =
               "Failed to save file",
             );
 
-          get().setProjectState(
-            (prev) => ({
-              selectedFile:
-                prev.selectedFile
-                  ? {
-                      ...prev.selectedFile,
-                      content:
-                        opts.content,
-                    }
-                  : null,
-            }),
-          );
+          get().setProjectState((prev) => {
+            const nextTabs = { ...prev.tabs };
+            let hasTabUpdates = false;
+
+            for (const [key, tabState] of Object.entries(nextTabs)) {
+              const currentFile = tabState.selectedFile;
+              if (currentFile && currentFile.path === opts.path) {
+                nextTabs[key] = {
+                  ...tabState,
+                  selectedFile: {
+                    ...currentFile,
+                    content: opts.content,
+                  },
+                };
+                hasTabUpdates = true;
+              }
+            }
+
+            return {
+              selectedFile: prev.selectedFile && prev.selectedFile.path === opts.path
+                ? { ...prev.selectedFile, content: opts.content }
+                : prev.selectedFile,
+              tabs: hasTabUpdates ? nextTabs : prev.tabs,
+            };
+          });
         },
 
         saveProjectConfig: async (
@@ -1469,13 +1547,20 @@ export const useHomeStore =
           );
           const content = `---\ncreated: ${createdAt}\nstate: ${opts.state}\n---\n\n# ${id}\n\n`;
 
-          get().setProjectState(() => ({
-            selectedFile: {
-              path: draftPath,
-              content,
+          const tabId = opts.kind === "task" ? "tasks" : opts.kind === "epic" ? "epics" : "ideas";
+
+          get().setProjectState((prev) => ({
+            tabs: {
+              ...prev.tabs,
+              [tabId]: {
+                selectedFile: {
+                  path: draftPath,
+                  content,
+                },
+                workEditorEditing: true,
+                workDocIsDraft: true,
+              },
             },
-            workEditorEditing: true,
-            workDocIsDraft: true,
           }));
         },
       }),

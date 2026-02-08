@@ -7,14 +7,15 @@ export function TasksTab() {
   const store = useHomeStore();
   const { 
     selectedRepo, 
-    setSelectedFile, 
+    setTabFile, 
     handleTaskSelect, 
     openWorkDraft,
   } = store;
 
-  const { selectedFile } = store.getProjectState();
+  const { tabs } = store.getProjectState();
+  const selectedFile = tabs?.tasks?.selectedFile;
 
-  const onBack = () => setSelectedFile(null);
+  const onBack = () => setTabFile("tasks", null);
 
   const onRename = selectedRepo
     ? async (newTitle: string) => {
@@ -34,7 +35,7 @@ export function TasksTab() {
           path: data.path as string,
           content: data.content as string,
         };
-        setSelectedFile(next);
+        setTabFile("tasks", next);
         return next;
       }
     : undefined;
@@ -45,6 +46,7 @@ export function TasksTab() {
         <WorkEditorTab
           onBack={onBack}
           onRename={onRename}
+          tabId="tasks"
         />
       ) : selectedRepo ? (
         <TaskKanban

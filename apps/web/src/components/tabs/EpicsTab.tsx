@@ -7,14 +7,15 @@ export function EpicsTab() {
   const store = useHomeStore();
   const { 
     selectedRepo, 
-    setSelectedFile,
+    setTabFile,
     handleEpicSelect,
     openWorkDraft
   } = store;
 
-  const { selectedFile } = store.getProjectState();
+  const { tabs } = store.getProjectState();
+  const selectedFile = tabs?.epics?.selectedFile;
 
-  const onBack = () => setSelectedFile(null);
+  const onBack = () => setTabFile("epics", null);
 
   const onRename = selectedRepo
     ? async (newTitle: string) => {
@@ -34,7 +35,7 @@ export function EpicsTab() {
           path: data.path as string,
           content: data.content as string,
         };
-        setSelectedFile(next);
+        setTabFile("epics", next);
         return next;
       }
     : undefined;
@@ -45,6 +46,7 @@ export function EpicsTab() {
         <WorkEditorTab
           onBack={onBack}
           onRename={onRename}
+          tabId="epics"
         />
       ) : selectedRepo ? (
         <EpicsKanban

@@ -34,6 +34,7 @@ interface FileBrowserProps {
   onFileSelect: (
     node: FileNode,
   ) => void;
+  onFolderSelect?: (node: FileNode) => void;
   basePath: string;
   onRefresh?: () => void;
   onRunFolder?: (path: string) => void;
@@ -123,12 +124,14 @@ function FileTreeNode({
       >
         <div
           className="flex flex-1 gap-1 items-center"
-          onClick={() => {
+            onClick={() => {
             if (hasChildren) {
               toggleExpand(node.path);
             }
             if (node.type === "file") {
               onFileSelect(node);
+            } else if (node.type === "directory" && onFolderSelect) { // Trigger folder selection
+              onFolderSelect(node);
             }
           }}
         >

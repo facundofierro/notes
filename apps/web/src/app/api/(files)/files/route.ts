@@ -9,6 +9,7 @@ interface FileNode {
   name: string;
   path: string;
   type: "file" | "directory";
+  size?: number;
   children?: FileNode[];
 }
 
@@ -573,10 +574,7 @@ function ensureAgelumStructure(
 function buildFileTree(
   dir: string,
   basePath: string,
-  allowedFileExtensions: string[] = [
-    ".md",
-    ".json",
-  ],
+  allowedFileExtensions: string[] | null = null,
 ): FileNode | null {
   if (!fs.existsSync(dir)) return null;
 
@@ -584,24 +582,32 @@ function buildFileTree(
   if (!stats.isDirectory()) return null;
 
   const name = path.basename(dir);
-  void basePath;
-
+  
   const entries = fs.readdirSync(dir, {
     withFileTypes: true,
   });
+  
+  // Default ignores
+  const ignores = new Set([
+     ".git",
+     "node_modules",
+     ".next",
+     "dist",
+     "build",
+     ".turbo",
+     ".DS_Store",
+     "thumbs.db"
+  ]);
+
   const children = entries
     .filter((entry) => {
-      if (entry.name.startsWith("."))
-        return false;
-      if (entry.isDirectory())
-        return true;
-      return (
-        entry.isFile() &&
-        allowedFileExtensions.some(
+      if (ignores.has(entry.name)) return false;
+      if (entry.isDirectory()) return true;
+      if (!allowedFileExtensions) return true;
+      return allowedFileExtensions.some(
           (ext) =>
             entry.name.endsWith(ext),
-        )
-      );
+        );
     })
     .map((entry) => {
       const fullPath = path.join(
@@ -615,10 +621,17 @@ function buildFileTree(
           allowedFileExtensions,
         )!;
       } else {
+        let size = 0;
+        try {
+            const stat = fs.statSync(fullPath);
+            size = stat.size;
+        } catch (e) {}
+
         return {
           name: entry.name,
           path: fullPath,
           type: "file" as const,
+          size,
         };
       }
     })
@@ -633,10 +646,13 @@ function buildFileTree(
         : 1;
     });
 
+  let totalSize = children.reduce((acc, child) => acc + (child.size || 0), 0);
+
   return {
     name,
     path: dir,
     type: "directory",
+    size: totalSize,
     children,
   };
 }
@@ -900,8 +916,8 @@ export async function GET(
     request.url,
   );
   const repo = searchParams.get("repo");
-  const subPath =
-    searchParams.get("path");
+  const subPath = searchParams.get("path");
+  const isRoot = searchParams.get("root") === "true";
 
   if (!repo) {
     return NextResponse.json({
@@ -911,8 +927,7 @@ export async function GET(
   }
 
   try {
-    const repoPath =
-      await resolveProjectPath(repo);
+    const repoPath = await resolveProjectPath(repo);
 
     if (!repoPath) {
       console.error(
@@ -927,21 +942,24 @@ export async function GET(
     // Legacy support for migration
     migrateAgelumStructure(repoPath);
 
-    const basePath = ""; // Unused in buildFileTree but required by signature
-
-    const agelumDir = path.join(
-      repoPath,
-      ".agelum",
-    );
-
-    ensureAgelumStructure(agelumDir);
-
-    let targetDir = subPath
-      ? path.join(agelumDir, subPath)
-      : agelumDir;
+    const basePath = ""; 
+    
+    let targetDir;
+    if (isRoot) {
+        targetDir = subPath ? path.join(repoPath, subPath) : repoPath;
+    } else {
+        const agelumDir = path.join(
+          repoPath,
+          ".agelum",
+        );
+        ensureAgelumStructure(agelumDir);
+        targetDir = subPath
+          ? path.join(agelumDir, subPath)
+          : agelumDir;
+    }
 
     // Check if we are targeting tests
-    if (subPath === "work/tests") {
+    if (subPath === "work/tests" && !isRoot) {
       const testsDir =
         migrateAgelumTestsStructure(repoPath);
       const projectDir = path.dirname(testsDir);
@@ -956,6 +974,7 @@ export async function GET(
         name: "tests",
         path: testsDir,
         type: "directory",
+        size: tree?.size,
         children: tree?.children ?? [],
       };
 
@@ -969,18 +988,21 @@ export async function GET(
     const tree = buildFileTree(
       targetDir,
       basePath,
+      isRoot ? null : [".md", ".json", ".ts", ".tsx"],
     );
 
     return NextResponse.json({
       tree: tree || {
-        name: subPath || ".agelum",
+        name: subPath || (isRoot ? path.basename(repoPath) : ".agelum"),
         path: targetDir,
         type: "directory",
+        size: 0,
         children: [],
       },
       rootPath: targetDir,
     });
   } catch (error) {
+    console.error("Error in GET /api/files:", error);
     return NextResponse.json(
       { tree: null, rootPath: "" },
       { status: 500 },

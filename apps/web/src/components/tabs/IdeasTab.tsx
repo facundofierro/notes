@@ -7,14 +7,15 @@ export function IdeasTab() {
   const store = useHomeStore();
   const { 
     selectedRepo, 
-    setSelectedFile,
+    setTabFile,
     handleIdeaSelect,
     openWorkDraft
   } = store;
 
-  const { selectedFile } = store.getProjectState();
+  const { tabs } = store.getProjectState();
+  const selectedFile = tabs?.ideas?.selectedFile;
 
-  const onBack = () => setSelectedFile(null);
+  const onBack = () => setTabFile("ideas", null);
 
   const onRename = selectedRepo
     ? async (newTitle: string) => {
@@ -34,7 +35,7 @@ export function IdeasTab() {
           path: data.path as string,
           content: data.content as string,
         };
-        setSelectedFile(next);
+        setTabFile("ideas", next);
         return next;
       }
     : undefined;
@@ -45,6 +46,7 @@ export function IdeasTab() {
         <WorkEditorTab
           onBack={onBack}
           onRename={onRename}
+          tabId="ideas"
         />
       ) : selectedRepo ? (
         <IdeasKanban

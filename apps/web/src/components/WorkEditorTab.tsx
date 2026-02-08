@@ -16,27 +16,60 @@ export function WorkEditorTab({
   onBack,
   onRename,
   onRefresh,
-}: WorkEditorTabProps) {
+  tabId,
+}: WorkEditorTabProps & { tabId?: string }) {
   const store = useHomeStore();
+  const projectState = store.getProjectState();
+  
   const {
-    selectedFile,
     viewMode,
-    workEditorEditing,
-    workDocIsDraft,
     testViewMode,
     testOutput,
     isTestRunning,
-  } = store.getProjectState();
+    tabs,
+  } = projectState;
+
+  // Resolve state based on tabId or fallback to global (legacy)
+  const tabState = tabId ? tabs[tabId] : null;
+
+  const selectedFile = tabState ? tabState.selectedFile : projectState.selectedFile;
+  const workEditorEditing = tabState ? tabState.workEditorEditing : projectState.workEditorEditing;
+  const workDocIsDraft = tabState ? tabState.workDocIsDraft : projectState.workDocIsDraft;
 
   const {
     setSelectedFile,
+    setTabFile,
+    setTabEditing,
     handleRunTest,
+    saveFile,
     selectedRepo,
     basePath,
     repositories,
     settings,
     agentTools
   } = store;
+
+  const handleFileChange = React.useCallback(
+    (file: { path: string; content: string } | null) => {
+      if (tabId) {
+        setTabFile(tabId, file);
+      } else {
+        setSelectedFile(file);
+      }
+    },
+    [tabId, setTabFile, setSelectedFile]
+  );
+
+  const handleEditingChange = React.useCallback(
+    (editing: boolean) => {
+      if (tabId) {
+        setTabEditing(tabId, editing);
+      } else {
+        store.setProjectState(() => ({ workEditorEditing: editing }));
+      }
+    },
+    [tabId, setTabEditing, store]
+  );
 
   const projectPath = React.useMemo(() => {
     if (!selectedRepo) return null;
@@ -52,7 +85,7 @@ export function WorkEditorTab({
   return (
     <WorkEditor
       file={selectedFile}
-      onFileChange={setSelectedFile}
+      onFileChange={handleFileChange}
       onBack={onBack}
       onRename={onRename}
       onRefresh={onRefresh}
@@ -62,7 +95,7 @@ export function WorkEditorTab({
       projectPath={projectPath}
       agentTools={agentTools}
       workEditorEditing={workEditorEditing}
-      onWorkEditorEditingChange={(editing) => store.setProjectState(() => ({ workEditorEditing: editing }))}
+      onWorkEditorEditingChange={handleEditingChange}
       workDocIsDraft={workDocIsDraft}
       testViewMode={testViewMode}
       onTestViewModeChange={(mode) => store.setProjectState(() => ({ testViewMode: mode }))}
@@ -70,6 +103,7 @@ export function WorkEditorTab({
       isTestRunning={isTestRunning}
       onRunTest={handleRunTest}
       contextKey={selectedFile ? `${viewMode}:${selectedFile.path}` : ""}
+      onSave={saveFile}
     />
   );
 }

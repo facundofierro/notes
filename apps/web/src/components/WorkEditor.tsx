@@ -29,6 +29,7 @@ interface WorkEditorProps {
   isTestRunning: boolean;
   onRunTest?: (path: string) => void;
   contextKey?: string;
+  onSave?: (opts: { path: string; content: string }) => Promise<void>;
 }
 
 export function WorkEditor({
@@ -51,16 +52,21 @@ export function WorkEditor({
   isTestRunning,
   onRunTest,
   contextKey,
+  onSave,
 }: WorkEditorProps) {
 
   const handleSaveFile = async (opts: { path: string; content: string }) => {
-    const res = await fetch("/api/file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(opts),
-    });
-    if (!res.ok) throw new Error("Failed to save file");
-    onFileChange({ path: opts.path, content: opts.content });
+    if (onSave) {
+      await onSave(opts);
+    } else {
+      const res = await fetch("/api/file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(opts),
+      });
+      if (!res.ok) throw new Error("Failed to save file");
+      onFileChange({ path: opts.path, content: opts.content });
+    }
   };
 
   return (
