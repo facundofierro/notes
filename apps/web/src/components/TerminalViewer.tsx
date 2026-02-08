@@ -165,7 +165,7 @@ export function TerminalViewer({
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full overflow-hidden relative ${className || ""}`}
+      className={`h-full w-full overflow-hidden relative p-3 bg-[#09090b] ${className || ""}`}
       style={{ minHeight: "100px" }}
     />
   );
