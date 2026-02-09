@@ -13,6 +13,7 @@ import { LogsTab } from "@/components/tabs/LogsTab";
 import { BrowserTab } from "@/components/tabs/BrowserTab";
 import { Header } from "@/components/layout/Header";
 import { useHomeStore, ProjectState } from "@/store/useHomeStore";
+import { FileSearchDialog } from "@/components/shared/FileSearchDialog";
 
 export default function Home() {
   const store = useHomeStore();
@@ -50,6 +51,22 @@ export default function Home() {
     );
   }, [repositories, selectedRepo, settings.projects]);
 
+  // File search dialog state
+  const [isFileSearchOpen, setIsFileSearchOpen] = React.useState(false);
+
+  // Keyboard shortcut for file search
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        setIsFileSearchOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
   return (
     <div className="flex flex-col w-full h-full">
       <Header />
@@ -77,6 +94,11 @@ export default function Home() {
         initialTab={settingsTab as any}
         projectName={["project-config", "project-commands", "project-preview"].includes(settingsTab) ? selectedRepo || undefined : undefined}
         projectPath={["project-config", "project-commands", "project-preview"].includes(settingsTab) ? currentProjectPath || undefined : undefined}
+      />
+
+      <FileSearchDialog 
+        open={isFileSearchOpen}
+        onOpenChange={setIsFileSearchOpen}
       />
     </div>
   );
