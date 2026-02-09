@@ -128,14 +128,11 @@ function FileTreeNode({
       >
         <div
           className="flex flex-1 gap-1 items-center"
-            onClick={() => {
-            if (hasChildren) {
+          onClick={() => {
+            if (node.type === "directory" && hasChildren) {
               toggleExpand(node.path);
-            }
-            if (node.type === "file") {
+            } else if (node.type === "file") {
               onFileSelect(node);
-            } else if (node.type === "directory" && onFolderSelect) { // Trigger folder selection
-              onFolderSelect(node);
             }
           }}
         >
