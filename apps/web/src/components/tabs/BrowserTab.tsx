@@ -34,8 +34,30 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   } = projectState;
 
   const currentProjectConfig = React.useMemo(() => {
-    return settings.projects?.find((p) => p.name === repoName) || projectConfig || null;
+    const settingsProj = settings.projects?.find((p) => p.name === repoName);
+    if (!settingsProj && !projectConfig) return null;
+    return {
+      ...(settingsProj || {}),
+      ...(projectConfig || {}),
+    };
   }, [repoName, settings.projects, projectConfig]);
+
+  // Load project config on mount if missing
+  React.useEffect(() => {
+    const repo = repositories.find(r => r.name === repoName);
+    if (repo?.path) {
+      if (!projectConfig) {
+        fetch(`/api/project/config?path=${encodeURIComponent(repo.path)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.config) {
+              setProjectStateForRepo(repoName, () => ({ projectConfig: data.config }));
+            }
+          })
+          .catch(e => console.error("Failed to load project config", e));
+      }
+    }
+  }, [repoName, repositories, projectConfig, setProjectStateForRepo]);
 
   const browserPages = React.useMemo(() => {
     const pages = [];
@@ -50,14 +72,34 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   }, [currentProjectConfig]);
 
   const handleAddPage = async () => {
-    const url = window.prompt("Enter URL for new page:");
-    if (url) {
-      const existingPages = currentProjectConfig?.browserPages || [];
-      const newPages = [...existingPages, url];
-      await saveProjectConfig({ browserPages: newPages });
-      setProjectStateForRepo(repoName, () => ({ activeBrowserPageIndex: browserPages.length }));
-    }
+    const existingPages = currentProjectConfig?.browserPages || [];
+    const newPages = [...existingPages, ""];
+    await saveProjectConfig({ browserPages: newPages });
+    // Index is 0 (main) + index of new page in browserPages array (which is length - 1)
+    // So total items = 1 + newPages.length. Last index = newPages.length.
+    setProjectStateForRepo(repoName, () => ({ activeBrowserPageIndex: newPages.length }));
   };
+
+  const updateConfigUrl = React.useCallback(async (url: string) => {
+    if (activeBrowserPageIndex === 0) return; // Don't update main URL
+    
+    // browserPages[0] is mainUrl. browserPages[1] is config.browserPages[0].
+    // so index in config.browserPages is activeBrowserPageIndex - 1.
+    const configIndex = activeBrowserPageIndex - 1;
+    const existingPages = currentProjectConfig?.browserPages || [];
+    
+    // Only update if changed
+    if (existingPages[configIndex] === url) return;
+    
+    // Avoid updating if the url is transient/empty and we don't want to clear it yet? 
+    // Actually we do want to save whatever is "committed" (Enter or navigation).
+    
+    const newPages = [...existingPages];
+    while (newPages.length <= configIndex) newPages.push("");
+    
+    newPages[configIndex] = url;
+    await saveProjectConfig({ browserPages: newPages });
+  }, [activeBrowserPageIndex, currentProjectConfig, saveProjectConfig]);
 
   const handleRemovePage = async (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
@@ -249,6 +291,8 @@ export function BrowserTab({ repoName }: { repoName: string }) {
           isIframeInsecure: !!isInsecure
         };
       });
+      // Persist URL to config
+      updateConfigUrl(url);
     });
 
     const unsubFail = api.onLoadFailed((url, desc, code) => {
@@ -327,9 +371,11 @@ export function BrowserTab({ repoName }: { repoName: string }) {
           setIframeUrlLocal("");
           setTimeout(() => setIframeUrlLocal(val), 0);
         }
+        // Persist URL to config
+        updateConfigUrl(val);
       }
     },
-    [isElectron, setIframeUrlLocal, loadInElectron],
+    [isElectron, setIframeUrlLocal, loadInElectron, updateConfigUrl],
   );
 
   const handleRefresh = React.useCallback(() => {
@@ -356,7 +402,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   return (
     <div className="flex flex-1 overflow-hidden" id="browser-view-main">
       {/* Left Narrow Sidebar */}
-      <div className="w-12 border-r border-border bg-secondary flex flex-col items-center py-4 gap-4">
+      <div className="w-12 border-r border-border bg-secondary flex flex-col items-center py-4 gap-4 overflow-y-auto no-scrollbar">
         {browserPages.map((url, idx) => (
           <div key={idx} className="relative group">
             <button 
