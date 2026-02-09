@@ -57,6 +57,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () =>
         ipcRenderer.removeListener("browser-view:network-request", handler);
     },
+    onFaviconUpdated: (callback) => {
+      const handler = (_event, favicon, tabIndex) => callback(favicon, tabIndex);
+      ipcRenderer.on("browser-view:favicon-updated", handler);
+      return () =>
+        ipcRenderer.removeListener("browser-view:favicon-updated", handler);
+    },
     onNetworkResponse: (callback) => {
       const handler = (_event, params, tabIndex) => callback(params, tabIndex);
       ipcRenderer.on("browser-view:network-response", handler);

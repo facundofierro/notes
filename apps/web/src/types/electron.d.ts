@@ -5,20 +5,20 @@
 
 declare global {
   interface ElectronBrowserViewAPI {
-    loadUrl: (url: string) => Promise<void>;
+    loadUrl: (url: string, tabIndex?: number) => Promise<void>;
     setBounds: (bounds: {
       x: number;
       y: number;
       width: number;
       height: number;
-    }) => void;
-    hide: () => void;
-    show: () => void;
-    capture: () => Promise<string | null>;
-    executeJs: (code: string) => Promise<unknown>;
-    getUrl: () => Promise<string>;
-    destroy: () => void;
-    reload: () => void;
+    }, tabIndex?: number) => void;
+    hide: (tabIndex?: number) => void;
+    show: (tabIndex?: number) => void;
+    capture: (tabIndex?: number) => Promise<string | null>;
+    executeJs: (code: string, tabIndex?: number) => Promise<unknown>;
+    getUrl: (tabIndex?: number) => Promise<string>;
+    destroy: (tabIndex?: number) => void;
+    reload: (tabIndex?: number) => void;
 
     /** Listen for navigation events. Returns an unsubscribe function. */
     onNavigated: (callback: (url: string, isInsecure?: boolean) => void) => () => void;
@@ -36,6 +36,8 @@ declare global {
     onNetworkFinished: (callback: (params: any) => void) => () => void;
     /** Listen for network failed. Returns an unsubscribe function. */
     onNetworkFailed: (callback: (params: any) => void) => () => void;
+    /** Listen for favicon updates. Returns an unsubscribe function. */
+    onFaviconUpdated: (callback: (favicon: string, tabIndex?: number) => void) => () => void;
   }
 
   interface ElectronAPI {

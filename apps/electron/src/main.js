@@ -107,6 +107,12 @@ function getOrCreateBrowserView(win, tabIndex = 0) {
     }
   });
 
+  wc.on("page-favicon-updated", (_event, favicons) => {
+    if (!win.isDestroyed() && favicons.length > 0) {
+      win.webContents.send("browser-view:favicon-updated", favicons[0], tabIndex);
+    }
+  });
+
   // Setup debugger for network logs
   try {
     wc.debugger.attach("1.3");

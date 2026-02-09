@@ -3,7 +3,7 @@ import { Globe, ShieldAlert, Plus, X, RotateCw } from "lucide-react";
 import { BrowserRightPanel } from "@/components/features/browser/BrowserRightPanel";
 import { IframeCaptureInjector } from "@/components/features/browser/capture/IframeCaptureInjector";
 import { ScreenshotViewer } from "@/components/features/browser/capture/ScreenshotViewer";
-import { useHomeStore } from "@/store/useHomeStore";
+import { useHomeStore, ProjectState } from "@/store/useHomeStore";
 import { toast } from "@agelum/shadcn";
 
 export function BrowserTab({ repoName }: { repoName: string }) {
@@ -29,6 +29,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     projectConfig,
     activeBrowserPageIndex,
     browserPagesCurrentUrls = [],
+    browserPagesFavicons = [],
     viewMode,
     tempBrowserScreenshot,
   } = projectState;
@@ -106,9 +107,19 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     const newPages = existingPages.filter((_, i) => i !== index - 1);
     await saveProjectConfig({ browserPages: newPages });
     
-    if (activeBrowserPageIndex >= index) {
-      setProjectStateForRepo(repoName, () => ({ activeBrowserPageIndex: Math.max(0, activeBrowserPageIndex - 1) }));
-    }
+    setProjectStateForRepo(repoName, (prev) => {
+      const nextUrls = [...(prev.browserPagesCurrentUrls || [])];
+      if (index < nextUrls.length) nextUrls.splice(index, 1);
+      
+      const nextFavicons = [...(prev.browserPagesFavicons || [])];
+      if (index < nextFavicons.length) nextFavicons.splice(index, 1);
+      
+      return {
+        activeBrowserPageIndex: Math.max(0, activeBrowserPageIndex >= index ? activeBrowserPageIndex - 1 : activeBrowserPageIndex),
+        browserPagesCurrentUrls: nextUrls,
+        browserPagesFavicons: nextFavicons
+      };
+    });
   };
 
   const browserIframeRef = React.useRef<HTMLIFrameElement>(null);
@@ -394,6 +405,27 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     };
   }, [isElectron, isSelected, repoName, setProjectStateForRepo, activeBrowserPageIndex, currentProjectConfig, saveProjectConfig]);
 
+  // Listen for favicon updates
+  React.useEffect(() => {
+    if (!isElectron || !isSelected) return;
+    const api = window.electronAPI!.browserView;
+
+    const unsubFavicon = api.onFaviconUpdated((favicon: string, tabIndex?: number) => {
+      const navTabIndex = tabIndex ?? 0;
+      setProjectStateForRepo(repoName, (prev: ProjectState) => {
+        const nextFavicons = [...(prev.browserPagesFavicons || [])];
+        while (nextFavicons.length <= navTabIndex) nextFavicons.push("");
+        if (nextFavicons[navTabIndex] === favicon) return {};
+        nextFavicons[navTabIndex] = favicon;
+        return { browserPagesFavicons: nextFavicons };
+      });
+    });
+
+    return () => {
+      unsubFavicon();
+    };
+  }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
+
   // Enter in URL bar reloads the page
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -457,7 +489,11 @@ export function BrowserTab({ repoName }: { repoName: string }) {
               className={`p-2 rounded-lg transition-colors ${activeBrowserPageIndex === idx ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
               title={idx === 0 ? "Project Page" : url}
             >
-              <Globe className="w-5 h-5" />
+              {browserPagesFavicons[idx] ? (
+                 <img src={browserPagesFavicons[idx]} className="w-5 h-5 rounded-sm" alt="Tab Icon" />
+              ) : (
+                <Globe className="w-5 h-5" />
+              )}
             </button>
             {idx > 0 && (
               <button

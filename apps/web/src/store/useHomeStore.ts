@@ -68,6 +68,7 @@ export interface ProjectState {
   } | null;
   activeBrowserPageIndex: number;
   browserPagesCurrentUrls: string[];
+  browserPagesFavicons: string[];
   isScreenshotMode: boolean;
   screenshot: string | null;
   annotations: Annotation[];
@@ -104,6 +105,7 @@ const createDefaultProjectState =
     projectConfig: null,
     activeBrowserPageIndex: 0,
     browserPagesCurrentUrls: [],
+    browserPagesFavicons: [],
     isScreenshotMode: false,
     screenshot: null,
     annotations: [],

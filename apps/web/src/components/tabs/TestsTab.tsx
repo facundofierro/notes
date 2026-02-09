@@ -1,237 +1,159 @@
 "use client";
 
 import * as React from "react";
-import { 
-  Button,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  ScrollArea,
-  Dialog, DialogContent, DialogHeader, DialogTitle
-} from "@agelum/shadcn";
-import { Trash2, Play, Plus, Loader2, FileJson, TerminalSquare, Pencil, ChevronRight } from "lucide-react";
-import { TestEditor } from "./tests/TestEditor";
-
-interface TestScenario {
-  id: string;
-  name: string;
-  stepsCount: number;
-  updatedAt: string;
-}
+import { cn } from "@agelum/shadcn";
+import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
+import { useHomeStore } from "@/store/useHomeStore";
+import { TestsSidebar } from "./tests/TestsSidebar";
+import { TestsDashboard } from "./tests/TestsDashboard";
+import { TestDetailView } from "./tests/TestDetailView";
+import { ExecutionView } from "./tests/ExecutionView";
+import { useTestsState } from "./tests/useTestsState";
 
 export function TestsTab() {
-  const [tests, setTests] = React.useState<TestScenario[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [running, setRunning] = React.useState<string | null>(null);
-  const [logs, setLogs] = React.useState<Record<string, string>>({});
-  const [openLogDialog, setOpenLogDialog] = React.useState<string | null>(null);
-  
-  // Editor State
-  const [selectedTestId, setSelectedTestId] = React.useState<string | null>(null);
+  const store = useHomeStore();
+  const {
+    selectedRepo,
+    basePath,
+    repositories,
+    settings,
+    agentTools,
+    handleRunTest,
+  } = store;
 
-  React.useEffect(() => {
-    if (!selectedTestId) {
-      fetchTests();
-    }
-  }, [selectedTestId]);
-
-  const fetchTests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/tests");
-      if (res.ok) {
-        const data = await res.json();
-        setTests(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createTest = async () => {
-    // Quick create
-    try {
-      const res = await fetch("/api/tests", {
-        method: "POST",
-        body: JSON.stringify({ name: "Untitled Test", steps: [] }),
-        headers: { "Content-Type": "application/json" }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Open editor for new test
-        setSelectedTestId(data.id);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const deleteTest = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Are you sure?")) return;
-    
-    try {
-      await fetch(`/api/tests/${id}`, {
-        method: "DELETE"
-      });
-      fetchTests();
-    } catch (e) { console.error(e); }
-  };
-
-  const runTest = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (running) return;
-    setRunning(id);
-    setLogs((prev) => ({ ...prev, [id]: "" }));
-    setOpenLogDialog(id); 
-
-    try {
-      const res = await fetch("/api/tests/execute", {
-        method: "POST",
-        body: JSON.stringify({ id }),
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setLogs((prev) => ({
-          ...prev,
-          [id]: (prev[id] || "") + chunk
-        }));
-      }
-    } catch (e) {
-      console.error(e);
-      setLogs((prev) => ({
-        ...prev,
-        [id]: (prev[id] || "") + `\nError: ${e}\n`
-      }));
-    } finally {
-      setRunning(null);
-    }
-  };
-
-  if (selectedTestId) {
+  const projectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
     return (
-        <TestEditor 
-            testId={selectedTestId} 
-            onBack={() => setSelectedTestId(null)} 
-        />
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      settings.projects?.find((p) => p.name === selectedRepo)?.path ||
+      null
     );
-  }
+  }, [repositories, selectedRepo, settings.projects]);
+
+  const {
+    viewMode,
+    workDocIsDraft,
+    testViewMode,
+    testOutput,
+    isTestRunning: storeIsTestRunning
+  } = store.getProjectState();
+
+  const state = useTestsState();
+
+  // Fetch executions on mount
+  React.useEffect(() => {
+    state.fetchExecutions();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteTest = React.useCallback(async (id: string) => {
+    if (!confirm("Delete this test?")) return;
+    await state.deleteTest(id);
+  }, [state]);
+
+  const renderCenterView = () => {
+    switch (state.centerView.kind) {
+      case "dashboard":
+        return (
+          <TestsDashboard
+            tests={state.tests}
+            executions={state.executions}
+            executionsLoading={state.executionsLoading}
+            loading={state.loading}
+            onSelectTest={state.selectTest}
+            onCreateTest={() => state.createTest()}
+            onRunAll={() => {
+              // Run first test as a start; could be extended to run all sequentially
+              if (state.tests.length > 0) {
+                state.runTest(state.tests[0].id);
+              }
+            }}
+            onSelectExecution={state.openExecution}
+            isRunning={state.isRunning}
+          />
+        );
+      case "detail":
+        return (
+          <TestDetailView
+            testId={state.centerView.testId}
+            executions={state.executions}
+            executionsLoading={state.executionsLoading}
+            isRunning={state.isRunning}
+            onBack={state.goToDashboard}
+            onRun={state.runTest}
+            onSelectExecution={state.openExecution}
+            fetchExecutions={state.fetchExecutions}
+          />
+        );
+      case "execution":
+        return (
+          <ExecutionView
+            executionId={state.centerView.executionId}
+            testId={state.centerView.testId}
+            logs={state.executionLogs}
+            screenshots={state.executionScreenshots}
+            isRunning={state.isRunning}
+            onClose={() => {
+              // Go back to detail if we have a testId, otherwise dashboard
+              if (state.centerView.kind === "execution" && state.centerView.testId) {
+                state.setCenterView({ kind: "detail", testId: state.centerView.testId });
+                state.fetchExecutions(state.centerView.testId);
+              } else {
+                state.goToDashboard();
+              }
+            }}
+          />
+        );
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <div className="flex justify-between items-center p-4 border-b">
-        <h2 className="text-xl font-semibold tracking-tight">Browser Tests</h2>
-        <Button onClick={createTest} size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          New Test
-        </Button>
+    <div className="flex flex-1 overflow-hidden h-full bg-zinc-950">
+      {/* Left Sidebar */}
+      <div
+        ref={state.sidebarRef}
+        className="flex flex-col overflow-hidden relative border-r border-white/[0.04]"
+        style={{
+          width: state.sidebarWidth,
+          transition: state.isResizing ? "none" : "width 0.2s",
+        }}
+      >
+        <TestsSidebar
+          tests={state.tests}
+          selectedTestId={state.selectedTestId}
+          onSelectTest={state.selectTest}
+          onCreateTest={() => state.createTest()}
+          onDeleteTest={handleDeleteTest}
+          onRunTest={state.runTest}
+          isRunning={state.isRunning}
+          runningTestId={state.runningTestId}
+        />
+
+        {/* Resize Handle */}
+        <div
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-emerald-500/50 active:bg-emerald-500 transition-colors z-50"
+          onMouseDown={state.startResizing}
+        />
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[300px]">Test Name</TableHead>
-                <TableHead>Steps</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                  <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-                      </TableCell>
-                  </TableRow>
-              ) : tests.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                        <FileJson className="w-8 h-8 opacity-50" />
-                        <p>No tests found. Create a new test scenario to get started.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tests.map((test) => (
-                  <TableRow 
-                        key={test.id} 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors group"
-                        onClick={() => setSelectedTestId(test.id)}
-                  >
-                    <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                            <FileJson className="w-4 h-4 text-primary" />
-                            {test.name}
-                        </div>
-                    </TableCell>
-                    <TableCell>{test.stepsCount}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                        {test.updatedAt ? new Date(test.updatedAt).toLocaleDateString() : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={(e) => { e.stopPropagation(); setOpenLogDialog(test.id); }}
-                            title="View Logs"
-                        >
-                           <TerminalSquare className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                            size="icon"
-                            variant="ghost" 
-                            onClick={(e) => runTest(test.id, e)}
-                            disabled={running === test.id}
-                            className={running === test.id ? "text-primary" : ""}
-                            title="Run Test"
-                        >
-                          {running === test.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                        </Button>
-                        <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            className="text-destructive hover:text-destructive" 
-                            onClick={(e) => deleteTest(test.id, e)}
-                            title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground ml-2" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </ScrollArea>
+      {/* Center Area */}
+      <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
+        {renderCenterView()}
+      </div>
 
-      <Dialog open={!!openLogDialog} onOpenChange={(open) => !open && setOpenLogDialog(null)}>
-        <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Test Execution Logs</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 bg-black text-green-400 font-mono text-xs p-4 rounded-md overflow-auto whitespace-pre-wrap">
-            {openLogDialog && (logs[openLogDialog] || "No logs available.")}
-            {openLogDialog && running === openLogDialog && (
-                 <span className="animate-pulse">_</span>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Right Sidebar — AI */}
+      <AIRightSidebar
+        selectedRepo={selectedRepo}
+        basePath={basePath}
+        projectPath={projectPath}
+        agentTools={agentTools}
+        viewMode={viewMode}
+        workDocIsDraft={workDocIsDraft}
+        testViewMode={testViewMode}
+        testOutput={state.executionLogs.join("\n")}
+        isTestRunning={state.isRunning}
+        onRunTest={handleRunTest}
+        contextKey="tests"
+      />
     </div>
   );
 }

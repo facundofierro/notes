@@ -55,6 +55,8 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString(),
     };
 
+    const stepsCount = Array.isArray(body.steps) ? body.steps.length : 0;
+
     const existingIdx = index.findIndex((t: any) => t.id === id);
     if (existingIdx >= 0) {
       index[existingIdx] = {
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
         group,
         folder: folderName,
         description: body.description || "",
+        stepsCount,
         updatedAt: scenario.updatedAt
       };
     } else {
@@ -72,6 +75,7 @@ export async function POST(request: Request) {
         group,
         folder: folderName,
         description: body.description || "",
+        stepsCount,
         updatedAt: scenario.updatedAt
       });
     }
