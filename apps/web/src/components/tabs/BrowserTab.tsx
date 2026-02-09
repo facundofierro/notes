@@ -369,15 +369,22 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         const val = e.currentTarget.value;
+        let finalUrl = val.trim();
+
+        // If it doesn't start with http:// or https://, treat as search query for DuckDuckGo
+        if (!/^https?:\/\//i.test(finalUrl)) {
+          finalUrl = `https://duckduckgo.com/?q=${encodeURIComponent(finalUrl)}`;
+        }
+
         if (isElectron && activeBrowserPageIndex === 0) {
-          setIframeUrlLocal(val);
-          loadInElectron(val);
+          setIframeUrlLocal(finalUrl);
+          loadInElectron(finalUrl);
         } else {
           setIframeUrlLocal("");
-          setTimeout(() => setIframeUrlLocal(val), 0);
+          setTimeout(() => setIframeUrlLocal(finalUrl), 0);
         }
         // Persist URL to config
-        updateConfigUrl(val);
+        updateConfigUrl(finalUrl);
       }
     },
     [isElectron, activeBrowserPageIndex, setIframeUrlLocal, loadInElectron, updateConfigUrl],
