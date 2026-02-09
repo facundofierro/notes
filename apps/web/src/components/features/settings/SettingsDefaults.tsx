@@ -25,7 +25,10 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
     { value: "epics", label: "Epics" },
     { value: "kanban", label: "Tasks" },
     { value: "tests", label: "Tests" },
-    { value: "ai", label: "AI" },
+    { value: "review", label: "Review" },
+    { value: "ai", label: "Tools" },
+    { value: "browser", label: "Browser" },
+    { value: "logs", label: "Terminal" },
   ];
 
   return (

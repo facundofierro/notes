@@ -4,6 +4,7 @@ import path from "path";
 import { z } from "zod";
 
 const TEST_DIR = path.join(process.cwd(), ".agelum/tests");
+const INDEX_FILE = path.join(TEST_DIR, "index.json");
 
 // Ensure directory exists
 if (!fs.existsSync(TEST_DIR)) {
@@ -12,28 +13,12 @@ if (!fs.existsSync(TEST_DIR)) {
 
 export async function GET() {
   try {
-    const files = fs.readdirSync(TEST_DIR).filter((f) => f.endsWith(".json"));
-    const tests = files.map((file) => {
-      const filePath = path.join(TEST_DIR, file);
-      try {
-        const content = fs.readFileSync(filePath, "utf-8");
-        const json = JSON.parse(content);
-        return {
-          id: file.replace(".json", ""),
-          name: json.name || file,
-          stepsCount: json.steps?.length || 0,
-          updatedAt: fs.statSync(filePath).mtime.toISOString(),
-        };
-      } catch (e) {
-        return {
-          id: file.replace(".json", ""),
-          name: file,
-          error: "Invalid JSON",
-        };
-      }
-    });
-
-    return NextResponse.json(tests);
+    if (fs.existsSync(INDEX_FILE)) {
+      const content = fs.readFileSync(INDEX_FILE, "utf-8");
+      const tests = JSON.parse(content);
+      return NextResponse.json(tests);
+    }
+    return NextResponse.json([]);
   } catch (error) {
     return NextResponse.json({ error: "Failed to list tests" }, { status: 500 });
   }
@@ -43,23 +28,60 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const name = body.name || "Untitled Test";
-    const id = body.name
-      ? body.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-      : `test-${Date.now()}`;
+    const group = body.group || "experimental";
+    const folderName = body.folder || name.replace(/[^a-zA-Z0-9]/g, ""); 
+    const id = body.id || `test-${Date.now()}`;
     
-    // Basic scenario structure
+    let index: any[] = [];
+    if (fs.existsSync(INDEX_FILE)) {
+      index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
+    }
+
+    const groupDir = path.join(TEST_DIR, group);
+    if (!fs.existsSync(groupDir)) fs.mkdirSync(groupDir, { recursive: true });
+
+    const testDir = path.join(groupDir, folderName);
+    if (!fs.existsSync(testDir)) fs.mkdirSync(testDir, { recursive: true });
+
+    const filePath = path.join(testDir, "test.json");
+
     const scenario = {
+      id,
       name,
+      group,
+      folder: folderName,
+      description: body.description || "",
       steps: body.steps || [],
+      updatedAt: new Date().toISOString(),
     };
 
-    const filePath = path.join(TEST_DIR, `${id}.json`);
-    
-    // Write file
+    const existingIdx = index.findIndex((t: any) => t.id === id);
+    if (existingIdx >= 0) {
+      index[existingIdx] = {
+        id,
+        name,
+        group,
+        folder: folderName,
+        description: body.description || "",
+        updatedAt: scenario.updatedAt
+      };
+    } else {
+      index.push({
+        id,
+        name,
+        group,
+        folder: folderName,
+        description: body.description || "",
+        updatedAt: scenario.updatedAt
+      });
+    }
+    fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
     fs.writeFileSync(filePath, JSON.stringify(scenario, null, 2));
 
-    return NextResponse.json({ id, name, filePath });
+    return NextResponse.json(scenario);
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Failed to create test" }, { status: 500 });
   }
 }
+

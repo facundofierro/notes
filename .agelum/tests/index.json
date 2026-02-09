@@ -1,0 +1,23 @@
+[
+  {
+    "id": "login-success",
+    "name": "Login Success",
+    "group": "login",
+    "folder": "LoginSuccess",
+    "description": "Verify successful login with valid credentials"
+  },
+  {
+    "id": "login-fail",
+    "name": "Login Fail",
+    "group": "login",
+    "folder": "LoginFail",
+    "description": "Verify login failure with invalid credentials"
+  },
+  {
+    "id": "home-check",
+    "name": "Home Check",
+    "group": "navigation",
+    "folder": "HomeCheck",
+    "description": "Verify home page elements"
+  }
+]

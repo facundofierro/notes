@@ -44,6 +44,8 @@ interface ProjectSelectorProps {
   selectedRepo: string | null;
   onSelect: (repoName: string) => void;
   className?: string;
+  currentViewMode?: string;
+  onBrowserScreenshot?: (screenshot: string | null) => void;
 }
 
 export function ProjectSelector({
@@ -51,6 +53,8 @@ export function ProjectSelector({
   selectedRepo,
   onSelect,
   className,
+  currentViewMode,
+  onBrowserScreenshot,
 }: ProjectSelectorProps) {
   const [
     projectStatuses,
@@ -68,6 +72,7 @@ export function ProjectSelector({
     React.useState("");
   const [open, setOpen] =
     React.useState(false);
+  const [viewModeWhenOpened, setViewModeWhenOpened] = React.useState<string | null>(null);
 
   // Fetch status for all visible repositories when open
   const fetchAllStatus =
@@ -183,12 +188,35 @@ export function ProjectSelector({
   React.useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI?.browserView) {
       if (open) {
-        window.electronAPI.browserView.hide();
+        // Remember which view mode we were in
+        setViewModeWhenOpened(currentViewMode || null);
+        
+        // Capture screenshot before hiding (only if we're on browser tab)
+        if (currentViewMode === 'browser' && onBrowserScreenshot) {
+          window.electronAPI.browserView.capture().then((screenshot) => {
+            if (screenshot) {
+              onBrowserScreenshot(screenshot);
+            }
+            window.electronAPI.browserView.hide();
+          }).catch(() => {
+            window.electronAPI.browserView.hide();
+          });
+        } else {
+          window.electronAPI.browserView.hide();
+        }
       } else {
-        window.electronAPI.browserView.show();
+        // Only show browser if we were on the browser tab when we opened the selector
+        if (viewModeWhenOpened === 'browser') {
+          window.electronAPI.browserView.show();
+        }
+        // Clear the screenshot after closing
+        if (onBrowserScreenshot) {
+          onBrowserScreenshot(null);
+        }
+        setViewModeWhenOpened(null);
       }
     }
-  }, [open]);
+  }, [open, currentViewMode, onBrowserScreenshot, viewModeWhenOpened]);
 
   return (
     <>

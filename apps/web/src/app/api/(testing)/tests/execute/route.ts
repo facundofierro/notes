@@ -12,10 +12,27 @@ export async function POST(request: Request) {
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: "No test ID" }, { status: 400 });
 
-    const testPath = path.join(process.cwd(), ".agelum/tests", `${id}.json`);
-    if (!fs.existsSync(testPath)) {
-      return NextResponse.json({ error: "Test not found" }, { status: 404 });
+    const INDEX_FILE = path.join(process.cwd(), ".agelum/tests/index.json");
+    
+    let testPath = "";
+    if (fs.existsSync(INDEX_FILE)) {
+      const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
+      const testEntry = index.find((t: any) => t.id === id);
+      if (testEntry && testEntry.group && testEntry.folder) {
+        testPath = path.join(process.cwd(), ".agelum/tests", testEntry.group, testEntry.folder, "test.json");
+      }
     }
+
+    // Fallback for legacy flat file structure if not found in index
+    if (!testPath || !fs.existsSync(testPath)) {
+       const legacyPath = path.join(process.cwd(), ".agelum/tests", `${id}.json`);
+       if (fs.existsSync(legacyPath)) {
+         testPath = legacyPath;
+       } else {
+         return NextResponse.json({ error: "Test not found" }, { status: 404 });
+       }
+    }
+
 
     const runnerPath = path.join(
       process.cwd(),

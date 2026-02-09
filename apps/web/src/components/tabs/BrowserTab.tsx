@@ -355,7 +355,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
   return (
     <div className="flex flex-1 overflow-hidden" id="browser-view-main">
       {/* Left Narrow Sidebar */}
-      <div className="w-12 border-r border-border bg-secondary/20 flex flex-col items-center py-4 gap-4">
+      <div className="w-12 border-r border-border bg-secondary flex flex-col items-center py-4 gap-4">
         {browserPages.map((url, idx) => (
           <div key={idx} className="relative group">
             <button 

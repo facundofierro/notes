@@ -574,6 +574,7 @@ export function SettingsWorkflows({
         "review",
         "separator",
         "ai",
+        "logs",
         "browser",
       ],
     },

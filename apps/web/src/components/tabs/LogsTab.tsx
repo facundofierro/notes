@@ -21,10 +21,6 @@ const TerminalViewer = dynamic(
 export function LogsTab() {
   const store = useHomeStore();
   const {
-    appLogs,
-    isAppStarting,
-    appPid,
-    isAppRunning,
     terminals,
     activeTerminalId,
   } = store.getProjectState();
@@ -46,59 +42,102 @@ export function LogsTab() {
 
   const handleInput = React.useCallback(
     (data: string) => {
-      if (activeTerminalId === "logs") {
-        if (appPid && isAppRunning) {
-          fetch("/api/app-logs", {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              pid: appPid,
-              input: data,
-            }),
-          }).catch((error) => {
-            console.error(
-              "Failed to send input to app logs:",
-              error,
-            );
-          });
-        }
-      } else {
-        const terminal = terminals.find(
-          (t) =>
-            t.id === activeTerminalId,
-        );
-        if (terminal?.processId) {
-          fetch("/api/terminal", {
-            method: "PUT",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              id: terminal.processId,
-              input: data,
-            }),
-          }).catch((error) => {
-            console.error(
-              "Failed to send input to terminal:",
-              error,
-            );
-          });
-        }
+      const terminal = terminals.find(
+        (t) => t.id === activeTerminalId,
+      );
+      if (terminal?.processId) {
+        fetch("/api/terminal", {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            id: terminal.processId,
+            input: data,
+          }),
+        }).catch((error) => {
+          console.error(
+            "Failed to send input to terminal:",
+            error,
+          );
+        });
       }
     },
     [
       activeTerminalId,
-      appPid,
-      isAppRunning,
       terminals,
     ],
   );
 
   const [termSize, setTermSize] = React.useState({ cols: 100, rows: 40 });
+
+  // Initialize main terminal on mount
+  React.useEffect(() => {
+    // Only create main terminal if it doesn't exist
+    if (!terminals.find((t) => t.id === "main")) {
+      createMainTerminal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const createMainTerminal = async () => {
+    const id = "main";
+    const newTerminal: TerminalState = {
+      id,
+      title: "Main Logs",
+      output: "Starting terminal...\n",
+    };
+    addTerminal(newTerminal);
+    setActiveTerminalId(id);
+
+    try {
+      const response = await fetch("/api/terminal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cwd: currentRepoPath,
+          cols: termSize.cols,
+          rows: termSize.rows,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        updateTerminalOutput(
+          id,
+          (prev) => prev + "\nFailed to start terminal session.",
+        );
+        return;
+      }
+
+      const processId = response.headers.get("X-Agent-Process-ID");
+      if (processId) {
+        store.setProjectState((prev) => ({
+          terminals:
+            prev.terminals?.map((t) =>
+              t.id === id ? { ...t, processId } : t,
+            ) || [],
+        }));
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value);
+        updateTerminalOutput(id, (prev) => prev + text);
+      }
+    } catch (error: any) {
+      updateTerminalOutput(
+        id,
+        (prev) => prev + `\nError: ${error.message}`,
+      );
+    }
+  };
 
   const createNewTerminal =
     async () => {
@@ -194,14 +233,6 @@ export function LogsTab() {
 
   const activeOutput =
     React.useMemo(() => {
-      if (activeTerminalId === "logs") {
-        return (
-          appLogs ||
-          (isAppStarting
-            ? "Starting application...\n"
-            : "")
-        );
-      }
       return (
         terminals.find(
           (t) =>
@@ -210,8 +241,6 @@ export function LogsTab() {
       );
     }, [
       activeTerminalId,
-      appLogs,
-      isAppStarting,
       terminals,
     ]);
 
@@ -228,21 +257,26 @@ export function LogsTab() {
 
       {/* Bottom Bar */}
       <div className="flex overflow-x-auto gap-1 items-center px-2 h-9 border-t bg-muted/50 no-scrollbar">
-        <button
-          onClick={() =>
-            setActiveTerminalId("logs")
-          }
-          className={`px-3 py-1 text-xs font-medium rounded-t-md transition-colors flex items-center gap-2 h-full border-b-2 ${
-            activeTerminalId === "logs"
-              ? "bg-background border-primary text-foreground"
-              : "text-muted-foreground border-transparent hover:bg-muted hover:text-foreground"
-          }`}
-        >
-          <TerminalIcon size={12} />
-          Main Logs
-        </button>
+        {/* Main Logs Terminal */}
+        {terminals.find((t) => t.id === "main") && (
+          <div
+            className={`group flex items-center h-full border-b-2 transition-colors ${
+              activeTerminalId === "main"
+                ? "bg-background border-primary text-foreground"
+                : "text-muted-foreground border-transparent hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <button
+              onClick={() => setActiveTerminalId("main")}
+              className="flex gap-2 items-center px-3 py-1 h-full text-xs font-medium"
+            >
+              <TerminalIcon size={12} />
+              Main Logs
+            </button>
+          </div>
+        )}
 
-        {terminals?.map((terminal) => (
+        {terminals?.filter((t) => t.id !== "main").map((terminal) => (
           <div
             key={terminal.id}
             className={`group flex items-center h-full border-b-2 transition-colors ${

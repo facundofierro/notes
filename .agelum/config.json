@@ -1,4 +1,10 @@
 {
+  "commands": {
+    "dev": "pnpm dev",
+    "build": "pnpm build",
+    "run": "pnpm test",
+    "start": "pnpm start"
+  },
   "url": "http://localhost:6500/",
   "autoRun": false
 }

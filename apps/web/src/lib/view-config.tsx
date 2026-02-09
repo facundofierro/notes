@@ -42,7 +42,7 @@ export const VIEW_MODE_CONFIG: Record<
     icon: Eye,
   },
   ai: {
-    label: "AI",
+    label: "Tools",
     icon: Wrench,
   },
   browser: {
@@ -50,8 +50,8 @@ export const VIEW_MODE_CONFIG: Record<
     icon: Globe,
   },
   logs: {
-    label: "Logs",
-    icon: ScrollText,
+    label: "Terminal",
+    icon: Terminal,
   },
   separator: {
     label: "Separator",
