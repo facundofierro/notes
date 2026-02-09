@@ -80,6 +80,7 @@ export interface ProjectState {
   activeTerminalId: string;
   terminalSessions: TerminalSessionInfo[];
   tabs: Record<string, TabState>;
+  tempBrowserScreenshot: string | null;
 }
 
 const createDefaultProjectState =
@@ -114,6 +115,7 @@ const createDefaultProjectState =
     terminals: [],
     activeTerminalId: "logs",
     terminalSessions: [],
+    tempBrowserScreenshot: null,
     tabs: {
       tasks: {
         selectedFile: null,
@@ -143,6 +145,7 @@ export interface HomeState {
     path: string;
     folderConfigId?: string;
   }[];
+  isRepositoriesLoading: boolean;
   selectedRepo: string | null;
   basePath: string;
   isSettingsOpen: boolean;
@@ -306,6 +309,7 @@ export const useHomeStore =
         isSettingsLoading: true,
         settingsError: null,
         repositories: [],
+        isRepositoriesLoading: true,
         selectedRepo: null,
         basePath: "",
         isSettingsOpen: false,
@@ -737,6 +741,7 @@ export const useHomeStore =
 
         fetchRepositories: async () => {
           try {
+            set({ isRepositoriesLoading: true });
             const res = await fetch(
               "/api/repositories",
             );
@@ -754,6 +759,7 @@ export const useHomeStore =
                 {
                   repositories:
                     nextRepos,
+                  isRepositoriesLoading: false,
                 };
               if (data.basePath)
                 updates.basePath =
@@ -801,291 +807,175 @@ export const useHomeStore =
               "Failed to fetch repositories:",
               error,
             );
+            set({ isRepositoriesLoading: false });
           }
         },
 
         handleStartApp: async () => {
           const {
             selectedRepo,
-            repositories,
             settings,
             projectStates,
           } = get();
           if (!selectedRepo) return;
-          const pState =
-            projectStates[selectedRepo];
+          const pState = projectStates[selectedRepo];
 
-          const project =
-            settings.projects?.find(
-              (p) =>
-                p.name === selectedRepo,
-            );
+          const project = settings.projects?.find(
+            (p) => p.name === selectedRepo,
+          );
           const devCommand =
             project?.commands?.dev ||
-            pState.projectConfig
-              ?.commands?.dev ||
+            pState.projectConfig?.commands?.dev ||
             "pnpm dev";
-          const repoPath =
-            repositories.find(
-              (r) =>
-                r.name === selectedRepo,
-            )?.path ||
-            project?.path ||
-            "unknown";
 
-          const banner = [
-            `\x1b[36m━━━ Starting: ${selectedRepo} ━━━\x1b[0m`,
-            `\x1b[90m  Directory: ${repoPath}\x1b[0m`,
-            `\x1b[90m  Command:   ${devCommand}\x1b[0m`,
-            `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
-            "",
-          ].join("\n");
-
+          // Switch to logs view
           get().setProjectState(() => ({
-            appLogs: banner,
-            isAppStarting: true,
             viewMode: "logs",
-            logStreamPid: null,
           }));
 
-          if (
-            pState.appLogsAbortController
-          ) {
-            pState.appLogsAbortController.abort();
+          // Find the main terminal
+          const mainTerminal = pState.terminals?.find((t) => t.id === "main");
+          if (!mainTerminal?.processId) {
+            console.error("Main terminal not found or has no process ID");
+            return;
           }
 
+          // Send the command to the terminal
           try {
-            const res = await fetch(
-              "/api/app-status",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                },
-                body: JSON.stringify({
-                  repo: selectedRepo,
-                  action: "start",
-                }),
+            await fetch("/api/terminal", {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
               },
-            );
-            const data =
-              await res.json();
-            if (!data.success) {
-              get().setProjectState(
-                (prev) => ({
-                  appLogs:
-                    prev.appLogs +
-                    `\x1b[31mError: ${data.error || "Failed to start app"}\x1b[0m\n`,
-                  isAppStarting: false,
-                }),
-              );
-              return;
-            }
-
-            if (data.pid) {
-              get().setProjectState(
-                () => ({
-                  appPid: data.pid,
-                  isAppRunning: true,
-                  isAppManaged: true,
-                  logStreamPid:
-                    data.pid,
-                }),
-              );
-            } else {
-              get().setProjectState(
-                (prev) => ({
-                  appLogs:
-                    prev.appLogs +
-                    "\x1b[31mError: Missing process id from start response\x1b[0m\n",
-                  isAppStarting: false,
-                }),
-              );
-            }
-          } catch (error) {
-            get().setProjectState(
-              (prev) => ({
-                appLogs:
-                  prev.appLogs +
-                  `\x1b[31mError: ${error}\x1b[0m\n`,
-                isAppStarting: false,
+              body: JSON.stringify({
+                id: mainTerminal.processId,
+                input: devCommand + "\n",
               }),
-            );
+            });
+          } catch (error) {
+            console.error("Failed to send command to terminal:", error);
           }
         },
 
         handleStopApp: async () => {
-          const {
-            selectedRepo,
-            projectStates,
-          } = get();
+          const { selectedRepo, projectStates } = get();
           if (!selectedRepo) return;
-          const pState =
-            projectStates[selectedRepo];
+          const pState = projectStates[selectedRepo];
 
-          if (
-            pState.appLogsAbortController
-          ) {
-            pState.appLogsAbortController.abort();
+          // Find the main terminal
+          const mainTerminal = pState.terminals?.find((t) => t.id === "main");
+          if (!mainTerminal?.processId) {
+            console.error("Main terminal not found or has no process ID");
+            return;
           }
-          get().setProjectState(() => ({
-            logStreamPid: null,
-            appLogsAbortController:
-              null,
-          }));
 
+          // Send Ctrl+C twice to stop the process
           try {
-            const res = await fetch(
-              "/api/app-status",
-              {
-                method: "POST",
+            await fetch("/api/terminal", {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                id: mainTerminal.processId,
+                input: "\u0003",
+              }),
+            });
+
+            // Send second Ctrl+C after a short delay
+            setTimeout(async () => {
+              await fetch("/api/terminal", {
+                method: "PUT",
                 headers: {
-                  "Content-Type":
-                    "application/json",
+                  "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  repo: selectedRepo,
-                  action: "stop",
+                  id: mainTerminal.processId,
+                  input: "\u0003",
                 }),
-              },
-            );
-            const data =
-              await res.json();
-            if (!data.success) {
-              get().setProjectState(
-                (prev) => ({
-                  appLogs:
-                    prev.appLogs +
-                    `\x1b[31mError stopping: ${data.error}\x1b[0m\n`,
-                }),
-              );
-            } else {
-              get().setProjectState(
-                (prev) => ({
-                  appLogs:
-                    prev.appLogs +
-                    "\x1b[33m[Stopped]\x1b[0m\n",
-                  isAppRunning: false,
-                  isAppManaged: false,
-                  appPid: null,
-                }),
-              );
-            }
+              });
+            }, 100);
           } catch (error) {
-            get().setProjectState(
-              (prev) => ({
-                appLogs:
-                  prev.appLogs +
-                  `\x1b[31mError stopping: ${error}\x1b[0m\n`,
-              }),
-            );
+            console.error("Failed to send Ctrl+C to terminal:", error);
           }
         },
 
         handleRestartApp: async () => {
           const {
             selectedRepo,
-            repositories,
             settings,
             projectStates,
           } = get();
           if (!selectedRepo) return;
-          const pState =
-            projectStates[selectedRepo];
+          const pState = projectStates[selectedRepo];
 
-          const project =
-            settings.projects?.find(
-              (p) =>
-                p.name === selectedRepo,
-            );
+          const project = settings.projects?.find(
+            (p) => p.name === selectedRepo,
+          );
           const devCommand =
             project?.commands?.dev ||
-            pState.projectConfig
-              ?.commands?.dev ||
+            pState.projectConfig?.commands?.dev ||
             "pnpm dev";
-          const repoPath =
-            repositories.find(
-              (r) =>
-                r.name === selectedRepo,
-            )?.path ||
-            project?.path ||
-            "unknown";
 
-          if (
-            pState.appLogsAbortController
-          ) {
-            pState.appLogsAbortController.abort();
-          }
-
-          const banner = [
-            `\x1b[36m━━━ Restarting: ${selectedRepo} ━━━\x1b[0m`,
-            `\x1b[90m  Directory: ${repoPath}\x1b[0m`,
-            `\x1b[90m  Command:   ${devCommand}\x1b[0m`,
-            `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
-            "",
-          ].join("\n");
-
+          // Switch to logs view
           get().setProjectState(() => ({
-            appLogs: banner,
-            isAppStarting: true,
             viewMode: "logs",
-            logStreamPid: null,
           }));
 
+          // Find the main terminal
+          const mainTerminal = pState.terminals?.find((t) => t.id === "main");
+          if (!mainTerminal?.processId) {
+            console.error("Main terminal not found or has no process ID");
+            return;
+          }
+
           try {
-            const res = await fetch(
-              "/api/app-status",
-              {
-                method: "POST",
+            // Send Ctrl+C twice to stop current process
+            await fetch("/api/terminal", {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                id: mainTerminal.processId,
+                input: "\u0003",
+              }),
+            });
+
+            setTimeout(async () => {
+              await fetch("/api/terminal", {
+                method: "PUT",
                 headers: {
-                  "Content-Type":
-                    "application/json",
+                  "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  repo: selectedRepo,
-                  action: "restart",
+                  id: mainTerminal.processId,
+                  input: "\u0003",
                 }),
-              },
-            );
-            const data =
-              await res.json();
-            if (!data.success) {
-              get().setProjectState(
-                (prev) => ({
-                  appLogs:
-                    prev.appLogs +
-                    `\x1b[31mError: ${data.error || "Failed to restart app"}\x1b[0m\n`,
-                  isAppStarting: false,
-                }),
-              );
-            } else if (data.pid) {
-              get().setProjectState(
-                () => ({
-                  appPid: data.pid,
-                  isAppRunning: true,
-                  isAppManaged: true,
-                  logStreamPid:
-                    data.pid,
-                }),
-              );
-            }
+              });
+
+              // Wait a bit then start again
+              setTimeout(async () => {
+                await fetch("/api/terminal", {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    id: mainTerminal.processId,
+                    input: devCommand + "\n",
+                  }),
+                });
+              }, 200);
+            }, 100);
           } catch (error) {
-            get().setProjectState(
-              (prev) => ({
-                appLogs:
-                  prev.appLogs +
-                  `\x1b[31mError: ${error}\x1b[0m\n`,
-                isAppStarting: false,
-              }),
-            );
+            console.error("Failed to restart in terminal:", error);
           }
         },
 
         handleBuildApp: async () => {
           const {
             selectedRepo,
-            repositories,
             settings,
             projectStates,
           } = get();
@@ -1094,60 +984,33 @@ export const useHomeStore =
 
           const project = settings.projects?.find((p) => p.name === selectedRepo);
           const buildCmd = project?.commands?.build || "pnpm build";
-          const repoPath = repositories.find((r) => r.name === selectedRepo)?.path || project?.path || "unknown";
 
-          // If app is running, stop it first
-          if (pState.isAppRunning) {
-            await get().handleStopApp();
-          }
-
-          if (pState.appLogsAbortController) {
-            pState.appLogsAbortController.abort();
-          }
-
-          const banner = [
-            `\x1b[36m━━━ Building: ${selectedRepo} ━━━\x1b[0m`,
-            `\x1b[90m  Directory: ${repoPath}\x1b[0m`,
-            `\x1b[90m  Command:   ${buildCmd}\x1b[0m`,
-            `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
-            "",
-          ].join("\n");
-
+          // Switch to logs view
           get().setProjectState(() => ({
-            appLogs: banner,
-            isAppStarting: true,
             viewMode: "logs",
-            logStreamPid: null,
-            isAppRunning: false, // Ensure it's false since we are building
           }));
 
-          try {
-            const res = await fetch("/api/system/command", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ repo: selectedRepo, command: buildCmd }),
-            });
-            const data = await res.json();
-            if (!data.success) {
-              get().setProjectState((prev) => ({
-                appLogs: prev.appLogs + `\x1b[31mError: ${data.error || "Failed to start build"}\x1b[0m\n`,
-                isAppStarting: false,
-              }));
-              return;
-            }
+          // Find the main terminal
+          const mainTerminal = pState.terminals?.find((t) => t.id === "main");
+          if (!mainTerminal?.processId) {
+            console.error("Main terminal not found or has no process ID");
+            return;
+          }
 
-            if (data.pid) {
-              get().setProjectState(() => ({
-                appPid: data.pid,
-                isAppManaged: true,
-                logStreamPid: data.pid,
-              }));
-            }
+          // Send the build command to the terminal
+          try {
+            await fetch("/api/terminal", {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                id: mainTerminal.processId,
+                input: buildCmd + "\n",
+              }),
+            });
           } catch (error) {
-            get().setProjectState((prev) => ({
-              appLogs: prev.appLogs + `\x1b[31mError: ${error}\x1b[0m\n`,
-              isAppStarting: false,
-            }));
+            console.error("Failed to send build command to terminal:", error);
           }
         },
 
@@ -1573,6 +1436,12 @@ export const useHomeStore =
           repositories: state.repositories,
           selectedRepo: state.selectedRepo,
         }),
+        onRehydrateStorage: () => (state) => {
+          // After rehydration, ensure projectStates has an entry for selectedRepo
+          if (state && state.selectedRepo && !state.projectStates[state.selectedRepo]) {
+            state.projectStates[state.selectedRepo] = createDefaultProjectState();
+          }
+        },
       },
     ),
   );

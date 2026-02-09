@@ -196,7 +196,9 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
   }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectStateForRepo]);
 
   const tabClass = (mode: string) =>
-    `absolute inset-0 flex ${viewMode === mode ? "z-10 visible" : "z-0 invisible pointer-events-none"}`;
+    viewMode === mode 
+      ? "absolute inset-0 flex z-10" 
+      : "absolute inset-0 flex z-0 opacity-0 pointer-events-none";
 
   return (
     <div className="flex overflow-hidden flex-1 relative">

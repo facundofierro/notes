@@ -48,13 +48,15 @@ export function TasksTab() {
           onRename={onRename}
           tabId="tasks"
         />
-      ) : selectedRepo ? (
-        <TaskKanban
-          repo={selectedRepo}
-          onTaskSelect={handleTaskSelect}
-          onCreateTask={({ state: s }) => openWorkDraft({ kind: "task", state: s })}
-        />
-      ) : null}
+      ) : (
+        selectedRepo && (
+          <TaskKanban
+            repo={selectedRepo}
+            onTaskSelect={handleTaskSelect}
+            onCreateTask={({ state: s }) => openWorkDraft({ kind: "task", state: s })}
+          />
+        )
+      )}
     </div>
   );
 }

@@ -24,6 +24,7 @@ export function Header() {
     selectedRepo,
     setSelectedRepo,
     repositories,
+    isRepositoriesLoading,
     handleStartApp,
     handleStopApp,
     handleRestartApp,
@@ -41,6 +42,14 @@ export function Header() {
   const effectiveViewMode = hasMounted ? viewMode : "kanban";
 
   const [isAppActionsMenuOpen, setIsAppActionsMenuOpen] = React.useState(false);
+
+  const handleBrowserScreenshot = React.useCallback((screenshot: string | null) => {
+    if (selectedRepo) {
+      store.setProjectStateForRepo(selectedRepo, () => ({ 
+        tempBrowserScreenshot: screenshot 
+      }));
+    }
+  }, [selectedRepo, store]);
 
   const visibleItems = React.useMemo(() => {
     const defaultItems: ViewMode[] = [
@@ -68,12 +77,34 @@ export function Header() {
 
   const handleInstallDeps = React.useCallback(async () => {
     if (!selectedRepo) return;
-    await fetch("/api/system/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repo: selectedRepo, command: "pnpm install" }),
-    });
-  }, [selectedRepo]);
+    
+    // Switch to logs view
+    store.setProjectState(() => ({
+      viewMode: "logs",
+    }));
+
+    const projectState = store.getProjectState();
+    const mainTerminal = projectState.terminals?.find((t) => t.id === "main");
+    if (!mainTerminal?.processId) {
+      console.error("Main terminal not found or has no process ID");
+      return;
+    }
+
+    try {
+      await fetch("/api/terminal", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: mainTerminal.processId,
+          input: "pnpm install\n",
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to send install command to terminal:", error);
+    }
+  }, [selectedRepo, store]);
 
   return (
     <div className="flex justify-between items-center px-4 py-2 border-b bg-secondary border-border">
@@ -106,7 +137,10 @@ export function Header() {
           <ProjectSelector 
             repositories={repositories} 
             selectedRepo={selectedRepo} 
-            onSelect={setSelectedRepo} 
+            onSelect={setSelectedRepo}
+            currentViewMode={effectiveViewMode}
+            onBrowserScreenshot={handleBrowserScreenshot}
+            isLoading={isRepositoriesLoading}
           />
           <div className="mx-1.5 w-px h-4 bg-border" />
           <div className="flex items-center gap-0.5">

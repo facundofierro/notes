@@ -30,6 +30,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     activeBrowserPageIndex,
     browserPagesCurrentUrls = [],
     viewMode,
+    tempBrowserScreenshot,
   } = projectState;
 
   const currentProjectConfig = React.useMemo(() => {
@@ -466,6 +467,15 @@ export function BrowserTab({ repoName }: { repoName: string }) {
               })
             )}
         </div>
+        {tempBrowserScreenshot && (
+          <div className="absolute inset-0 z-10 bg-zinc-900">
+            <img 
+              src={tempBrowserScreenshot} 
+              alt="Browser preview" 
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
         {screenshot && (
           <ScreenshotViewer
             screenshot={screenshot}

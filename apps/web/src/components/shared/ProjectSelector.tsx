@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Settings2,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import {
   Popover,
@@ -46,6 +47,7 @@ interface ProjectSelectorProps {
   className?: string;
   currentViewMode?: string;
   onBrowserScreenshot?: (screenshot: string | null) => void;
+  isLoading?: boolean;
 }
 
 export function ProjectSelector({
@@ -55,6 +57,7 @@ export function ProjectSelector({
   className,
   currentViewMode,
   onBrowserScreenshot,
+  isLoading = false,
 }: ProjectSelectorProps) {
   const [
     projectStatuses,
@@ -187,27 +190,28 @@ export function ProjectSelector({
   // Hide Electron browser view when popover is open
   React.useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI?.browserView) {
+      const browserView = window.electronAPI.browserView;
       if (open) {
         // Remember which view mode we were in
         setViewModeWhenOpened(currentViewMode || null);
         
         // Capture screenshot before hiding (only if we're on browser tab)
         if (currentViewMode === 'browser' && onBrowserScreenshot) {
-          window.electronAPI.browserView.capture().then((screenshot) => {
+          browserView.capture().then((screenshot) => {
             if (screenshot) {
               onBrowserScreenshot(screenshot);
             }
-            window.electronAPI.browserView.hide();
+            browserView.hide();
           }).catch(() => {
-            window.electronAPI.browserView.hide();
+            browserView.hide();
           });
         } else {
-          window.electronAPI.browserView.hide();
+          browserView.hide();
         }
       } else {
         // Only show browser if we were on the browser tab when we opened the selector
         if (viewModeWhenOpened === 'browser') {
-          window.electronAPI.browserView.show();
+          browserView.show();
         }
         // Clear the screenshot after closing
         if (onBrowserScreenshot) {
@@ -246,21 +250,25 @@ export function ProjectSelector({
           >
             <div className="flex flex-col items-end pt-4">
               <span className="font-semibold text-zinc-100 group-hover:text-white transition-colors text-sm">
-                {selectedRepo ||
-                  "Select Project"}
+                {isLoading ? "Loading..." : (selectedRepo ||
+                  "Select Project")}
               </span>
-              {branchInfo.currentBranch && (
+              {!isLoading && branchInfo.currentBranch && (
                 <span className="text-[10px] text-zinc-500 font-normal">
                   {branchInfo.currentBranch}
                 </span>
               )}
             </div>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-zinc-500 group-hover:text-zinc-300 transition-all duration-300",
-                open && "rotate-180",
-              )}
-            />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />
+            ) : (
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-zinc-500 group-hover:text-zinc-300 transition-all duration-300",
+                  open && "rotate-180",
+                )}
+              />
+            )}
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -309,7 +317,21 @@ export function ProjectSelector({
           {/* Grid Area */}
           <ScrollArea className="h-[460px] px-6">
             <div className="grid grid-cols-2 gap-4 pb-6">
-              {filteredRepos.length ===
+              {isLoading ? (
+                <div className="col-span-2 py-20 text-center flex flex-col items-center gap-4">
+                  <div className="h-16 w-16 rounded-3xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center shadow-lg">
+                    <Loader2 className="h-6 w-6 text-zinc-400 animate-spin" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-bold text-zinc-400">
+                      Loading projects...
+                    </p>
+                    <p className="text-xs text-zinc-600">
+                      Please wait while we fetch your workspaces
+                    </p>
+                  </div>
+                </div>
+              ) : filteredRepos.length ===
               0 ? (
                 <div className="col-span-2 py-20 text-center flex flex-col items-center gap-4">
                   <div className="h-16 w-16 rounded-3xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center shadow-lg">
