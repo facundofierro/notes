@@ -65,6 +65,7 @@ export function ProjectSelector({
   ] = React.useState<
     Record<string, ProjectStatus>
   >({});
+  const [projectUsage, setProjectUsage] = React.useState<Record<string, { lastAccessed: number }>>({});
   const [
     branchInfo,
     setBranchInfo,
@@ -122,12 +123,38 @@ export function ProjectSelector({
         );
       }
     }, [repositories]);
+  
+  // Keyboard shortcut to toggle project selector
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
+  const fetchProjectUsage = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/usage");
+      if (res.ok) {
+        const data = await res.json();
+        setProjectUsage(data.projects || {});
+      }
+    } catch (error) {
+      console.error("Failed to fetch project usage:", error);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (open) {
       fetchAllStatus();
+      fetchProjectUsage();
     }
-  }, [open, fetchAllStatus]);
+  }, [open, fetchAllStatus, fetchProjectUsage]);
 
   React.useEffect(() => {
     if (!selectedRepo) return;
@@ -180,12 +207,38 @@ export function ProjectSelector({
     fetchBranch();
   }, [selectedRepo, repositories]);
 
-  const filteredRepos =
-    repositories.filter((repo) =>
-      repo.name
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-    );
+  const sortedRepos = React.useMemo(() => {
+    return [...repositories].sort((a, b) => {
+      // 1. Active (Running)
+      const aRunning = projectStatuses[a.name]?.isRunning ? 1 : 0;
+      const bRunning = projectStatuses[b.name]?.isRunning ? 1 : 0;
+      if (aRunning !== bRunning) return bRunning - aRunning;
+
+      // 2. Last Accessed
+      const aUsage = projectUsage[a.name]?.lastAccessed || 0;
+      const bUsage = projectUsage[b.name]?.lastAccessed || 0;
+      if (aUsage !== bUsage) return bUsage - aUsage;
+
+      // 3. Name
+      return a.name.localeCompare(b.name);
+    });
+  }, [repositories, projectStatuses, projectUsage]);
+
+  const filteredRepos = sortedRepos.filter((repo) =>
+    repo.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const updateUsage = async (repoName: string) => {
+    try {
+      await fetch("/api/usage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoName }),
+      });
+    } catch (error) {
+      console.error("Failed to update usage:", error);
+    }
+  };
 
   // Hide Electron browser view when popover is open
   React.useEffect(() => {
@@ -381,6 +434,7 @@ export function ProjectSelector({
                           onSelect(
                             repo.name,
                           );
+                          updateUsage(repo.name);
                           setOpen(
                             false,
                           );
