@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("browser-view:get-url"),
     destroy: () =>
       ipcRenderer.send("browser-view:destroy"),
+    reload: () =>
+      ipcRenderer.send("browser-view:reload"),
 
     // Event listeners from main → renderer
     onNavigated: (callback) => {
@@ -74,4 +76,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
         ipcRenderer.removeListener("browser-view:network-failed", handler);
     },
   },
+  openExternal: (url) =>
+    ipcRenderer.send("shell:open-external", url),
 });

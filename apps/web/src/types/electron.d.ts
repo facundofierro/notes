@@ -18,6 +18,7 @@ declare global {
     executeJs: (code: string) => Promise<unknown>;
     getUrl: () => Promise<string>;
     destroy: () => void;
+    reload: () => void;
 
     /** Listen for navigation events. Returns an unsubscribe function. */
     onNavigated: (callback: (url: string, isInsecure?: boolean) => void) => () => void;
@@ -40,6 +41,7 @@ declare global {
   interface ElectronAPI {
     invoke: (channel: string, payload?: unknown) => Promise<unknown>;
     browserView: ElectronBrowserViewAPI;
+    openExternal: (url: string) => void;
   }
 
   interface Window {

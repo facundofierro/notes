@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Globe, ShieldAlert, Plus, X } from "lucide-react";
+import { Globe, ShieldAlert, Plus, X, RotateCw } from "lucide-react";
 import { BrowserRightPanel } from "@/components/features/browser/BrowserRightPanel";
 import { IframeCaptureInjector } from "@/components/features/browser/capture/IframeCaptureInjector";
 import { ScreenshotViewer } from "@/components/features/browser/capture/ScreenshotViewer";
@@ -331,6 +331,27 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     [isElectron, setIframeUrlLocal, loadInElectron],
   );
 
+  const handleRefresh = React.useCallback(() => {
+    if (isElectron) {
+      window.electronAPI!.browserView.reload();
+    } else {
+      const currentUrl = iframeUrl;
+      setIframeUrlLocal("");
+      setTimeout(() => {
+        setIframeUrlLocal(currentUrl);
+      }, 100);
+    }
+  }, [isElectron, iframeUrl, setIframeUrlLocal]);
+
+  const handleOpenExternal = React.useCallback(() => {
+    if (!iframeUrl) return;
+    if (isElectron) {
+      window.electronAPI!.openExternal(iframeUrl);
+    } else {
+      window.open(iframeUrl, "_blank");
+    }
+  }, [isElectron, iframeUrl]);
+
   return (
     <div className="flex flex-1 overflow-hidden" id="browser-view-main">
       {/* Left Narrow Sidebar */}
@@ -378,14 +399,29 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       {/* Always render browser content to preserve iframe navigation state */}
         <div className={screenshot ? "hidden" : "contents"}>
           <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-b border-border">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefresh}
+                  className="p-1.5 rounded-md hover:bg-accent text-muted-foreground transition-colors"
+                  title="Refresh"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <div className="flex items-center gap-2 flex-1 bg-background border border-border rounded px-3 py-1 group">
-                {isIframeInsecure ? (
-                  <div title="Insecure connection (Certificate Error)">
-                    <ShieldAlert className="w-3 h-3 text-destructive" />
-                  </div>
-                ) : (
-                  <Globe className="w-3 h-3 text-muted-foreground" />
-                )}
+                <button 
+                  onClick={handleOpenExternal}
+                  className="hover:text-primary transition-colors focus:outline-none"
+                  title="Open in external browser"
+                >
+                  {isIframeInsecure ? (
+                    <div title="Insecure connection (Certificate Error)">
+                      <ShieldAlert className="w-3 h-3 text-destructive" />
+                    </div>
+                  ) : (
+                    <Globe className="w-3 h-3 text-muted-foreground group-hover:text-foreground" />
+                  )}
+                </button>
                 <input
                   type="text"
                   value={iframeUrl || ""}

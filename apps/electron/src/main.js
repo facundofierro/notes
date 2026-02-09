@@ -3,6 +3,7 @@ const {
   BrowserWindow,
   WebContentsView,
   ipcMain,
+  shell,
 } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
@@ -243,6 +244,20 @@ function setupIpcHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return;
     destroyBrowserView(win.id);
+  });
+
+  // Reload the WebContentsView
+  ipcMain.on("browser-view:reload", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const entry = browserViews.get(win.id);
+    if (!entry) return;
+    entry.view.webContents.reload();
+  });
+
+  // Open URL in external browser
+  ipcMain.on("shell:open-external", (event, url) => {
+    shell.openExternal(url);
   });
 }
 
