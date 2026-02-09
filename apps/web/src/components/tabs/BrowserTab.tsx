@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Globe, ShieldAlert, Plus, X, RotateCw } from "lucide-react";
 import { BrowserRightPanel } from "@/components/features/browser/BrowserRightPanel";
+import { BrowserPage } from "@/components/tabs/BrowserPage";
 import { IframeCaptureInjector } from "@/components/features/browser/capture/IframeCaptureInjector";
 import { ScreenshotViewer } from "@/components/features/browser/capture/ScreenshotViewer";
 import { useHomeStore } from "@/store/useHomeStore";
@@ -173,10 +174,10 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       };
     });
 
-    if (url) {
+    if (url && activeBrowserPageIndex === 0) {
       window.electronAPI!.browserView.loadUrl(url);
     }
-  }, [isElectron, repoName, setProjectStateForRepo]);
+  }, [isElectron, repoName, setProjectStateForRepo, activeBrowserPageIndex]); 
 
   const initialLoadDoneRef = React.useRef(false);
 
@@ -274,13 +275,17 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       window.removeEventListener("resize", syncBounds);
       api.hide();
     };
-  }, [isElectron, isBrowserVisible, currentProjectConfig?.url, iframeUrl, loadInElectron, setIframeUrlLocal]);
+  }, [isElectron, isBrowserVisible, activeBrowserPageIndex, currentProjectConfig?.url, iframeUrl, loadInElectron, setIframeUrlLocal]);
 
   // Listen for navigation events from WebContentsView
   React.useEffect(() => {
     if (!isElectron || !isSelected) return;
     const api = window.electronAPI!.browserView;
+    
     const unsubNav = api.onNavigated((url, isInsecure) => {
+      // Only update state if we are on the main tab
+      if (activeBrowserPageIndex !== 0) return;
+
       setProjectStateForRepo(repoName, (prev) => {
         if (prev.electronLoadedUrl === url && prev.iframeUrl === url && prev.isIframeInsecure === !!isInsecure) {
           return prev;
@@ -357,14 +362,14 @@ export function BrowserTab({ repoName }: { repoName: string }) {
       unsubFinished();
       unsubNetworkFail();
     };
-  }, [isElectron, isSelected, repoName, setProjectStateForRepo]);
+  }, [isElectron, isSelected, repoName, setProjectStateForRepo, activeBrowserPageIndex]);
 
   // Event 2: Enter in URL bar always reloads the page
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         const val = e.currentTarget.value;
-        if (isElectron) {
+        if (isElectron && activeBrowserPageIndex === 0) {
           setIframeUrlLocal(val);
           loadInElectron(val);
         } else {
@@ -375,11 +380,11 @@ export function BrowserTab({ repoName }: { repoName: string }) {
         updateConfigUrl(val);
       }
     },
-    [isElectron, setIframeUrlLocal, loadInElectron, updateConfigUrl],
+    [isElectron, activeBrowserPageIndex, setIframeUrlLocal, loadInElectron, updateConfigUrl],
   );
 
   const handleRefresh = React.useCallback(() => {
-    if (isElectron) {
+    if (isElectron && activeBrowserPageIndex === 0) {
       window.electronAPI!.browserView.reload();
     } else {
       const currentUrl = iframeUrl;
@@ -388,16 +393,16 @@ export function BrowserTab({ repoName }: { repoName: string }) {
         setIframeUrlLocal(currentUrl);
       }, 100);
     }
-  }, [isElectron, iframeUrl, setIframeUrlLocal]);
+  }, [isElectron, activeBrowserPageIndex, iframeUrl, setIframeUrlLocal]);
 
   const handleOpenExternal = React.useCallback(() => {
     if (!iframeUrl) return;
-    if (isElectron) {
+    if (isElectron && activeBrowserPageIndex === 0) {
       window.electronAPI!.openExternal(iframeUrl);
     } else {
       window.open(iframeUrl, "_blank");
     }
-  }, [isElectron, iframeUrl]);
+  }, [isElectron, activeBrowserPageIndex, iframeUrl]);
 
   return (
     <div className="flex flex-1 overflow-hidden" id="browser-view-main">
@@ -412,7 +417,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                   activeBrowserPageIndex: idx,
                   iframeUrl: targetUrl
                 }));
-                if (isElectron) loadInElectron(targetUrl);
+                if (isElectron && idx === 0) loadInElectron(targetUrl);
               }}
               className={`p-2 rounded-lg transition-colors ${activeBrowserPageIndex === idx ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
               title={idx === 0 ? "Project Page" : url}
@@ -479,39 +484,41 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                 />
               </div>
             </div>
-            {isElectron ? (
-              <div ref={browserViewPlaceholderRef} className="flex-1 w-full bg-zinc-900">
-                {!iframeUrl && (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    Enter a URL to preview the application
-                  </div>
-                )}
-              </div>
-            ) : (
-              browserPages.map((pageUrl, idx) => {
-                const currentUrl = browserPagesCurrentUrls[idx] || pageUrl;
-                const effectiveUrl = activeBrowserPageIndex === idx ? iframeUrl : currentUrl;
-                
+            {browserPages.map((pageUrl, idx) => {
+              const currentUrl = browserPagesCurrentUrls[idx] || pageUrl;
+              const effectiveUrl = currentUrl;
+              const isActive = activeBrowserPageIndex === idx;
+
+              // If it's the main tab (idx === 0) AND we are in Electron,
+              // render the placeholder div for the specific BrowserView.
+              if (idx === 0 && isElectron) {
                 return (
-                  <div key={idx} className={activeBrowserPageIndex === idx ? "flex-1 flex flex-col" : "hidden"}>
-                    {effectiveUrl ? (
-                      <iframe
-                        src={effectiveUrl}
-                        ref={activeBrowserPageIndex === idx ? browserIframeRef : undefined}
-                        className="flex-1 w-full border-none bg-zinc-900"
-                        title={`App Browser ${idx}`}
-                        allow="camera; microphone; display-capture"
-                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
-                      />
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                  <div 
+                    key={idx} 
+                    ref={isActive ? browserViewPlaceholderRef : undefined} 
+                    className={isActive ? "flex-1 w-full bg-zinc-900" : "hidden"}
+                  >
+                    {!iframeUrl && (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
                         Enter a URL to preview the application
                       </div>
                     )}
                   </div>
                 );
-              })
-            )}
+              }
+
+              // Otherwise (sub-tabs OR web mode), render standard iframe via BrowserPage
+              return (
+                <BrowserPage
+                  key={idx}
+                  url={effectiveUrl}
+                  isActive={isActive}
+                  onUrlChange={() => {}} 
+                  isElectron={false} // Force iframe for secondary tabs even in Electron
+                  iframeRef={isActive ? browserIframeRef : undefined}
+                />
+              );
+            })}
         </div>
         {tempBrowserScreenshot && (
           <div className="absolute inset-0 z-10 bg-zinc-900">
@@ -541,31 +548,33 @@ export function BrowserTab({ repoName }: { repoName: string }) {
         )}
       </div>
       {!isElectron && <IframeCaptureInjector iframeRef={browserIframeRef} />}
-      <BrowserRightPanel
-        repo={selectedRepo || ""}
-        onRequestCapture={requestEmbeddedCapture}
-        projectPath={
-          selectedRepo
-            ? repositories.find((r) => r.name === selectedRepo)?.path
-            : undefined
-        }
-        iframeRef={isElectron ? undefined : browserIframeRef}
-        electronBrowserView={
-          isElectron ? window.electronAPI!.browserView : undefined
-        }
-        isScreenshotMode={isScreenshotMode}
-        onScreenshotModeChange={setIsScreenshotModeLocal}
-        screenshot={screenshot}
-        onScreenshotChange={setScreenshotLocal}
-        annotations={annotations}
-        onAnnotationsChange={setAnnotationsLocal}
-        selectedAnnotationId={selectedAnnotationId}
-        onSelectAnnotation={setSelectedAnnotationIdLocal}
-        selectedTool={selectedTool}
-        onToolSelect={setSelectedToolLocal}
-        onTaskCreated={() => {}}
-        screenshotDisplaySize={screenshotDisplaySize}
-      />
+      {activeBrowserPageIndex === 0 && (
+        <BrowserRightPanel
+          repo={selectedRepo || ""}
+          onRequestCapture={requestEmbeddedCapture}
+          projectPath={
+            selectedRepo
+              ? repositories.find((r) => r.name === selectedRepo)?.path
+              : undefined
+          }
+          iframeRef={isElectron ? undefined : browserIframeRef}
+          electronBrowserView={
+            isElectron ? window.electronAPI!.browserView : undefined
+          }
+          isScreenshotMode={isScreenshotMode}
+          onScreenshotModeChange={setIsScreenshotModeLocal}
+          screenshot={screenshot}
+          onScreenshotChange={setScreenshotLocal}
+          annotations={annotations}
+          onAnnotationsChange={setAnnotationsLocal}
+          selectedAnnotationId={selectedAnnotationId}
+          onSelectAnnotation={setSelectedAnnotationIdLocal}
+          selectedTool={selectedTool}
+          onToolSelect={setSelectedToolLocal}
+          onTaskCreated={() => {}}
+          screenshotDisplaySize={screenshotDisplaySize}
+        />
+      )}
     </div>
   );
 }
