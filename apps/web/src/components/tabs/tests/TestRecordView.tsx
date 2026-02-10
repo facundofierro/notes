@@ -22,6 +22,8 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  Mic,
+  Image as ImageIcon,
 } from "lucide-react";
 import type { AIBackendInfo } from "@/lib/record-ai";
 
@@ -433,6 +435,80 @@ export function TestRecordView({
 
         {/* Right: Snapshot, Steps, Prompt */}
         <div className="flex-[45] flex flex-col overflow-hidden">
+          {/* Prompt area */}
+          <div className="p-3 border-b border-white/[0.04]">
+            <div className="flex overflow-hidden relative flex-col w-full rounded-xl border bg-white/[0.02] border-white/[0.08] focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+              <textarea
+                ref={promptRef}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Describe what to do next..."
+                disabled={
+                  isProcessing || isInitializing || backends.length === 0
+                }
+                className={cn(
+                  "px-3 py-2 w-full h-24 text-sm bg-transparent resize-none text-zinc-200 focus:outline-none placeholder:text-zinc-600 disabled:opacity-50",
+                )}
+              />
+              <div className="flex justify-between items-center px-3 py-2 border-t border-white/[0.04] bg-white/[0.01]">
+                <div className="flex gap-2 items-center flex-1 mr-4">
+                  <Select
+                    value={selectedBackend}
+                    onValueChange={setSelectedBackend}
+                  >
+                    <SelectTrigger className="h-7 text-[10px] bg-transparent border-white/[0.06] text-zinc-500 hover:text-zinc-300 w-[180px]">
+                      <SelectValue placeholder="Select backend..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-white/[0.06]">
+                      {backends.map((b) => (
+                        <SelectItem
+                          key={b.id}
+                          value={b.id}
+                          className="text-xs text-zinc-300"
+                        >
+                          {b.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-1 items-center">
+                  <button className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] rounded-md transition-colors">
+                    <Mic className="w-3.5 h-3.5" />
+                  </button>
+                  <button className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] rounded-md transition-colors">
+                    <ImageIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitPrompt}
+                    disabled={
+                      !prompt.trim() ||
+                      isProcessing ||
+                      isInitializing ||
+                      backends.length === 0
+                    }
+                    className="h-7 w-7 p-0 bg-emerald-600 hover:bg-emerald-500 text-white border-0 rounded-md ml-1"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Error display */}
+          {error && (
+            <div className="px-4 py-2 border-b border-red-500/20 bg-red-500/5">
+              <p className="text-[11px] text-red-400">{error}</p>
+            </div>
+          )}
+
           {/* Snapshot (collapsible) */}
           <div className="border-b border-white/[0.04]">
             <button
@@ -466,13 +542,13 @@ export function TestRecordView({
           </div>
 
           {/* Recorded steps */}
-          <div className="flex-1 overflow-hidden">
-            <div className="px-4 py-2 border-b border-white/[0.04]">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="px-4 py-2 border-b border-white/[0.04] bg-zinc-950/40">
               <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
                 Recorded Steps ({recordedSteps.length})
               </span>
             </div>
-            <ScrollArea className="flex-1 h-[calc(100%-32px)]">
+            <ScrollArea className="flex-1">
               <div className="p-3 space-y-1.5">
                 {recordedSteps.length === 0 ? (
                   <p className="text-xs text-zinc-600 text-center py-4">
@@ -509,90 +585,6 @@ export function TestRecordView({
                 <div ref={stepsEndRef} />
               </div>
             </ScrollArea>
-          </div>
-
-          {/* Error display */}
-          {error && (
-            <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/5">
-              <p className="text-[11px] text-red-400">{error}</p>
-            </div>
-          )}
-
-          {/* Prompt area */}
-          <div className="border-t border-white/[0.04] p-3 space-y-2">
-            {/* Backend selector */}
-            <div className="flex items-center gap-2">
-              <Label className="text-[10px] text-zinc-600 flex-shrink-0">
-                AI Backend:
-              </Label>
-              <Select
-                value={selectedBackend}
-                onValueChange={setSelectedBackend}
-              >
-                <SelectTrigger className="h-6 text-[11px] bg-white/[0.03] border-white/[0.06] text-zinc-400 flex-1">
-                  <SelectValue placeholder="Select backend..." />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-white/[0.06]">
-                  {backends.map((b) => (
-                    <SelectItem
-                      key={b.id}
-                      value={b.id}
-                      className="text-xs text-zinc-300"
-                    >
-                      {b.label} ({b.model})
-                    </SelectItem>
-                  ))}
-                  {backends.length === 0 && (
-                    <SelectItem
-                      value="_none"
-                      disabled
-                      className="text-xs text-zinc-500"
-                    >
-                      No backends available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Prompt input */}
-            <div className="flex gap-2">
-              <textarea
-                ref={promptRef}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe what to do next..."
-                disabled={
-                  isProcessing || isInitializing || backends.length === 0
-                }
-                rows={2}
-                className={cn(
-                  "flex-1 px-3 py-2 text-sm rounded-lg resize-none",
-                  "bg-white/[0.03] border border-white/[0.06] text-zinc-200",
-                  "placeholder:text-zinc-600",
-                  "focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500/30",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                )}
-              />
-              <Button
-                size="sm"
-                onClick={handleSubmitPrompt}
-                disabled={
-                  !prompt.trim() ||
-                  isProcessing ||
-                  isInitializing ||
-                  backends.length === 0
-                }
-                className="h-auto px-3 bg-emerald-600 hover:bg-emerald-500 text-white border-0 rounded-lg self-end"
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
           </div>
         </div>
       </div>
