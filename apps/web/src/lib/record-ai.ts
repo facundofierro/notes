@@ -27,7 +27,7 @@ interface AIRecommendationInput {
   backend: "google-api" | "gemini-cli";
 }
 
-// Shorter deterministic system prompt
+// Shorter deterministic system prompt for Google API
 const DETERMINISTIC_SYSTEM_PROMPT = `Translate the browser instruction into a JSON agent-browser command.
 Given the DOM snapshot and instruction, return ONLY valid JSON:
 {
@@ -37,6 +37,27 @@ Given the DOM snapshot and instruction, return ONLY valid JSON:
   "stepDescription": "Human-readable step"
 }
 Use CSS selectors (id, data-testid, class-based) for deterministic, repeatable steps. No @ref references.`;
+
+// Detailed prompt for Gemini CLI (local file access)
+const DETERMINISTIC_CLI_SYSTEM_PROMPT = `You are a browser automation agent. Translate the user instruction into a JSON command for the "agelum browser" tool.
+
+Resources:
+- Skill definition: {{SKILL_PATH}}
+- Current Page Snapshot: {{SNAPSHOT_PATH}}
+
+Your task:
+1. Read the Snapshot file to understand the current page state.
+2. Consult the Skill definition to identify the correct "agelum browser" command (e.g., "click", "fill", "open", "type", "press").
+3. Determine the arguments (selectors, text, etc.). PREFER CSS selectors (id, data-testid) over @ref for reliability.
+4. Return the result in the following JSON format ONLY:
+
+{
+  "command": "click", // The action (without 'agelum browser' prefix)
+  "args": ["#selector"], // Arguments for the action
+  "explanation": "Brief explanation of why this element was chosen",
+  "stepDescription": "Human-readable step"
+}
+`;
 
 function getSkillFilePath(): string {
   return path.join(process.cwd(), ".agelum", "ai", "skills", "agent-browser.md");
@@ -150,7 +171,15 @@ async function getGoogleApiRecommendation(
 async function getDeterministicGeminiCliRecommendation(
   input: AIRecommendationInput,
 ): Promise<AIRecommendation> {
-  const prompt = `${DETERMINISTIC_SYSTEM_PROMPT}\n\nDOM Snapshot:\n${input.snapshot}\n\nUser instruction: ${input.prompt}`;
+  const snapshotPath = saveSnapshotToFile(input.snapshot);
+  const skillPath = getSkillFilePath();
+
+  const systemPrompt = DETERMINISTIC_CLI_SYSTEM_PROMPT.replace(
+    "{{SKILL_PATH}}",
+    skillPath,
+  ).replace("{{SNAPSHOT_PATH}}", snapshotPath);
+
+  const prompt = `${systemPrompt}\n\nUser instruction: ${input.prompt}`;
 
   return new Promise((resolve, reject) => {
     const outputChunks: string[] = [];

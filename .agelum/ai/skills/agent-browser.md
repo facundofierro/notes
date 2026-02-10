@@ -8,8 +8,22 @@ Use `agelum browser` CLI to interact with browsers programmatically for web auto
 
 1. Navigate to a URL: `agelum browser open <url>`
 2. Take a snapshot to identify elements: `agelum browser snapshot`
-3. Interact using element refs (`@e1`) or CSS selectors
+3. Interact using CSS selectors (preferred for testing) or element refs (`@e1`)
 4. Re-snapshot after DOM changes
+
+## Selector Strategies
+
+When selecting elements, prioritize:
+1. ID: `#submit-button`
+2. Data attributes: `[data-testid="submit"]`
+3. Unique Classes: `.main-nav .login-btn`
+4. CSS Combinators: `form > button[type="submit"]`
+5. Text content (if stable): `button:contains("Login")` (if supported) or via XPath
+
+Avoid:
+- Generic tags: `div`, `button` (without context)
+- Long detailed paths: `div > div > div > span`
+- Dynamic/Generated classes: `.css-1a2b3c`
 
 ## Commands
 
@@ -23,7 +37,7 @@ Use `agelum browser` CLI to interact with browsers programmatically for web auto
 - `agelum browser snapshot` — Get interactive elements with refs
 
 **Interaction:**
-- `agelum browser click <selector>` — Click element (@ref or CSS selector)
+- `agelum browser click <selector>` — Click element
 - `agelum browser fill <selector> "<text>"` — Clear and type into field
 - `agelum browser type <selector> "<text>"` — Type without clearing
 - `agelum browser press <key>` — Press key (Enter, Tab, Escape, etc.)

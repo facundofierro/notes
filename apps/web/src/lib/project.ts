@@ -30,8 +30,22 @@ Use \`agelum browser\` CLI to interact with browsers programmatically for web au
 
 1. Navigate to a URL: \`agelum browser open <url>\`
 2. Take a snapshot to identify elements: \`agelum browser snapshot\`
-3. Interact using element refs (\`@e1\`) or CSS selectors
+3. Interact using CSS selectors (preferred for testing) or element refs (\`@e1\`)
 4. Re-snapshot after DOM changes
+
+## Selector Strategies
+
+When selecting elements, prioritize:
+1. ID: \`#submit-button\`
+2. Data attributes: \`[data-testid="submit"]\`
+3. Unique Classes: \`.main-nav .login-btn\`
+4. CSS Combinators: \`form > button[type="submit"]\`
+5. Text content (if stable): \`button:contains("Login")\` (if supported) or via XPath
+
+Avoid:
+- Generic tags: \`div\`, \`button\` (without context)
+- Long detailed paths: \`div > div > div > span\`
+- Dynamic/Generated classes: \`.css-1a2b3c\`
 
 ## Commands
 
@@ -45,7 +59,7 @@ Use \`agelum browser\` CLI to interact with browsers programmatically for web au
 - \`agelum browser snapshot\` — Get interactive elements with refs
 
 **Interaction:**
-- \`agelum browser click <selector>\` — Click element (@ref or CSS selector)
+- \`agelum browser click <selector>\` — Click element
 - \`agelum browser fill <selector> "<text>"\` — Clear and type into field
 - \`agelum browser type <selector> "<text>"\` — Type without clearing
 - \`agelum browser press <key>\` — Press key (Enter, Tab, Escape, etc.)
@@ -104,12 +118,10 @@ export function ensureAgelumStructure(repoPath: string): string {
     fs.mkdirSync(path.join(agelumPath, dir), { recursive: true });
   });
 
-  // Ensure the agent-browser skill file exists in this project
+  // Ensure the agent-browser skill file is up-to-date in this project
   const skillPath = path.join(agelumPath, "ai/skills", "agent-browser.md");
-  if (!fs.existsSync(skillPath)) {
-    const templatePath = ensureGlobalSkillTemplate();
-    fs.copyFileSync(templatePath, skillPath);
-  }
+  const templatePath = ensureGlobalSkillTemplate();
+  fs.copyFileSync(templatePath, skillPath);
 
   return agelumPath;
 }
@@ -119,11 +131,10 @@ export function ensureSkillFile(repoPath: string): void {
   const skillsDir = path.join(agelumPath, "ai/skills");
   const skillPath = path.join(skillsDir, "agent-browser.md");
 
-  if (!fs.existsSync(skillPath)) {
-    if (!fs.existsSync(skillsDir)) {
-      return; // .agelum not initialized yet; skip silently
-    }
-    const templatePath = ensureGlobalSkillTemplate();
-    fs.copyFileSync(templatePath, skillPath);
+  if (!fs.existsSync(skillsDir)) {
+    return; // .agelum not initialized yet; skip silently
   }
+
+  const templatePath = ensureGlobalSkillTemplate();
+  fs.copyFileSync(templatePath, skillPath);
 }
