@@ -222,6 +222,32 @@ function setupIpcHandlers() {
     entry.attached = false;
   });
 
+  // Hide ALL WebContentsViews for the sender's window
+  ipcMain.on("browser-view:hide-all", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    for (const [key, entry] of browserViews.entries()) {
+      if (key.startsWith(`${win.id}:`) && entry.attached) {
+        try {
+          win.contentView.removeChildView(entry.view);
+        } catch (_) {}
+        entry.attached = false;
+      }
+    }
+  });
+
+  // Show ALL WebContentsViews for the sender's window
+  ipcMain.on("browser-view:show-all", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    for (const [key, entry] of browserViews.entries()) {
+      if (key.startsWith(`${win.id}:`) && !entry.attached) {
+        win.contentView.addChildView(entry.view);
+        entry.attached = true;
+      }
+    }
+  });
+
   // Show the WebContentsView (re-add to parent)
   ipcMain.on("browser-view:show", (event, tabIndex = 0) => {
     const win = BrowserWindow.fromWebContents(event.sender);

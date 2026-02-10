@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.send("browser-view:hide", tabIndex),
     show: (tabIndex = 0) =>
       ipcRenderer.send("browser-view:show", tabIndex),
+    hideAll: () => ipcRenderer.send("browser-view:hide-all"),
+    showAll: () => ipcRenderer.send("browser-view:show-all"),
     capture: (tabIndex = 0) =>
       ipcRenderer.invoke("browser-view:capture", tabIndex),
     executeJs: (code, tabIndex = 0) =>

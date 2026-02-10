@@ -59,40 +59,41 @@ export function WorkEditor({
 }: WorkEditorProps) {
   const [taskSubView, setTaskSubView] = React.useState<"task" | "plan" | "tests">("task");
   const [planFile, setPlanFile] = React.useState<FileNode | null>(null);
+  const [planLoading, setPlanLoading] = React.useState(false);
   const [planPathForAI, setPlanPathForAI] = React.useState<string | null>(null);
   const [testsPath, setTestsPath] = React.useState<string | null>(null);
 
   // Extract plan path from task file content
   const planPath = React.useMemo(() => {
-    if (!file?.content || viewMode !== "tasks") return null;
+    const isTaskView = viewMode === "tasks" || viewMode === "kanban";
+    if (!file?.content || !isTaskView) return null;
     
-    // Check frontmatter
-    const fmMatch = file.content.match(/^---\n([\s\S]*?)\n---/);
+    // Check frontmatter with flexible line endings
+    const fmMatch = file.content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (fmMatch) {
-       const planLine = fmMatch[1].split('\n').find(l => l.trim().startsWith('plan:'));
+       const planLine = fmMatch[1].split(/\r?\n/).find(l => l.trim().startsWith('plan:'));
        if (planLine) {
          const val = planLine.split(':')[1].trim();
-         // resolve relative path if needed, but user said .agelum/work/plans/...
-         // If it starts with ./ or /, explicit. Otherwise assume relative? 
-         // User said "relative to the selected project path".
-         // Let's return as is and handle fetching.
+         console.log('[WorkEditor] Extracted plan path from frontmatter:', val);
          return val;
        }
     }
+    console.log('[WorkEditor] No plan path found in frontmatter or regex failed');
     return null;
   }, [file, viewMode]);
 
   // Extract tests path from task file content
   React.useEffect(() => {
-    if (!file?.content || viewMode !== "tasks") {
+    const isTaskView = viewMode === "tasks" || viewMode === "kanban";
+    if (!file?.content || !isTaskView) {
       setTestsPath(null);
       return;
     }
     
-    // Check frontmatter for tests field
-    const fmMatch = file.content.match(/^---\n([\s\S]*?)\n---/);
+    // Check frontmatter for tests field with flexible line endings
+    const fmMatch = file.content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (fmMatch) {
-       const testsLine = fmMatch[1].split('\n').find(l => l.trim().startsWith('tests:'));
+       const testsLine = fmMatch[1].split(/\r?\n/).find(l => l.trim().startsWith('tests:'));
        if (testsLine) {
          const val = testsLine.split(':')[1].trim();
          setTestsPath(val);
@@ -111,7 +112,9 @@ export function WorkEditor({
     }
 
     let fetchPath = planPath;
-    if (!planPath.startsWith("/") && basePath && selectedRepo) {
+    if (!planPath.startsWith("/") && projectPath) {
+       fetchPath = `${projectPath}/${planPath}`.replace(/\/+/g, "/");
+    } else if (!planPath.startsWith("/") && basePath && selectedRepo) {
        fetchPath = `${basePath}/${selectedRepo}/${planPath}`.replace(/\/+/g, "/");
     }
     
@@ -121,9 +124,8 @@ export function WorkEditor({
         throw new Error("Plan file not found");
       })
       .then(data => {
-        // Check if file has content (at least 10 lines)
-        const lineCount = (data.content || '').split('\n').length;
-        if (lineCount >= 10) {
+        // If file exists, we can use it for AI. Removed line count restriction to be safe.
+        if (data.content !== undefined) {
           setPlanPathForAI(fetchPath);
         } else {
           setPlanPathForAI(null);
@@ -133,33 +135,57 @@ export function WorkEditor({
         console.error("Failed to validate plan file:", err);
         setPlanPathForAI(null);
       });
-  }, [planPath, basePath, selectedRepo]);
-  // Fetch plan content
+  }, [planPath, projectPath, basePath, selectedRepo]);
+  
+  // Fetch plan content when switching to plan view
   React.useEffect(() => {
-    if (taskSubView === "plan" && planPath && (!planFile || planFile.path !== planPath)) {
-      // If path is relative to project root, we need to make sure we query correctly.
-      // The /api/file endpoint usually takes an absolute path or relative to project?
-      // Based on existing code, it seems to expect absolute paths mostly, but let's see.
-      // The app likely handles resolving.
-      // We can try to construct absolute path if possible.
-      
+    console.log('[WorkEditor] Plan fetch effect triggered', {
+      taskSubView,
+      planPath,
+      planFileLoaded: !!planFile,
+      basePath,
+      selectedRepo
+    });
+    
+    if (taskSubView === "plan" && planPath) {
       let fetchPath = planPath;
-      if (!planPath.startsWith("/") && basePath && selectedRepo) {
+      if (!planPath.startsWith("/") && projectPath) {
+         fetchPath = `${projectPath}/${planPath}`.replace(/\/+/g, "/");
+      } else if (!planPath.startsWith("/") && basePath && selectedRepo) {
          fetchPath = `${basePath}/${selectedRepo}/${planPath}`.replace(/\/+/g, "/");
       }
       
-      fetch(`/api/file?path=${encodeURIComponent(fetchPath)}`)
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error("Plan file not found");
-        })
-        .then(data => setPlanFile({ path: fetchPath, content: data.content }))
-        .catch(err => {
-          console.error("Failed to fetch plan:", err);
-          setPlanFile(null);
-        });
+      // Only fetch if we don't have the plan file loaded or if the path (absolute) changed
+      if (!planFile || !planFile.content || fetchPath !== (planFile as any).fullPath) {
+        console.log('[WorkEditor] Fetching plan file:', fetchPath);
+        setPlanLoading(true);
+        
+        fetch(`/api/file?path=${encodeURIComponent(fetchPath)}`)
+          .then(res => {
+            if (res.ok) return res.json();
+            throw new Error(`Plan file not found: ${res.status} ${res.statusText}`);
+          })
+          .then(data => {
+            console.log('[WorkEditor] Plan file loaded successfully, content length:', data.content?.length);
+            // Store with the relative path from frontmatter but also store absolute path for comparison
+            setPlanFile({ 
+              path: planPath, 
+              content: data.content,
+              fullPath: fetchPath 
+            } as any);
+            setPlanLoading(false);
+          })
+          .catch(err => {
+            console.error("[WorkEditor] Failed to fetch plan:", err);
+            setPlanFile(null);
+            setPlanLoading(false);
+          });
+      }
+    } else if (taskSubView !== "plan") {
+      // Clear plan file when not in plan view
+      setPlanLoading(false);
     }
-  }, [taskSubView, planPath, basePath, selectedRepo, planFile]);
+  }, [taskSubView, planPath, projectPath, basePath, selectedRepo, planFile]);
 
   const handleSaveFile = async (opts: { path: string; content: string }) => {
     if (onSave) {
@@ -273,9 +299,32 @@ export function WorkEditor({
                 </div>
               </div>
            </div>
-        ) : (
-          <FileViewer
-            file={taskSubView === "plan" ? planFile : file}
+         ) : taskSubView === "plan" && planLoading ? (
+           <div className="flex flex-col flex-1 bg-background">
+              <EditorHeader />
+              <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
+                <div className="w-8 h-8 rounded-full border-2 animate-spin border-muted-foreground border-t-transparent mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Loading Plan...</h3>
+                <p className="max-w-md text-sm">Fetching plan file from {planPath}</p>
+              </div>
+           </div>
+         ) : taskSubView === "plan" && !planFile ? (
+           <div className="flex flex-col flex-1 bg-background">
+              <EditorHeader />
+              <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
+                <div className="bg-red-900/20 p-4 rounded-full mb-4">
+                  <LayoutList className="w-8 h-8 text-red-400 opacity-50" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Plan File Not Found</h3>
+                <p className="max-w-md mb-6 text-sm">The plan file at <code className="text-xs bg-secondary/50 px-2 py-1 rounded">{planPath}</code> could not be loaded.</p>
+                <div className="text-xs text-muted-foreground bg-secondary/30 p-3 rounded border border-border">
+                  <p>The file may have been moved or deleted. Try regenerating the plan.</p>
+                </div>
+              </div>
+           </div>
+         ) : (
+           <FileViewer
+             file={taskSubView === "plan" ? planFile : file}
             onSave={handleSaveFile}
             onFileSaved={onRefresh}
             editing={workEditorEditing}

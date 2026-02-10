@@ -23,6 +23,7 @@ import {
   Badge,
   Button,
 } from "@agelum/shadcn";
+import { useHomeStore } from "@/store/useHomeStore";
 
 interface Repository {
   name: string;
@@ -45,8 +46,6 @@ interface ProjectSelectorProps {
   selectedRepo: string | null;
   onSelect: (repoName: string) => void;
   className?: string;
-  currentViewMode?: string;
-  onBrowserScreenshot?: (screenshot: string | null) => void;
   isLoading?: boolean;
 }
 
@@ -55,8 +54,6 @@ export function ProjectSelector({
   selectedRepo,
   onSelect,
   className,
-  currentViewMode,
-  onBrowserScreenshot,
   isLoading = false,
 }: ProjectSelectorProps) {
   const [
@@ -76,7 +73,7 @@ export function ProjectSelector({
     React.useState("");
   const [open, setOpen] =
     React.useState(false);
-  const [viewModeWhenOpened, setViewModeWhenOpened] = React.useState<string | null>(null);
+  const setGlobalOverlayOpen = useHomeStore(s => s.setGlobalOverlayOpen);
 
   // Fetch status for all visible repositories when open
   const fetchAllStatus =
@@ -261,40 +258,10 @@ export function ProjectSelector({
     }
   };
 
-  // Hide Electron browser view when popover is open
+  // Signal global overlay open/close so BrowserTab can hide/show native views
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI?.browserView) {
-      const browserView = window.electronAPI.browserView;
-      if (open) {
-        // Remember which view mode we were in
-        setViewModeWhenOpened(currentViewMode || null);
-        
-        // Capture screenshot before hiding (only if we're on browser tab)
-        if (currentViewMode === 'browser' && onBrowserScreenshot) {
-          browserView.capture().then((screenshot) => {
-            if (screenshot) {
-              onBrowserScreenshot(screenshot);
-            }
-            browserView.hide();
-          }).catch(() => {
-            browserView.hide();
-          });
-        } else {
-          browserView.hide();
-        }
-      } else {
-        // Only show browser if we were on the browser tab when we opened the selector
-        if (viewModeWhenOpened === 'browser') {
-          browserView.show();
-        }
-        // Clear the screenshot after closing
-        if (onBrowserScreenshot) {
-          onBrowserScreenshot(null);
-        }
-        setViewModeWhenOpened(null);
-      }
-    }
-  }, [open, currentViewMode, onBrowserScreenshot, viewModeWhenOpened]);
+    setGlobalOverlayOpen(open);
+  }, [open, setGlobalOverlayOpen]);
 
   return (
     <>

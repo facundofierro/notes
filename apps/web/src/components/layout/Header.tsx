@@ -43,14 +43,6 @@ export function Header() {
 
   const [isAppActionsMenuOpen, setIsAppActionsMenuOpen] = React.useState(false);
 
-  const handleBrowserScreenshot = React.useCallback((screenshot: string | null) => {
-    if (selectedRepo) {
-      store.setProjectStateForRepo(selectedRepo, () => ({ 
-        tempBrowserScreenshot: screenshot 
-      }));
-    }
-  }, [selectedRepo, store]);
-
   const visibleItems = React.useMemo(() => {
     const defaultItems: ViewMode[] = [
       "ai",
@@ -135,12 +127,10 @@ export function Header() {
 
       <div className="flex gap-4 items-center">
         <div className="flex items-center rounded-full px-1.5 py-1 shadow-sm">
-          <ProjectSelector 
-            repositories={repositories} 
-            selectedRepo={selectedRepo} 
+          <ProjectSelector
+            repositories={repositories}
+            selectedRepo={selectedRepo}
             onSelect={setSelectedRepo}
-            currentViewMode={effectiveViewMode}
-            onBrowserScreenshot={handleBrowserScreenshot}
             isLoading={isRepositoriesLoading}
           />
           <div className="mx-1.5 w-px h-4 bg-border" />

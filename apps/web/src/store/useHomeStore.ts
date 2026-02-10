@@ -83,7 +83,6 @@ export interface ProjectState {
   activeTerminalId: string;
   terminalSessions: TerminalSessionInfo[];
   tabs: Record<string, TabState>;
-  tempBrowserScreenshot: string | null;
 }
 
 const createDefaultProjectState =
@@ -119,7 +118,6 @@ const createDefaultProjectState =
     terminals: [],
     activeTerminalId: "logs",
     terminalSessions: [],
-    tempBrowserScreenshot: null,
     tabs: {
       tasks: {
         selectedFile: null,
@@ -160,6 +158,7 @@ export interface HomeState {
     available: boolean;
   }>;
   isElectron: boolean;
+  isGlobalOverlayOpen: boolean;
 
   // Per-Project States
   projectStates: Record<
@@ -185,6 +184,7 @@ export interface HomeState {
     isElectron: boolean,
   ) => void;
   setAgentTools: (tools: any[]) => void;
+  setGlobalOverlayOpen: (open: boolean) => void;
 
   // Project-Specific Setters (operates on selectedRepo)
   setProjectState: (
@@ -320,6 +320,7 @@ export const useHomeStore =
         settingsTab: "defaults",
         agentTools: [],
         isElectron: false,
+        isGlobalOverlayOpen: false,
         projectStates: {},
 
         getProjectState: () => {
@@ -365,6 +366,8 @@ export const useHomeStore =
           set({ isElectron }),
         setAgentTools: (agentTools) =>
           set({ agentTools }),
+        setGlobalOverlayOpen: (isGlobalOverlayOpen) =>
+          set({ isGlobalOverlayOpen }),
 
         setProjectStateForRepo: (
           repo,

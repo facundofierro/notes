@@ -121,9 +121,22 @@ export function AIRightSidebar({
       const res = await fetch(`/api/file?path=${encodeURIComponent(file.path)}`);
       if (res.ok) {
         const data = await res.json();
-        if (["tasks", "epics", "ideas"].includes(viewMode)) {
-          setTabFile(viewMode, { path: file.path, content: data.content });
+        
+        // Determine the target tab based on viewMode or file path
+        let targetTab = viewMode;
+        if (viewMode === "kanban" || file.path.includes("/tasks/")) {
+          targetTab = "tasks";
+        } else if (file.path.includes("/epics/")) {
+          targetTab = "epics";
+        } else if (file.path.includes("/ideas/")) {
+          targetTab = "ideas";
+        }
+
+        if (["tasks", "epics", "ideas"].includes(targetTab)) {
+          console.log(`[AIRightSidebar] Refreshing tab: ${targetTab} for file: ${file.path}`);
+          setTabFile(targetTab, { path: file.path, content: data.content });
         } else {
+          console.log(`[AIRightSidebar] Refreshing selectedFile for file: ${file.path}`);
           setSelectedFile({ path: file.path, content: data.content });
         }
       }

@@ -41,13 +41,13 @@ export async function POST(request: Request) {
 
     let content = fs.readFileSync(taskPath, "utf-8");
 
-    // Check if frontmatter exists
-    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+    // Check if frontmatter exists - robust regex for different line endings
+    const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/);
 
     if (frontmatterMatch) {
       // Frontmatter exists, update it
       let frontmatterContent = frontmatterMatch[1];
-      const lines = frontmatterContent.split('\n');
+      const lines = frontmatterContent.split(/\r?\n/);
       
       // Update or add plan field
       if (planPath !== undefined) {
@@ -73,8 +73,9 @@ export async function POST(request: Request) {
         }
       }
       
-      const newFrontmatter = lines.join('\n');
-      content = content.replace(frontmatterMatch[0], `---\n${newFrontmatter}\n---\n`);
+      const newFrontmatterContent = lines.join('\n'); // Standardize to \n internally
+      const newFrontmatterBlock = `---\n${newFrontmatterContent}\n---${frontmatterMatch[2]}`;
+      content = content.replace(frontmatterMatch[0], newFrontmatterBlock);
     } else {
       // No frontmatter, create it
       const frontmatterFields: string[] = [];

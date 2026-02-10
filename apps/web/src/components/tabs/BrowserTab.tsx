@@ -8,6 +8,7 @@ import { toast } from "@agelum/shadcn";
 
 export function BrowserTab({ repoName }: { repoName: string }) {
   const isElectron = useHomeStore(s => s.isElectron);
+  const isGlobalOverlayOpen = useHomeStore(s => s.isGlobalOverlayOpen);
   const selectedRepo = useHomeStore(s => s.selectedRepo);
   const repositories = useHomeStore(s => s.repositories);
   const settings = useHomeStore(s => s.settings);
@@ -31,7 +32,6 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     browserPagesCurrentUrls = [],
     browserPagesFavicons = [],
     viewMode,
-    tempBrowserScreenshot,
   } = projectState;
 
   const currentProjectConfig = React.useMemo(() => {
@@ -282,7 +282,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     });
   }, [isSelected, repoName, iframeUrl, activeBrowserPageIndex, browserPages.length, setProjectStateForRepo]);
 
-  const isBrowserVisible = isSelected && viewMode === "browser";
+  const isBrowserVisible = isSelected && viewMode === "browser" && !isGlobalOverlayOpen;
 
   // Sync WebContentsView bounds for the ACTIVE tab's placeholder
   React.useEffect(() => {
@@ -637,15 +637,6 @@ export function BrowserTab({ repoName }: { repoName: string }) {
               );
             })}
         </div>
-        {tempBrowserScreenshot && (
-          <div className="absolute inset-0 z-10 bg-zinc-900">
-            <img 
-              src={tempBrowserScreenshot} 
-              alt="Browser preview" 
-              className="w-full h-full object-contain"
-            />
-          </div>
-        )}
         {screenshot && (
           <ScreenshotViewer
             screenshot={screenshot}

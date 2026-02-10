@@ -1,6 +1,7 @@
 ---
 created: 2026-02-10T14:52:01.953Z
 state: todo
+plan: .agelum/work/plans/fix-browser-overlay-1770742858217.md
 ---
 
 # Fix Browser Overlay and Multiple Page Visibility
