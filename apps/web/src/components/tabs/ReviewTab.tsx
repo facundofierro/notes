@@ -45,9 +45,57 @@ const FilesCentralArea = ({
   selectedFolder, 
   onSaveFile, 
   loadFileTree,
+  tabs,
+  activeTabId,
+  setActiveTabId,
+  removeTab,
+  addTab
 }: any) => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
+      {/* Existing Dynamic Tabs Header for Files View */}
+      <div className="flex border-b border-border bg-secondary/10 items-center overflow-x-auto no-scrollbar">
+          {tabs.map((tab: any) => {
+            const Icon = tab.icon;
+            let label = tab.label;
+            if (activeTabId === tab.id) {
+                if (selectedFile) label = selectedFile.path.split('/').pop() || label;
+                else if (selectedFolder) label = selectedFolder.name || label;
+            }
+
+            return (
+              <div
+                key={tab.id}
+                onClick={() => setActiveTabId(tab.id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-border transition-colors min-w-[120px] max-w-[200px] group",
+                  activeTabId === tab.id 
+                    ? "bg-background text-foreground font-medium" 
+                    : "text-muted-foreground hover:bg-accent/50"
+                )}
+              >
+                {Icon && <Icon className="w-3.5 h-3.5" />}
+                <span className="truncate flex-1">{label}</span>
+                {tabs.length > 1 && (
+                  <button 
+                    onClick={(e) => removeTab(e, tab.id)}
+                    className="p-0.5 rounded-sm hover:bg-muted-foreground/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <button 
+            onClick={addTab}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Add Tab"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* Content */}
         <div className="flex-1 overflow-hidden relative">
            {selectedFile ? (
@@ -56,7 +104,6 @@ const FilesCentralArea = ({
                   file={selectedFile}
                   onSave={onSaveFile}
                   onFileSaved={loadFileTree}
-                  editing={true}
                />
             </div>
           ) : selectedFolder ? (
@@ -378,6 +425,11 @@ export function ReviewTab() {
   const [leftSidebarView, setLeftSidebarView] = React.useState<LeftSidebarView>("files");
   
 
+  // -- Files View State --
+  const [tabs, setTabs] = React.useState<any[]>([
+    { id: "main", label: "Project", icon: Layers },
+  ]);
+  const [activeTabId, setActiveTabId] = React.useState("main");
   const [selectedFolder, setSelectedFolder] = React.useState<FileNode | null>(null);
 
   // -- Changes View State --
@@ -652,6 +704,23 @@ export function ReviewTab() {
 
 
 
+  // Files View Tab Handlers
+  const removeTab = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (tabs.length <= 1) return;
+    const newTabs = tabs.filter(t => t.id !== id);
+    setTabs(newTabs);
+    if (activeTabId === id) {
+      setActiveTabId(newTabs[0].id);
+    }
+  };
+
+  const addTab = () => {
+    const newId = `tab-${Date.now()}`;
+    setTabs([...tabs, { id: newId, label: "New Tab" }]);
+    setActiveTabId(newId);
+  };
+
   const onFileSelectWrapper = (node: FileNode) => {
      handleFileSelect(node);
      setSelectedFolder(null); // Clear folder selection in files view
@@ -776,6 +845,11 @@ export function ReviewTab() {
             selectedFolder={selectedFolder}
             onSaveFile={handleSaveFileShim}
             loadFileTree={loadFileTree}
+            tabs={tabs}
+            activeTabId={activeTabId}
+            setActiveTabId={setActiveTabId}
+            removeTab={removeTab}
+            addTab={addTab}
          />
       </div>
 
