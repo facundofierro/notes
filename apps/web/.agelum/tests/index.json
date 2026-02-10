@@ -2,11 +2,11 @@
   {
     "id": "test-1770681934249",
     "name": "login",
-    "group": "experimental",
+    "group": "EXPERIMENTAL",
     "folder": "login",
     "description": "",
     "stepsCount": 1,
-    "updatedAt": "2026-02-10T21:07:17.967Z"
+    "updatedAt": "2026-02-10T21:48:12.127Z"
   },
   {
     "id": "test-1770725804989",

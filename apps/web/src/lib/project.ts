@@ -24,43 +24,43 @@ const AGENT_BROWSER_SKILL_TEMPLATE = `# Agent Browser Skill
 
 ## Overview
 
-Use \`agelum\` CLI to interact with browsers programmatically for web automation and testing.
+Use \`agelum browser\` CLI to interact with browsers programmatically for web automation and testing.
 
 ## Core Workflow
 
-1. Navigate to a URL: \`agelum open <url>\`
-2. Take a snapshot to identify elements: \`agelum snapshot\`
+1. Navigate to a URL: \`agelum browser open <url>\`
+2. Take a snapshot to identify elements: \`agelum browser snapshot\`
 3. Interact using element refs (\`@e1\`) or CSS selectors
 4. Re-snapshot after DOM changes
 
 ## Commands
 
 **Navigation:**
-- \`agelum open <url>\` — Navigate to URL
-- \`agelum back\` — Go back
-- \`agelum forward\` — Go forward
-- \`agelum reload\` — Reload page
+- \`agelum browser open <url>\` — Navigate to URL
+- \`agelum browser back\` — Go back
+- \`agelum browser forward\` — Go forward
+- \`agelum browser reload\` — Reload page
 
 **Snapshot:**
-- \`agelum snapshot\` — Get interactive elements with refs
+- \`agelum browser snapshot\` — Get interactive elements with refs
 
 **Interaction:**
-- \`agelum click <selector>\` — Click element (@ref or CSS selector)
-- \`agelum fill <selector> "<text>"\` — Clear and type into field
-- \`agelum type <selector> "<text>"\` — Type without clearing
-- \`agelum press <key>\` — Press key (Enter, Tab, Escape, etc.)
-- \`agelum select <selector> "<option>"\` — Select dropdown option
-- \`agelum check <selector>\` — Check checkbox
-- \`agelum hover <selector>\` — Hover element
-- \`agelum scroll <direction> [px]\` — Scroll (up/down/left/right)
+- \`agelum browser click <selector>\` — Click element (@ref or CSS selector)
+- \`agelum browser fill <selector> "<text>"\` — Clear and type into field
+- \`agelum browser type <selector> "<text>"\` — Type without clearing
+- \`agelum browser press <key>\` — Press key (Enter, Tab, Escape, etc.)
+- \`agelum browser select <selector> "<option>"\` — Select dropdown option
+- \`agelum browser check <selector>\` — Check checkbox
+- \`agelum browser hover <selector>\` — Hover element
+- \`agelum browser scroll <direction> [px]\` — Scroll (up/down/left/right)
 
 **Waiting:**
-- \`agelum wait <selector>\` — Wait for element
-- \`agelum wait <ms>\` — Wait milliseconds
+- \`agelum browser wait <selector>\` — Wait for element
+- \`agelum browser wait <ms>\` — Wait milliseconds
 
 **Capture:**
-- \`agelum screenshot\` — Capture screenshot
-- \`agelum eval "<js>"\` — Execute JavaScript
+- \`agelum browser screenshot\` — Capture screenshot
+- \`agelum browser eval "<js>"\` — Execute JavaScript
 
 ## Notes
 
@@ -86,9 +86,8 @@ function ensureGlobalSkillTemplate(): string {
     fs.mkdirSync(templateDir, { recursive: true });
   }
 
-  if (!fs.existsSync(templatePath)) {
-    fs.writeFileSync(templatePath, AGENT_BROWSER_SKILL_TEMPLATE, "utf-8");
-  }
+  // Always write the latest template content so it stays up-to-date
+  fs.writeFileSync(templatePath, AGENT_BROWSER_SKILL_TEMPLATE, "utf-8");
 
   return templatePath;
 }
@@ -113,4 +112,18 @@ export function ensureAgelumStructure(repoPath: string): string {
   }
 
   return agelumPath;
+}
+
+export function ensureSkillFile(repoPath: string): void {
+  const agelumPath = getAgelumPath(repoPath);
+  const skillsDir = path.join(agelumPath, "ai/skills");
+  const skillPath = path.join(skillsDir, "agent-browser.md");
+
+  if (!fs.existsSync(skillPath)) {
+    if (!fs.existsSync(skillsDir)) {
+      return; // .agelum not initialized yet; skip silently
+    }
+    const templatePath = ensureGlobalSkillTemplate();
+    fs.copyFileSync(templatePath, skillPath);
+  }
 }

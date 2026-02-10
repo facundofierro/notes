@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { ensureRootGitDirectory } from '@/lib/config'
 import { readSettings } from '@/lib/settings'
+import { ensureSkillFile } from '@/lib/project'
 
 // Server mode: when deployed (e.g., Vercel), will use database instead of filesystem
 const SERVER_MODE = process.env.SERVER_MODE === 'true'
@@ -54,7 +55,12 @@ export async function GET() {
         }
       }
       repositories = Array.from(uniqueRepos.values());
-      
+
+      // Ensure skill file exists for every opened project
+      for (const repo of repositories) {
+        try { ensureSkillFile(repo.path); } catch { /* non-fatal */ }
+      }
+
       return NextResponse.json({ repositories, basePath: '', serverMode: false })
     } 
 
@@ -66,6 +72,11 @@ export async function GET() {
       repositories = entries
         .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
         .map(entry => ({ name: entry.name, path: path.join(basePath, entry.name) }))
+    }
+
+    // Ensure skill file exists for every opened project
+    for (const repo of repositories) {
+      try { ensureSkillFile(repo.path); } catch { /* non-fatal */ }
     }
 
     return NextResponse.json({ repositories, basePath, serverMode: false })
