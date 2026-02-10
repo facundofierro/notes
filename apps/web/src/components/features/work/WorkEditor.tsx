@@ -60,6 +60,7 @@ export function WorkEditor({
   const [taskSubView, setTaskSubView] = React.useState<"task" | "plan" | "tests">("task");
   const [planFile, setPlanFile] = React.useState<FileNode | null>(null);
   const [planPathForAI, setPlanPathForAI] = React.useState<string | null>(null);
+  const [testsPath, setTestsPath] = React.useState<string | null>(null);
 
   // Extract plan path from task file content
   const planPath = React.useMemo(() => {
@@ -79,6 +80,26 @@ export function WorkEditor({
        }
     }
     return null;
+  }, [file, viewMode]);
+
+  // Extract tests path from task file content
+  React.useEffect(() => {
+    if (!file?.content || viewMode !== "tasks") {
+      setTestsPath(null);
+      return;
+    }
+    
+    // Check frontmatter for tests field
+    const fmMatch = file.content.match(/^---\n([\s\S]*?)\n---/);
+    if (fmMatch) {
+       const testsLine = fmMatch[1].split('\n').find(l => l.trim().startsWith('tests:'));
+       if (testsLine) {
+         const val = testsLine.split(':')[1].trim();
+         setTestsPath(val);
+         return;
+       }
+    }
+    setTestsPath(null);
   }, [file, viewMode]);
 
 
@@ -219,10 +240,24 @@ export function WorkEditor({
   return (
     <div className="flex w-full h-full">
       <div className="flex overflow-hidden flex-1 border-r border-border">
-        {taskSubView === "tests" ? (
+        {taskSubView === "tests" && !testsPath ? (
+          <div className="flex flex-col flex-1 bg-background">
+             <EditorHeader />
+             <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
+               <div className="bg-secondary/20 p-4 rounded-full mb-4">
+                 <ListChecks className="w-8 h-8 opacity-50" />
+               </div>
+               <h3 className="text-lg font-medium text-foreground mb-2">No Tests Linked</h3>
+               <p className="max-w-md mb-6 text-sm">This task doesn&apos;t have linked tests yet. Tests will be automatically linked when you create them.</p>
+               <div className="text-xs text-muted-foreground bg-secondary/30 p-3 rounded border border-border">
+                 <p>Tests are stored in .agelum/work/tests/ and linked in the task frontmatter.</p>
+               </div>
+             </div>
+          </div>
+        ) : taskSubView === "tests" ? (
           <div className="flex flex-col flex-1 h-full bg-background">
              <EditorHeader />
-             <TaskTests taskPath={file.path} repo={selectedRepo} />
+             <TaskTests taskPath={file.path} repo={selectedRepo} testsPath={testsPath} />
           </div>
         ) : taskSubView === "plan" && !planPath ? (
            <div className="flex flex-col flex-1 bg-background">

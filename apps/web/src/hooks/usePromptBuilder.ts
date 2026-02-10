@@ -20,6 +20,7 @@ export interface PromptBuilderOptions {
     testStatus?: "success" | "failure" | "running";
   };
   selectedRepo: string | null;
+  generatedPlanPath?: string; // Pre-generated plan path for deterministic linking
 }
 
 export function usePromptBuilder() {
@@ -105,6 +106,17 @@ export function usePromptBuilder() {
       }
 
       if (operation === "create_plan") {
+        // Use the pre-generated plan path if provided, otherwise generate one
+        let planPath: string;
+        if (opts.generatedPlanPath) {
+          planPath = opts.generatedPlanPath;
+        } else {
+          // Fallback: generate timestamp-based ID (shouldn't normally happen)
+          const taskFileName = filePath.split('/').pop()?.replace('.md', '') || 'plan';
+          const timestamp = Date.now();
+          planPath = `.agelum/work/plans/${taskFileName}-${timestamp}.md`;
+        }
+        
         return [
           `Create a comprehensive implementation plan for the task at "${filePath}".`,
           "",
@@ -114,13 +126,12 @@ export function usePromptBuilder() {
           "Objectives:",
           "1. Research the codebase to understand the context and requirements.",
           "2. Ask clarifying questions if any critical information is missing or ambiguous.",
-          "3. Create a detailed plan document in \".agelum/work/plans/\" (relative to project root).",
-          "   - The plan file name should correspond to the task ID or name.",
+          `3. Create a detailed plan document at "${planPath}" (relative to project root).`,
           "   - If the task is large, divide the plan into phases.",
           "   - The plan should be detailed enough for an LLM to directly start working from it.",
           "   - Do NOT include testing steps (testing will be handled separately).",
-          `4. Update the task file at "${filePath}" to link to the new plan file.`,
-          "   - Add the path to the plan file in the task file (e.g., in frontmatter or a dedicated section at the top).",
+          "",
+          "NOTE: The task file will be automatically updated with a link to this plan, so you don't need to do that.",
         ].join("\n");
       }
 

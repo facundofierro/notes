@@ -106,6 +106,7 @@ export function AIRightSidebar({
   const [termSize, setTermSize] = React.useState({ cols: 300, rows: 60 });
   const [allowModify, setAllowModify] = React.useState(false);
   const [loadingIndicatorVisible, setLoadingIndicatorVisible] = React.useState(false);
+  const [lastGeneratedPlanPath, setLastGeneratedPlanPath] = React.useState<string | null>(null);
 
   // Helper to trigger loading indicator
   const triggerLoadingIndicator = React.useCallback(() => {
@@ -341,6 +342,17 @@ Error: ${error.message}`);
     const cols = calculatedCols > 0 ? calculatedCols : termSize.cols;
     const rows = calculatedRows > 0 ? calculatedRows : termSize.rows;
 
+    // If creating a plan, generate and store the plan path BEFORE building the prompt
+    let generatedPlanPath: string | null = null;
+    if (docAiMode === "plan" && file?.path) {
+      const taskFileName = file.path.split('/').pop()?.replace('.md', '') || 'plan';
+      const timestamp = Date.now();
+      generatedPlanPath = `.agelum/work/plans/${taskFileName}-${timestamp}.md`;
+      setLastGeneratedPlanPath(generatedPlanPath);
+    } else {
+      setLastGeneratedPlanPath(null);
+    }
+
     const rawPrompt = buildToolPrompt({
       promptText: trimmedPrompt,
       mode: promptMode,
@@ -353,6 +365,7 @@ Error: ${error.message}`);
         testStatus: inferTestExecutionStatus(testOutput, isTestRunning),
       } : undefined,
       selectedRepo,
+      generatedPlanPath: generatedPlanPath || undefined,
     } as PromptBuilderOptions);
 
     let prompt = rawPrompt;
@@ -463,6 +476,26 @@ Cancelled` : "Cancelled");
       setLoadingIndicatorVisible(false);
       if (contextKey && terminalProcessId) {
         updateTerminalSession(terminalProcessId, { isRunning: false });
+      }
+      
+      // Post-processing: After plan creation, automatically update task frontmatter
+      if (docAiMode === "plan" && file?.path && lastGeneratedPlanPath) {
+        // Use the plan path that was generated when building the prompt
+        fetch("/api/tasks/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskPath: file.path,
+            planPath: lastGeneratedPlanPath,
+          }),
+        })
+        .then(() => {
+          // Refresh the task file to show the updated frontmatter
+          refreshCurrentFile();
+        })
+        .catch((err) => {
+          console.error("Failed to update task frontmatter:", err);
+        });
       }
     }
   }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt, contextKey, registerTerminalSession, updateTerminalSession, terminalProcessId, agentTools, termSize.cols, termSize.rows, triggerLoadingIndicator]);

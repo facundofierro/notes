@@ -4,6 +4,7 @@ import { Plus, Play, CheckCircle, XCircle, Clock } from "lucide-react";
 interface TaskTestsProps {
   taskPath: string;
   repo: string | null;
+  testsPath?: string | null;
 }
 
 interface TestItem {
@@ -14,7 +15,7 @@ interface TestItem {
   path?: string;
 }
 
-export function TaskTests({ taskPath, repo }: TaskTestsProps) {
+export function TaskTests({ taskPath, repo, testsPath }: TaskTestsProps) {
   const [tests, setTests] = React.useState<TestItem[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -28,26 +29,35 @@ export function TaskTests({ taskPath, repo }: TaskTestsProps) {
     const fetchTests = async () => {
       setLoading(true);
       try {
-        // 1. Derive taskId from taskPath
-        // taskPath is absolute, e.g. /User/.../repo/.agelum/work/tasks/pending/taskId.md
-        const fileName = taskPath.split('/').pop();
-        if (!fileName) return;
-        const taskId = fileName.replace('.md', '');
+        let testsJsonPath: string;
         
-        // 2. Construct path to tests JSON
-        // We assume standard structure: .agelum/work/tests/{taskId}.json
-        // We need to find where .agelum is. 
-        // We can look for the ".agelum" segment in the taskPath?
-        
-        const agelumIndex = taskPath.indexOf("/.agelum/");
-        if (agelumIndex === -1) {
-             // Fallback or legacy support?
-             setTests([]);
-             return;
+        // If testsPath is provided from frontmatter, use it
+        if (testsPath) {
+          // testsPath might be relative, so resolve it
+          const agelumIndex = taskPath.indexOf("/.agelum/");
+          if (agelumIndex !== -1) {
+            const baseDir = taskPath.substring(0, agelumIndex);
+            testsJsonPath = testsPath.startsWith("/") 
+              ? testsPath 
+              : `${baseDir}/${testsPath}`;
+          } else {
+            testsJsonPath = testsPath;
+          }
+        } else {
+          // Fallback: derive from task filename (legacy behavior)
+          const fileName = taskPath.split('/').pop();
+          if (!fileName) return;
+          const taskId = fileName.replace('.md', '');
+          
+          const agelumIndex = taskPath.indexOf("/.agelum/");
+          if (agelumIndex === -1) {
+               setTests([]);
+               return;
+          }
+          
+          const baseDir = taskPath.substring(0, agelumIndex);
+          testsJsonPath = `${baseDir}/.agelum/work/tests/${taskId}.json`;
         }
-        
-        const baseDir = taskPath.substring(0, agelumIndex);
-        const testsJsonPath = `${baseDir}/.agelum/work/tests/${taskId}.json`;
         
         // 3. Fetch file content
         const res = await fetch(`/api/file?path=${encodeURIComponent(testsJsonPath)}`);
@@ -69,7 +79,7 @@ export function TaskTests({ taskPath, repo }: TaskTestsProps) {
     };
     
     fetchTests();
-  }, [taskPath, repo]);
+  }, [taskPath, repo, testsPath]);
 
   const handleCreateTest = () => {
       // TODO: Implement dialog to select existing tests or create new
