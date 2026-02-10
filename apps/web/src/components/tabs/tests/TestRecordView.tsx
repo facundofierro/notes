@@ -329,6 +329,7 @@ export function TestRecordView({
           prompt: prompt.trim(),
           deterministic,
           backend: selectedBackend,
+          projectPath,
         }),
       });
 

@@ -25,6 +25,7 @@ interface AIRecommendationInput {
   prompt: string;
   deterministic: boolean;
   backend: "google-api" | "gemini-cli";
+  projectPath?: string;
 }
 
 // Shorter deterministic system prompt for Google API
@@ -59,16 +60,16 @@ Your task:
 }
 `;
 
-function getSkillFilePath(): string {
-  return path.join(process.cwd(), ".agelum", "ai", "skills", "agent-browser.md");
+function getSkillFilePath(cwd: string): string {
+  return path.join(cwd, ".agelum", "ai", "skills", "agent-browser.md");
 }
 
-function getSnapshotFilePath(): string {
-  return path.join(process.cwd(), ".agelum", "temp", "snapshot.txt");
+function getSnapshotFilePath(cwd: string): string {
+  return path.join(cwd, ".agelum", "temp", "snapshot.txt");
 }
 
-function saveSnapshotToFile(snapshot: string): string {
-  const snapshotPath = getSnapshotFilePath();
+function saveSnapshotToFile(snapshot: string, cwd: string): string {
+  const snapshotPath = getSnapshotFilePath(cwd);
   const dir = path.dirname(snapshotPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -171,8 +172,9 @@ async function getGoogleApiRecommendation(
 async function getDeterministicGeminiCliRecommendation(
   input: AIRecommendationInput,
 ): Promise<AIRecommendation> {
-  const snapshotPath = saveSnapshotToFile(input.snapshot);
-  const skillPath = getSkillFilePath();
+  const cwd = input.projectPath || process.cwd();
+  const snapshotPath = saveSnapshotToFile(input.snapshot, cwd);
+  const skillPath = getSkillFilePath(cwd);
 
   const systemPrompt = DETERMINISTIC_CLI_SYSTEM_PROMPT.replace(
     "{{SKILL_PATH}}",
@@ -186,6 +188,7 @@ async function getDeterministicGeminiCliRecommendation(
     const errorChunks: string[] = [];
 
     const child = spawn("gemini", ["-p", "", "-o", "json"], {
+      cwd,
       env: { ...process.env, PATH: getExtendedPath() },
     });
 
@@ -197,11 +200,15 @@ async function getDeterministicGeminiCliRecommendation(
     }
 
     child.stdout.on("data", (data) => {
-      outputChunks.push(data.toString());
+      const chunk = data.toString();
+      outputChunks.push(chunk);
+      process.stdout.write(`[Gemini CLI] ${chunk}`);
     });
 
     child.stderr.on("data", (data) => {
-      errorChunks.push(data.toString());
+      const chunk = data.toString();
+      errorChunks.push(chunk);
+      process.stderr.write(`[Gemini CLI ERR] ${chunk}`);
     });
 
     child.on("close", (code) => {
@@ -222,7 +229,20 @@ async function getDeterministicGeminiCliRecommendation(
           jsonStr = jsonMatch[0];
         }
 
-        const result = JSON.parse(jsonStr);
+        let result = JSON.parse(jsonStr);
+
+        // Handle Gemini CLI wrapper (when -o json is used)
+        if (result.response && typeof result.response === "string") {
+          let innerJson = result.response.trim();
+          // Remove markdown code blocks if present
+          if (innerJson.startsWith("```")) {
+            innerJson = innerJson
+              .replace(/^```(?:json)?\n?/, "")
+              .replace(/\n?```$/, "");
+          }
+          result = JSON.parse(innerJson);
+        }
+
         resolve({
           type: "command",
           command: result.command,
@@ -231,6 +251,9 @@ async function getDeterministicGeminiCliRecommendation(
           stepDescription: result.stepDescription || result.explanation || "",
         });
       } catch (e) {
+        // Only reject if we really couldn't get a valid result
+        // It's possible the output was just the JSON directly (if CLI changes behavior)
+        console.error("Parse error:", e);
         reject(new Error(`Failed to parse Gemini CLI output: ${output}`));
       }
     });
@@ -241,16 +264,17 @@ async function getDeterministicGeminiCliRecommendation(
 
     setTimeout(() => {
       child.kill();
-      reject(new Error("Gemini CLI timed out after 60 seconds"));
-    }, 60000);
+      reject(new Error("Gemini CLI timed out after 120 seconds"));
+    }, 120000);
   });
 }
 
 async function getNonDeterministicRecommendation(
   input: AIRecommendationInput,
 ): Promise<AIRecommendation> {
-  const snapshotPath = saveSnapshotToFile(input.snapshot);
-  const skillPath = getSkillFilePath();
+  const cwd = input.projectPath || process.cwd();
+  const snapshotPath = saveSnapshotToFile(input.snapshot, cwd);
+  const skillPath = getSkillFilePath(cwd);
 
   const prompt = `You are a browser automation agent. Execute browser commands using the agelum CLI tool.
 
@@ -268,6 +292,7 @@ Use agelum commands to complete this task. Take a new snapshot if needed after i
     const errorChunks: string[] = [];
 
     const child = spawn("gemini", ["-p", ""], {
+      cwd,
       env: { ...process.env, PATH: getExtendedPath() },
     });
 
@@ -279,11 +304,15 @@ Use agelum commands to complete this task. Take a new snapshot if needed after i
     }
 
     child.stdout.on("data", (data) => {
-      outputChunks.push(data.toString());
+      const chunk = data.toString();
+      outputChunks.push(chunk);
+      process.stdout.write(`[Gemini CLI] ${chunk}`);
     });
 
     child.stderr.on("data", (data) => {
-      errorChunks.push(data.toString());
+      const chunk = data.toString();
+      errorChunks.push(chunk);
+      process.stderr.write(`[Gemini CLI ERR] ${chunk}`);
     });
 
     child.on("close", (code) => {
@@ -313,8 +342,8 @@ Use agelum commands to complete this task. Take a new snapshot if needed after i
 
     setTimeout(() => {
       child.kill();
-      reject(new Error("Gemini CLI timed out after 120 seconds"));
-    }, 120000);
+      reject(new Error("Gemini CLI timed out after 240 seconds"));
+    }, 240000);
   });
 }
 

@@ -12,10 +12,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { screenshot, snapshot, prompt, deterministic, backend } = await request.json();
+    const { screenshot, snapshot, prompt, deterministic, backend, projectPath } = await request.json();
     console.log(`[RecordAI] Received request for backend: ${backend}`, {
       prompt,
       deterministic,
+      projectPath,
       hasScreenshot: !!screenshot,
       screenshotSize: screenshot?.length,
       hasSnapshot: !!snapshot,
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
       prompt,
       deterministic: deterministic ?? false,
       backend,
+      projectPath,
     });
     console.log("[RecordAI] Recommendation received:", recommendation);
 
