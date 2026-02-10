@@ -37,7 +37,11 @@ interface TestRecordViewProps {
   projectPath: string | null;
 }
 
-export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewProps) {
+export function TestRecordView({
+  testId,
+  onStop,
+  projectPath,
+}: TestRecordViewProps) {
   // State
   const [testName, setTestName] = React.useState("Recording...");
   const [screenshot, setScreenshot] = React.useState("");
@@ -93,7 +97,9 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
         // 3. Get preview URL from project config
         let previewUrl = "http://localhost:3000";
         if (projectPath) {
-          const configRes = await fetch(`/api/project/config?path=${encodeURIComponent(projectPath)}`);
+          const configRes = await fetch(
+            `/api/project/config?path=${encodeURIComponent(projectPath)}`,
+          );
           if (configRes.ok) {
             const configData = await configRes.json();
             if (configData.config?.url) {
@@ -112,23 +118,37 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ command: "open", args: [previewUrl] }),
           });
-          if (execRes.ok) {
-            const execData = await execRes.json();
-            if (execData.success && !cancelled) {
-              const step: RecordedStep = {
-                command: "open",
-                args: [previewUrl],
-                description: `Open ${previewUrl}`,
-              };
-              setRecordedSteps([step]);
-
-              // Persist this step
-              await fetch(`/api/tests/${testId}/steps`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "command", command: `open ${previewUrl}` }),
-              });
+          if (!execRes.ok) {
+            const errorText = await execRes.text();
+            let errorMessage = "Unknown error";
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage =
+                errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+              errorMessage = errorText || errorMessage;
             }
+            throw new Error(`Failed to open preview URL: ${errorMessage}`);
+          }
+
+          const execData = await execRes.json();
+          if (execData.success && !cancelled) {
+            const step: RecordedStep = {
+              command: "open",
+              args: [previewUrl],
+              description: `Open ${previewUrl}`,
+            };
+            setRecordedSteps([step]);
+
+            // Persist this step
+            await fetch(`/api/tests/${testId}/steps`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "command",
+                command: `open ${previewUrl}`,
+              }),
+            });
           }
         } else {
           // Replay existing steps
@@ -156,11 +176,26 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
             }
 
             setStatusMessage(`Replaying: ${description}`);
-            await fetch("/api/tests/record/execute", {
+            const replayedExecRes = await fetch("/api/tests/record/execute", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ command, args }),
             });
+
+            if (!replayedExecRes.ok) {
+              const errorText = await replayedExecRes.text();
+              let errorMessage = "Unknown error";
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage =
+                  errorData.error || errorData.message || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+              throw new Error(
+                `Failed to replay step "${description}": ${errorMessage}`,
+              );
+            }
 
             replayedSteps.push({ command, args, description });
           }
@@ -186,7 +221,9 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
     }
 
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [testId, projectPath]);
 
   async function captureState(cancelled?: boolean) {
@@ -234,7 +271,9 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
       const recommendation = await aiRes.json();
 
       // 2. Execute the command
-      setStatusMessage(`Executing: ${recommendation.command} ${recommendation.args.join(" ")}`);
+      setStatusMessage(
+        `Executing: ${recommendation.command} ${recommendation.args.join(" ")}`,
+      );
       const execRes = await fetch("/api/tests/record/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -257,12 +296,16 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
       const newStep: RecordedStep = {
         command: recommendation.command,
         args: recommendation.args,
-        description: recommendation.stepDescription || `${recommendation.command} ${recommendation.args.join(" ")}`,
+        description:
+          recommendation.stepDescription ||
+          `${recommendation.command} ${recommendation.args.join(" ")}`,
       };
       setRecordedSteps((prev) => [...prev, newStep]);
 
       // 4. Persist the step
-      const fullCommand = [recommendation.command, ...recommendation.args].join(" ");
+      const fullCommand = [recommendation.command, ...recommendation.args].join(
+        " ",
+      );
       await fetch(`/api/tests/${testId}/steps`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -323,7 +366,10 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
             </span>
           </div>
           {statusMessage && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0.5 h-5 bg-white/[0.03] border-white/[0.06] text-zinc-500">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-2 py-0.5 h-5 bg-white/[0.03] border-white/[0.06] text-zinc-500"
+            >
               <Loader2 className="w-2.5 h-2.5 mr-1 animate-spin" />
               {statusMessage}
             </Badge>
@@ -333,7 +379,10 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
         <div className="flex items-center gap-4">
           {/* Deterministic toggle */}
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-zinc-500 cursor-pointer" htmlFor="deterministic-toggle">
+            <Label
+              className="text-[11px] text-zinc-500 cursor-pointer"
+              htmlFor="deterministic-toggle"
+            >
               Deterministic
             </Label>
             <Switch
@@ -397,7 +446,10 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
               )}
               <span className="font-medium">DOM Snapshot</span>
               {snapshot && (
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-white/[0.03] border-white/[0.06] text-zinc-600">
+                <Badge
+                  variant="outline"
+                  className="text-[9px] px-1.5 py-0 h-4 bg-white/[0.03] border-white/[0.06] text-zinc-600"
+                >
                   {snapshot.length > 1000
                     ? `${Math.round(snapshot.length / 1000)}k chars`
                     : `${snapshot.length} chars`}
@@ -432,7 +484,7 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
                       key={index}
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg",
-                        "bg-white/[0.02] border border-white/[0.04]"
+                        "bg-white/[0.02] border border-white/[0.04]",
                       )}
                     >
                       <div className="w-5 h-5 rounded-md bg-white/[0.04] flex items-center justify-center text-[9px] font-mono text-zinc-500 flex-shrink-0">
@@ -470,19 +522,32 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
           <div className="border-t border-white/[0.04] p-3 space-y-2">
             {/* Backend selector */}
             <div className="flex items-center gap-2">
-              <Label className="text-[10px] text-zinc-600 flex-shrink-0">AI Backend:</Label>
-              <Select value={selectedBackend} onValueChange={setSelectedBackend}>
+              <Label className="text-[10px] text-zinc-600 flex-shrink-0">
+                AI Backend:
+              </Label>
+              <Select
+                value={selectedBackend}
+                onValueChange={setSelectedBackend}
+              >
                 <SelectTrigger className="h-6 text-[11px] bg-white/[0.03] border-white/[0.06] text-zinc-400 flex-1">
                   <SelectValue placeholder="Select backend..." />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-white/[0.06]">
                   {backends.map((b) => (
-                    <SelectItem key={b.id} value={b.id} className="text-xs text-zinc-300">
+                    <SelectItem
+                      key={b.id}
+                      value={b.id}
+                      className="text-xs text-zinc-300"
+                    >
                       {b.label} ({b.model})
                     </SelectItem>
                   ))}
                   {backends.length === 0 && (
-                    <SelectItem value="_none" disabled className="text-xs text-zinc-500">
+                    <SelectItem
+                      value="_none"
+                      disabled
+                      className="text-xs text-zinc-500"
+                    >
                       No backends available
                     </SelectItem>
                   )}
@@ -498,20 +563,27 @@ export function TestRecordView({ testId, onStop, projectPath }: TestRecordViewPr
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Describe what to do next..."
-                disabled={isProcessing || isInitializing || backends.length === 0}
+                disabled={
+                  isProcessing || isInitializing || backends.length === 0
+                }
                 rows={2}
                 className={cn(
                   "flex-1 px-3 py-2 text-sm rounded-lg resize-none",
                   "bg-white/[0.03] border border-white/[0.06] text-zinc-200",
                   "placeholder:text-zinc-600",
                   "focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500/30",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
                 )}
               />
               <Button
                 size="sm"
                 onClick={handleSubmitPrompt}
-                disabled={!prompt.trim() || isProcessing || isInitializing || backends.length === 0}
+                disabled={
+                  !prompt.trim() ||
+                  isProcessing ||
+                  isInitializing ||
+                  backends.length === 0
+                }
                 className="h-auto px-3 bg-emerald-600 hover:bg-emerald-500 text-white border-0 rounded-lg self-end"
               >
                 {isProcessing ? (

@@ -3,6 +3,7 @@ import {
   spawn,
 } from "child_process";
 import { promisify } from "util";
+import path from "path";
 
 const execAsync = promisify(exec);
 
@@ -147,6 +148,8 @@ export type AgentToolName = keyof typeof AGENT_TOOLS;
 // Helper to get extended PATH with common user locations
 export function getExtendedPath(): string {
   const home = process.env.HOME || "";
+  const cwd = process.cwd();
+  
   const commonPaths = [
     `${home}/.local/bin`,
     "/opt/homebrew/bin",
@@ -157,11 +160,18 @@ export function getExtendedPath(): string {
     "/sbin",
   ];
 
+  // Monorepo specific paths
+  const monorepoPaths = [
+    path.join(cwd, "node_modules/.bin"),
+    path.join(cwd, "..", "..", "node_modules/.bin"),
+    path.join(cwd, "..", "..", "packages", "test-engine", "node_modules", ".bin"),
+  ];
+
   const currentPath = process.env.PATH || "";
   const currentPaths = currentPath.split(":");
 
   // Combine and deduplicate
-  const allPaths = [...commonPaths, ...currentPaths].filter(
+  const allPaths = [...monorepoPaths, ...commonPaths, ...currentPaths].filter(
     (p) => p && p.trim() !== "",
   );
   const uniquePaths = [...new Set(allPaths)];
@@ -317,7 +327,7 @@ export async function executeAgentCommand(
       {
         env: {
           ...process.env,
-          PATH: process.env.PATH,
+          PATH: getExtendedPath(),
         },
       },
     );

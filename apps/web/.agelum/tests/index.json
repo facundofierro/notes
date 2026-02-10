@@ -16,5 +16,14 @@
     "description": "Verify CLI test commands work",
     "stepsCount": 0,
     "updatedAt": "2026-02-10T12:16:44.989Z"
+  },
+  {
+    "id": "test-1770744776786",
+    "name": "Untitled Test",
+    "group": "EXPERIMENTAL",
+    "folder": "UntitledTest",
+    "description": "",
+    "stepsCount": 0,
+    "updatedAt": "2026-02-10T17:32:56.787Z"
   }
 ]
