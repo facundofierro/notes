@@ -33,7 +33,7 @@ interface WorkEditorProps {
 }
 
 import { TaskTests } from "./TaskTests";
-import { LayoutList, FileText, ListChecks } from "lucide-react";
+import { LayoutList, FileText, ListChecks, ArrowLeft } from "lucide-react";
 
 export function WorkEditor({
   file,
@@ -59,6 +59,7 @@ export function WorkEditor({
 }: WorkEditorProps) {
   const [taskSubView, setTaskSubView] = React.useState<"task" | "plan" | "tests">("task");
   const [planFile, setPlanFile] = React.useState<FileNode | null>(null);
+  const [planPathForAI, setPlanPathForAI] = React.useState<string | null>(null);
 
   // Extract plan path from task file content
   const planPath = React.useMemo(() => {
@@ -80,6 +81,38 @@ export function WorkEditor({
     return null;
   }, [file, viewMode]);
 
+
+  // Validate plan file existence and content for AI usage
+  React.useEffect(() => {
+    if (!planPath) {
+      setPlanPathForAI(null);
+      return;
+    }
+
+    let fetchPath = planPath;
+    if (!planPath.startsWith("/") && basePath && selectedRepo) {
+       fetchPath = `${basePath}/${selectedRepo}/${planPath}`.replace(/\/+/g, "/");
+    }
+    
+    fetch(`/api/file?path=${encodeURIComponent(fetchPath)}`)
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error("Plan file not found");
+      })
+      .then(data => {
+        // Check if file has content (at least 10 lines)
+        const lineCount = (data.content || '').split('\n').length;
+        if (lineCount >= 10) {
+          setPlanPathForAI(fetchPath);
+        } else {
+          setPlanPathForAI(null);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to validate plan file:", err);
+        setPlanPathForAI(null);
+      });
+  }, [planPath, basePath, selectedRepo]);
   // Fetch plan content
   React.useEffect(() => {
     if (taskSubView === "plan" && planPath && (!planFile || planFile.path !== planPath)) {
@@ -154,30 +187,52 @@ export function WorkEditor({
          <ListChecks className="w-3.5 h-3.5" />
          Tests
        </button>
-    </div>
+     </div>
   ) : null;
+
+  // Common header component for consistent layout across views
+  const EditorHeader = ({ extraContent }: { extraContent?: React.ReactNode }) => (
+    <div className="flex justify-between items-center p-3 border-b bg-secondary border-border">
+      <div className="flex gap-2 items-center">
+        <button
+          onClick={onBack}
+          className="p-1 mr-1 rounded transition-colors text-muted-foreground hover:text-white hover:bg-accent"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <FileText className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground truncate">
+          {file.path.split('/').pop()}
+        </span>
+      </div>
+      {headerCenter && (
+         <div className="flex-grow flex justify-center px-4 min-w-0">
+           {headerCenter}
+         </div>
+      )}
+      <div className="flex gap-2 items-center">
+          {extraContent}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex w-full h-full">
       <div className="flex overflow-hidden flex-1 border-r border-border">
         {taskSubView === "tests" ? (
           <div className="flex flex-col flex-1 h-full bg-background">
-             {headerCenter && <div className="flex justify-center p-2 border-b border-border bg-secondary">{headerCenter}</div>}
+             <EditorHeader />
              <TaskTests taskPath={file.path} repo={selectedRepo} />
           </div>
         ) : taskSubView === "plan" && !planPath ? (
            <div className="flex flex-col flex-1 bg-background">
-              <div className="flex justify-between items-center p-3 border-b bg-secondary border-border">
-                  <div className="flex-1"></div>
-                  {headerCenter}
-                  <div className="flex-1"></div>
-              </div>
+              <EditorHeader />
               <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
                 <div className="bg-secondary/20 p-4 rounded-full mb-4">
                   <LayoutList className="w-8 h-8 opacity-50" />
                 </div>
                 <h3 className="text-lg font-medium text-foreground mb-2">No Plan Linked</h3>
-                <p className="max-w-md mb-6 text-sm">This task doesn't have a linked plan yet. Use the Agent "Plan" mode in the right sidebar to generate one.</p>
+                <p className="max-w-md mb-6 text-sm">This task doesn&apos;t have a linked plan yet. Use the Agent &quot;Plan&quot; mode in the right sidebar to generate one.</p>
                 <div className="text-xs text-muted-foreground bg-secondary/30 p-3 rounded border border-border">
                   <p>Trigger the Plan agent to automatically create and link a plan file.</p>
                 </div>
@@ -190,7 +245,7 @@ export function WorkEditor({
             onFileSaved={onRefresh}
             editing={workEditorEditing}
             onEditingChange={onWorkEditorEditingChange}
-            onBack={taskSubView === "task" ? onBack : undefined} // Only allow back from task view? Or always?
+            onBack={onBack}
             onRename={taskSubView === "task" ? onRename : undefined}
             isTestFile={viewMode === "tests"}
             testViewMode={testViewMode}
@@ -198,6 +253,7 @@ export function WorkEditor({
             testOutput={testOutput}
             isTestRunning={isTestRunning}
             headerCenter={headerCenter}
+            allowEdit={taskSubView === "task"}
           />
         )}
       </div>
@@ -207,7 +263,7 @@ export function WorkEditor({
         projectPath={projectPath}
         agentTools={agentTools}
         viewMode={viewMode}
-        file={file} // Always pass the main task file to context, so Agent knows what to work on?
+        file={file ? { ...file, planPath: planPathForAI } as any : null} // Pass planPath so start mode can use plan file
         // Actually, if we are viewing the Plan, maybe we want the context to be the Plan?
         // But the prompt builder logic I added uses `file.path` to determine context.
         // If I pass `planFile`, it might think it's just a generic file.

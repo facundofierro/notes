@@ -86,6 +86,7 @@ interface FileViewerProps {
   testOutput?: string;
   isTestRunning?: boolean;
   headerCenter?: React.ReactNode;
+  allowEdit?: boolean;
 }
 
 export default function FileViewer({
@@ -105,6 +106,7 @@ export default function FileViewer({
   testOutput,
   isTestRunning,
   headerCenter,
+  allowEdit = true,
 }: FileViewerProps) {
   const [isEditing, setIsEditing] =
     useState(false);
@@ -483,7 +485,7 @@ export default function FileViewer({
                   : "Save"}
               </button>
             </>
-          ) : (
+          ) : allowEdit && (
             <button
               onClick={() =>
                 updateEditing(true)

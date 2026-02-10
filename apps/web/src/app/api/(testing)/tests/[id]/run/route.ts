@@ -65,8 +65,7 @@ export async function POST(
       start(controller) {
         // Emit execution metadata as first line
         const meta = JSON.stringify({ type: "exec_start", executionId: execId, testId: id, startedAt });
-        controller.enqueue(encoder.encode(meta + "
-"));
+        controller.enqueue(encoder.encode(meta + "\n"));
 
         const child = spawn(
           "npx",
@@ -83,8 +82,7 @@ export async function POST(
           controller.enqueue(encoder.encode(text));
 
           // Collect logs and screenshots for persistence
-          const lines = text.split("
-");
+          const lines = text.split("\n");
           for (const line of lines) {
             if (!line.trim()) continue;
             allLogs.push(line);
@@ -110,9 +108,7 @@ export async function POST(
           const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
           const status = code === 0 ? "passed" : "failed";
 
-          controller.enqueue(encoder.encode(`
-Process exited with code ${code}
-`));
+          controller.enqueue(encoder.encode(`\nProcess exited with code ${code}\n`));
 
           // Persist execution result
           const result = {
@@ -143,8 +139,7 @@ Process exited with code ${code}
 
           // Emit completion event
           const completionEvent = JSON.stringify({ type: "exec_complete", executionId: execId, status, duration });
-          controller.enqueue(encoder.encode(completionEvent + "
-"));
+          controller.enqueue(encoder.encode(completionEvent + "\n"));
 
           controller.close();
         });
@@ -153,8 +148,7 @@ Process exited with code ${code}
           const completedAt = new Date().toISOString();
           const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
-          controller.enqueue(encoder.encode(`Error: ${err.message}
-`));
+          controller.enqueue(encoder.encode(`Error: ${err.message}\n`));
 
           // Persist error result
           const result = {

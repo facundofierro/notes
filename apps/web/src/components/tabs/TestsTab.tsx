@@ -52,7 +52,8 @@ export function TestsTab() {
   }, [state]);
 
   const renderCenterView = () => {
-    switch (state.centerView.kind) {
+    const { centerView } = state;
+    switch (centerView.kind) {
       case "dashboard":
         return (
           <TestsDashboard
@@ -75,7 +76,7 @@ export function TestsTab() {
       case "detail":
         return (
           <TestDetailView
-            testId={state.centerView.testId}
+            testId={centerView.testId}
             executions={state.executions}
             executionsLoading={state.executionsLoading}
             isRunning={state.isRunning}
@@ -89,24 +90,24 @@ export function TestsTab() {
       case "record":
         return (
           <TestRecordView
-            testId={state.centerView.testId}
-            onStop={() => state.stopRecording(state.centerView.testId)}
+            testId={centerView.testId}
+            onStop={() => state.stopRecording(centerView.testId)}
             projectPath={projectPath}
           />
         );
       case "execution":
         return (
           <ExecutionView
-            executionId={state.centerView.executionId}
-            testId={state.centerView.testId}
+            executionId={centerView.executionId}
+            testId={centerView.testId}
             logs={state.executionLogs}
             screenshots={state.executionScreenshots}
             isRunning={state.isRunning}
             onClose={() => {
               // Go back to detail if we have a testId, otherwise dashboard
-              if (state.centerView.kind === "execution" && state.centerView.testId) {
-                state.setCenterView({ kind: "detail", testId: state.centerView.testId });
-                state.fetchExecutions(state.centerView.testId);
+              if (centerView.kind === "execution" && centerView.testId) {
+                state.setCenterView({ kind: "detail", testId: centerView.testId });
+                state.fetchExecutions(centerView.testId);
               } else {
                 state.goToDashboard();
               }

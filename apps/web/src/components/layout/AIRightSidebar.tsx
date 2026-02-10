@@ -345,7 +345,7 @@ Error: ${error.message}`);
       promptText: trimmedPrompt,
       mode: promptMode,
       docMode: docAiMode,
-      file: file ? { path: file.path } : undefined,
+      file: file ? { path: file.path, planPath: (file as any).planPath } : undefined,
       viewMode: viewMode as any,
       testContext: viewMode === "tests" ? {
         testViewMode,
@@ -552,7 +552,7 @@ Cancelled` : "Cancelled");
       promptText,
       mode: promptMode,
       docMode: docAiMode,
-      file: file ? { path: file.path } : undefined,
+      file: file ? { path: file.path, planPath: (file as any).planPath } : undefined,
       viewMode: viewMode as any,
       testContext: viewMode === "tests" ? {
         testViewMode,
@@ -669,7 +669,9 @@ Cancelled` : "Cancelled");
                 <button onClick={() => setDocAiMode("start")} className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${ docAiMode === "start" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground" }`}>
                   {(file?.path.includes("/epics/") || viewMode === "epics") ? "Create tasks" : "Start"}
                 </button>
-                <button onClick={() => setDocAiMode("plan")} className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${ docAiMode === "plan" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground" }`}>Plan</button>
+                {(viewMode === "tasks" || viewMode === "kanban" || file?.path.includes("/tasks/")) && (
+                  <button onClick={() => setDocAiMode("plan")} className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${ docAiMode === "plan" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground" }`}>Plan</button>
+                )}
               </div>
             )}
             <div className="flex relative flex-1 justify-end items-center">

@@ -11,6 +11,7 @@ export interface PromptBuilderOptions {
   docMode: "modify" | "start" | "plan";
   file: {
     path: string;
+    planPath?: string;
   };
   viewMode: ViewMode;
   testContext?: {
@@ -164,8 +165,13 @@ export function usePromptBuilder() {
       }
 
       if (operation === "work_on_task") {
+        // If a plan file exists and has content, use it instead of the task file
+        const planPath = opts.file.planPath;
+        const targetPath = planPath || filePath;
+        const contextType = planPath ? "implementation plan" : "task document";
+        
         return [
-          `Work on the task document at "${filePath}" as the source of requirements and acceptance criteria.`,
+          `Work on the ${contextType} at "${targetPath}" as the source of requirements and acceptance criteria.`,
           "",
           "User instructions:",
           trimmed,
