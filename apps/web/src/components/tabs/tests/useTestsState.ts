@@ -63,6 +63,42 @@ export function useTestsState() {
     }
   }, []);
 
+  // --- Fetch groups ---
+  const [groups, setGroups] = React.useState<string[]>([]);
+  
+  const fetchGroups = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/tests/groups");
+      if (res.ok) {
+        const data = await res.json();
+        setGroups(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
+
+  const createGroup = React.useCallback(async (name: string) => {
+    try {
+      const res = await fetch("/api/tests/groups", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+        headers: { "Content-Type": "application/json" }
+      });
+      if (res.ok) {
+        await fetchGroups();
+        return true;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return false;
+  }, [fetchGroups]);
+
   // --- Sidebar resize ---
   const startResizing = React.useCallback(() => {
     setIsResizing(true);
@@ -228,6 +264,8 @@ export function useTestsState() {
     tests,
     loading,
     fetchTests,
+    groups,
+    createGroup,
     selectedTest,
     selectedTestId,
 

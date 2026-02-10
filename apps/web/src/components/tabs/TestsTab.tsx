@@ -119,9 +119,16 @@ export function TestsTab() {
       >
         <TestsSidebar
           tests={state.tests}
+          groups={state.groups}
           selectedTestId={state.selectedTestId}
           onSelectTest={state.selectTest}
           onCreateTest={() => state.createTest()}
+          onCreateGroup={async () => {
+            const name = window.prompt("Enter new group name:");
+            if (name) {
+              await state.createGroup(name);
+            }
+          }}
           onDeleteTest={handleDeleteTest}
           onRunTest={state.runTest}
           isRunning={state.isRunning}

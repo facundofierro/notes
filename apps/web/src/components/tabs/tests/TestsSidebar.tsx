@@ -6,6 +6,7 @@ import { TestScenario } from "./types";
 
 interface TestsSidebarProps {
   tests: TestScenario[];
+  groups?: string[];
   selectedTestId: string | null;
   onSelectTest: (test: TestScenario) => void;
   onCreateTest: () => void;
@@ -19,6 +20,7 @@ interface TestsSidebarProps {
 
 export function TestsSidebar({
   tests,
+  groups: folderList,
   selectedTestId,
   onSelectTest,
   onCreateTest,
@@ -35,13 +37,21 @@ export function TestsSidebar({
   // Group tests
   const grouped = React.useMemo(() => {
     const groups: Record<string, TestScenario[]> = {};
+    
+    // Initialize with provided folder list
+    if (folderList) {
+      folderList.forEach(g => {
+        groups[g] = [];
+      });
+    }
+
     tests.forEach(test => {
       const g = test.group || "ungrouped";
       if (!groups[g]) groups[g] = [];
       groups[g].push(test);
     });
     return groups;
-  }, [tests]);
+  }, [tests, folderList]);
 
   const filteredGroups = React.useMemo(() => {
     if (!search) return grouped;
