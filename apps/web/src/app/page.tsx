@@ -32,6 +32,13 @@ export default function Home() {
     projectStates,
   } = store;
 
+  // Prevent hydration mismatch by only rendering after mount
+  const [hasMounted, setHasMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   // Initial data fetching
   React.useEffect(() => {
     fetchSettings();
@@ -73,7 +80,7 @@ export default function Home() {
       <Header />
 
       <div className="flex overflow-hidden flex-col flex-1 relative">
-        {Object.entries(projectStates).map(([repoName, projectState]) => (
+        {hasMounted && Object.entries(projectStates).map(([repoName, projectState]) => (
           <div 
             key={repoName} 
             className={`absolute inset-0 flex flex-col ${repoName === selectedRepo ? "z-10 visible" : "z-0 invisible"}`}
@@ -81,7 +88,7 @@ export default function Home() {
             <ProjectView repoName={repoName} projectState={projectState} />
           </div>
         ))}
-        {!selectedRepo && (
+        {(!hasMounted || !selectedRepo) && (
           <div className="flex flex-1 items-center justify-center text-muted-foreground bg-background">
             Select a project to get started
           </div>

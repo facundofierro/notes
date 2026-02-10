@@ -17,8 +17,12 @@ export function AITab() {
     handleStopApp,
     agentTools,
     handleRunTest,
-    terminalSessions,
   } = store;
+
+  // Aggregate terminalSessions from all projects
+  const terminalSessions = React.useMemo(() => {
+    return Object.values(store.projectStates).flatMap(p => p.terminalSessions || []);
+  }, [store.projectStates]);
 
   const { 
     viewMode,
