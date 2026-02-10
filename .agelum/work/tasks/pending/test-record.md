@@ -73,13 +73,15 @@ Implement a "Record" mode in the Tests Tab that allows users to interactively cr
   - Executing interactions (Click, Type, etc.).
 - **AI Integration**:
   - Use the existing AI Client structure or a new lightweight client for the "Record" loop.
-    - **Skill Creation & Distribution**: Create a specific skill definition file. critically, this skill **must be automatically stored/copied** to `.agelum/ai/skills` in every project opened by Agelum. This ensures the "Record" capability is portable and available in any project context.
+    - **Skill Creation & Distribution**: Create a specific skill definition file. Critically, this skill **must be automatically stored/copied** from the Agelum application's assets into the `.agelum/ai/skills` directory of **every external project opened by the user**. This ensures the "Record" capability is portable and available in any project context, and avoids confusion with the Agelum tool's own configuration folder.
 
 ## Technical Implementation Plan
 
 1.  **Skill Definition & Deployment**:
-    - Create the `SKILL.md` for Agelum CLI test commands.
-    - Implement logic (likely in the main app initialization or project open flow) to write this file to `.agelum/ai/skills/test_record.md` (or similar) if it doesn't exist.
+    - Create the `SKILL.md` template for Agelum CLI test commands.
+    - **Template Storage**: Store this template within the Agelum application assets (e.g., in `apps/web/public/templates` or a dedicated internal assets folder).
+    - **Project-Specific Injection**: Implement logic (in the main app initialization or project opening workflow) to write this file to the `.agelum/ai/skills/test_record.md` path of the **currently opened external repository**.
+    - **Avoid Local Confusion**: Explicitly distinguish between the Agelum tool's own `.agelum` directory and the `.agelum` directory that must be initialized in every project the user works on. This ensures the AI agent always has the necessary "Record" skills regardless of the project context.
 2.  **CLI Enhancements (Rust)**:
     - Verify `agent-browser` integration in `cli`.
     - Ensure `snapshot` and `screenshot` commands return data in a format consumable by the web UI (base64 images, JSON snapshot).
