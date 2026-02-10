@@ -73,11 +73,13 @@ Implement a "Record" mode in the Tests Tab that allows users to interactively cr
   - Executing interactions (Click, Type, etc.).
 - **AI Integration**:
   - Use the existing AI Client structure or a new lightweight client for the "Record" loop.
-  - **Skill Creation**: Create a specific skill definition file (e.g., in `.agent/skills/`) that teaches the LLM how to format commands for the Agelum CLI specifically for testing tasks.
+    - **Skill Creation & Distribution**: Create a specific skill definition file. critically, this skill **must be automatically stored/copied** to `.agelum/ai/skills` in every project opened by Agelum. This ensures the "Record" capability is portable and available in any project context.
 
 ## Technical Implementation Plan
 
-1.  **Skill Definition**: Create a `SKILL.md` (or prompt template) describing Agelum CLI test commands for the LLM.
+1.  **Skill Definition & Deployment**:
+    - Create the `SKILL.md` for Agelum CLI test commands.
+    - Implement logic (likely in the main app initialization or project open flow) to write this file to `.agelum/ai/skills/test_record.md` (or similar) if it doesn't exist.
 2.  **CLI Enhancements (Rust)**:
     - Verify `agent-browser` integration in `cli`.
     - Ensure `snapshot` and `screenshot` commands return data in a format consumable by the web UI (base64 images, JSON snapshot).
