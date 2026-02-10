@@ -1,56 +1,81 @@
 # Agelum
 
-AI Document Management Tool for Development Projects
+**The AI-Native Workspace for Modern Software Development.**
 
-## Overview
+Agelum is a comprehensive development tool designed to unify the entire software lifecycle—from ideation and planning to coding, testing, and review—into a single, AI-powered interface. It bridges the gap between your code, browser, documentation, and external AI agents using the Model Context Protocol (MCP).
 
-Agelum is a Turborepo monorepo containing a Next.js application for managing AI-related documents within development projects. It automatically creates an `agelum` folder with a standardized directory structure and exposes an MCP (Model Context Protocol) server for programmatic access.
+---
 
-## Repository Structure
+## 🚀 The Full Workflow, Powered by AI
 
-```
+Agelum isn't just a document manager; it's a complete workspace that understands your project's context.
+
+### 🧠 Ideation & Planning
+
+- **Ideas & Epics**: Dedicated spaces to capture high-level concepts and break them down into actionable epics.
+- **Task Management**: A robust **Kanban Board** integrated directly with your repository's `.agelum` directory, allowing for state-driven task tracking.
+- **Documentation**: Rich markdown support for project wikis, design docs, and technical specifications.
+
+### 💻 Code Review & Git Integration
+
+- **Local Changes**: Real-time view of your current Git changes with intuitive diffing.
+- **GitHub PR Management**: Browse, review, checkout, and merge Pull Requests directly within Agelum.
+- **AI-Assisted Review**: Trigger specialized AI agents to audit security, quality, and performance of your changes.
+
+### 🌐 AI-Integrated Browser
+
+- **Multi-Tab Preview**: Embedded browser (powered by Electron's WebContentsView) to view your local or remote applications.
+- **Natural Interaction**: Supports multi-page browsing with persistent state and session-aware tabs.
+- **AI Coordinate Mapping**: High-quality screenshot capture with coordinate mapping, allowing AI agents to "see" and interact with your UI precisely.
+- **CSS Inspector**: Visual CSS editor with element picking and live preview.
+
+### 🧪 Visual Testing & Automation
+
+- **Test Management**: A dashboard to organize, run, and track visual and functional tests.
+- **Screenshot-Driven Execution**: Automatically capture and compare UI states during test runs.
+- **Execution History**: Detailed logs and visual artifacts for every test execution.
+
+### 🛠️ Terminal & Logs
+
+- **Integrated Terminal**: A full-featured terminal within the workspace for running builds, scripts, and monitoring logs.
+- **System Logs**: Real-time monitoring of application and MCP server activities.
+
+---
+
+## 🏗️ Architecture & Technology
+
+Agelum is built for performance, extensibility, and deep AI integration.
+
+- **Monorepo**: Managed with **TurboRepo** and **pnpm** for ultimate developer velocity.
+- **Frontend**: **Next.js 14** (App Router) with **Tailwind CSS** and a custom design system built on **shadcn/ui**.
+- **Desktop**: **Electron** wrapper providing native capabilities like multi-window management and raw browser access.
+- **MCP Server**: An embedded **Model Context Protocol** server that exposes your project's state (tasks, docs, files) to external AI agents.
+- **State Management**: Zero-database architecture; all project state is stored in a standardized `.agelum` folder within your repositories.
+
+---
+
+## 📂 Repository Structure
+
+```text
 agelum/
 ├── apps/
-│   ├── web/          # Next.js web application
-│   └── mcp/          # MCP server (Model Context Protocol)
-├── packages/         # Shared packages (for future use)
-├── turbo.json        # Turborepo configuration
-├── pnpm-workspace.yaml
-└── package.json
+│   ├── web/          # Core Next.js application & MCP Server
+│   └── electron/     # Desktop wrapper for native features
+├── packages/
+│   ├── kanban/       # Reusable Kanban components
+│   └── shadcn/       # Shared UI component library
+├── .agelum/          # Tool-specific data (docs, tasks, plans)
+└── turbo.json        # Build pipeline configuration
 ```
 
-## Agelum Directory Structure
+---
 
-When initialized in a project, Agelum creates:
-
-```
-agelum/
-├── docs/          # Project documentation
-├── plans/         # Planning documents
-├── tasks/
-│   ├── pending/   # Tasks waiting to be started
-│   ├── doing/     # Tasks currently in progress
-│   └── done/      # Completed tasks
-├── commands/      # Command references and scripts
-├── skills/        # Skill definitions
-├── agents/        # Agent configurations
-├── context/       # Context documents
-└── epics/         # Epic definitions
-```
-
-## Features
-
-- **Web Interface**: Browse repositories and files through a responsive sidebar and file browser
-- **Kanban Board**: Visual task management with drag-and-drop powered by shadcn-data-views
-- **MCP Server**: Programmatic access to manage documents and tasks
-- **Repository Discovery**: Automatically discovers repositories in your `~/git` directory
-
-## Getting Started
+## 🚦 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- pnpm 9.0+
+- **Node.js**: 20.x or higher
+- **Package Manager**: `pnpm` 9.x or higher
 
 ### Installation
 
@@ -60,131 +85,35 @@ pnpm install
 
 ### Development
 
-Run all apps in development mode:
+Agelum typically runs on port **6500**.
 
 ```bash
-pnpm dev
+# Start the web development server
+pnpm web:dev
+
+# Start the Electron desktop application
+pnpm electron:dev
 ```
 
-Or run individual apps:
-
-```bash
-# Next.js web app (http://localhost:3000)
-pnpm --filter @agelum/web dev
-
-# MCP server
-pnpm --filter @agelum/mcp dev
-```
-
-### Build
-
-Build all apps:
+### Building for Production
 
 ```bash
 pnpm build
 ```
 
-Or build individual apps:
+---
 
-```bash
-pnpm --filter @agelum/web build
-pnpm --filter @agelum/mcp build
-```
+## 🔌 Model Context Protocol (MCP)
 
-## MCP Server
+Agelum exposes a suite of tools for AI agents to interact with your project:
 
-Start the MCP server for programmatic access:
+- `create-task` / `move-task`: Programmatic task management.
+- `create-document` / `read-document`: Documentation access.
+- `list-repositories`: Discover projects in your workspace.
+- `execute-command`: Run scripts and CLI tools.
 
-```bash
-pnpm --filter @agelum/mcp dev
-```
+---
 
-## MCP Tools
+## 📄 License
 
-### create-task
-
-Create a new task file in the agelum structure.
-
-```json
-{
-  "name": "create-task",
-  "arguments": {
-    "repo": "my-project",
-    "taskName": "Implement feature X",
-    "description": "Description of the task",
-    "state": "pending"
-  }
-}
-```
-
-### move-task
-
-Move a task between states (pending, doing, done).
-
-```json
-{
-  "name": "move-task",
-  "arguments": {
-    "repo": "my-project",
-    "taskName": "Implement feature X",
-    "fromState": "pending",
-    "toState": "doing"
-  }
-}
-```
-
-### create-document
-
-Create a markdown document in any category.
-
-```json
-{
-  "name": "create-document",
-  "arguments": {
-    "repo": "my-project",
-    "category": "docs",
-    "documentName": "API Reference",
-    "content": "# API Reference\n\n..."
-  }
-}
-```
-
-### list-repositories
-
-List all repositories in the git directory.
-
-```json
-{
-  "name": "list-repositories",
-  "arguments": {}
-}
-```
-
-### read-document
-
-Read the content of a document.
-
-```json
-{
-  "name": "read-document",
-  "arguments": {
-    "repo": "my-project",
-    "category": "docs",
-    "documentName": "API Reference"
-  }
-}
-```
-
-## Environment Variables
-
-- `HOME` or `USERPROFILE`: Used to locate the git directory containing repositories
-
-## Architecture
-
-- **Frontend**: Next.js 14 with React, Tailwind CSS, and shadcn-data-views
-- **MCP Server**: TypeScript implementation using @modelcontextprotocol/sdk
-- **Build System**: Turborepo for efficient monorepo management
-
-## License
-
-MIT
+Agelum is licensed under the MIT License.

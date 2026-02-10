@@ -300,7 +300,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     if (!isElectron || !isSelected) return;
     const api = window.electronAPI!.browserView;
     
-    const unsubNav = api.onNavigated((url: string, isInsecure: boolean, tabIndex?: number) => {
+    const unsubNav = api.onNavigated((url: string, isInsecure?: boolean, tabIndex?: number) => {
       const navTabIndex = tabIndex ?? 0;
       // Only update the URL bar state if this event is from the active tab
       if (navTabIndex === activeBrowserPageIndex) {
