@@ -74,13 +74,15 @@ export function AIRightSidebar({
   const [openCodeWebError, setOpenCodeWebError] = React.useState("");
   const [pendingOpenCodeWebMessage, setPendingOpenCodeWebMessage] = React.useState<any>(null);
   const [promptMode, setPromptMode] = React.useState<"agent" | "plan" | "chat">("agent");
-  const [docAiMode, setDocAiMode] = React.useState<"modify" | "start">("modify");
+  const [docAiMode, setDocAiMode] = React.useState<"modify" | "start" | "plan">("modify");
   const docAiModeRef = React.useRef(docAiMode);
   React.useEffect(() => { docAiModeRef.current = docAiMode; }, [docAiMode]);
 
-  const [prompts, setPrompts] = React.useState<{ modify: string; start: string }>({
+  const [prompts, setPrompts] = React.useState<{ modify: string; start: string; plan: string }>({
     modify: "",
     start: "Let's work on this task",
+    plan: "Create a detailed implementation plan for this task. Ask specifically for clarification if needed. If the task is large, divide it into phases. Do not include testing steps in this plan.",
+
   });
   const promptText = prompts[docAiMode];
 
@@ -667,6 +669,7 @@ Cancelled` : "Cancelled");
                 <button onClick={() => setDocAiMode("start")} className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${ docAiMode === "start" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground" }`}>
                   {(file?.path.includes("/epics/") || viewMode === "epics") ? "Create tasks" : "Start"}
                 </button>
+                <button onClick={() => setDocAiMode("plan")} className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${ docAiMode === "plan" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground" }`}>Plan</button>
               </div>
             )}
             <div className="flex relative flex-1 justify-end items-center">

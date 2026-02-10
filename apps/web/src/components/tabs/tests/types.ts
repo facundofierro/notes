@@ -41,4 +41,7 @@ export interface TestExecutionSummary {
 export type TestCenterView =
   | { kind: "dashboard" }
   | { kind: "detail"; testId: string }
-  | { kind: "execution"; executionId: string; testId: string };
+  | { kind: "execution"; executionId: string; testId: string }
+  | { kind: "record"; testId: string };
+
+export type RecordingAIBackend = "google-api" | "gemini-cli";

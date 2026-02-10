@@ -8,6 +8,7 @@ import { TestsSidebar } from "./tests/TestsSidebar";
 import { TestsDashboard } from "./tests/TestsDashboard";
 import { TestDetailView } from "./tests/TestDetailView";
 import { ExecutionView } from "./tests/ExecutionView";
+import { TestRecordView } from "./tests/TestRecordView";
 import { useTestsState } from "./tests/useTestsState";
 
 export function TestsTab() {
@@ -80,8 +81,17 @@ export function TestsTab() {
             isRunning={state.isRunning}
             onBack={state.goToDashboard}
             onRun={state.runTest}
+            onRecord={state.startRecording}
             onSelectExecution={state.openExecution}
             fetchExecutions={state.fetchExecutions}
+          />
+        );
+      case "record":
+        return (
+          <TestRecordView
+            testId={state.centerView.testId}
+            onStop={() => state.stopRecording(state.centerView.testId)}
+            projectPath={projectPath}
           />
         );
       case "execution":
@@ -108,59 +118,63 @@ export function TestsTab() {
 
   return (
     <div className="flex flex-1 overflow-hidden h-full bg-zinc-950">
-      {/* Left Sidebar */}
-      <div
-        ref={state.sidebarRef}
-        className="flex flex-col overflow-hidden relative border-r border-white/[0.04]"
-        style={{
-          width: state.sidebarWidth,
-          transition: state.isResizing ? "none" : "width 0.2s",
-        }}
-      >
-        <TestsSidebar
-          tests={state.tests}
-          groups={state.groups}
-          selectedTestId={state.selectedTestId}
-          onSelectTest={state.selectTest}
-          onCreateTest={() => state.createTest()}
-          onCreateGroup={async () => {
-            const name = window.prompt("Enter new group name:");
-            if (name) {
-              await state.createGroup(name);
-            }
-          }}
-          onDeleteTest={handleDeleteTest}
-          onRunTest={state.runTest}
-          isRunning={state.isRunning}
-          runningTestId={state.runningTestId}
-        />
-
-        {/* Resize Handle */}
+      {/* Left Sidebar — hidden when recording */}
+      {!state.isRecording && (
         <div
-          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-emerald-500/50 active:bg-emerald-500 transition-colors z-50"
-          onMouseDown={state.startResizing}
-        />
-      </div>
+          ref={state.sidebarRef}
+          className="flex flex-col overflow-hidden relative border-r border-white/[0.04]"
+          style={{
+            width: state.sidebarWidth,
+            transition: state.isResizing ? "none" : "width 0.2s",
+          }}
+        >
+          <TestsSidebar
+            tests={state.tests}
+            groups={state.groups}
+            selectedTestId={state.selectedTestId}
+            onSelectTest={state.selectTest}
+            onCreateTest={() => state.createTest()}
+            onCreateGroup={async () => {
+              const name = window.prompt("Enter new group name:");
+              if (name) {
+                await state.createGroup(name);
+              }
+            }}
+            onDeleteTest={handleDeleteTest}
+            onRunTest={state.runTest}
+            isRunning={state.isRunning}
+            runningTestId={state.runningTestId}
+          />
+
+          {/* Resize Handle */}
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-emerald-500/50 active:bg-emerald-500 transition-colors z-50"
+            onMouseDown={state.startResizing}
+          />
+        </div>
+      )}
 
       {/* Center Area */}
       <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
         {renderCenterView()}
       </div>
 
-      {/* Right Sidebar — AI */}
-      <AIRightSidebar
-        selectedRepo={selectedRepo}
-        basePath={basePath}
-        projectPath={projectPath}
-        agentTools={agentTools}
-        viewMode={viewMode}
-        workDocIsDraft={workDocIsDraft}
-        testViewMode={testViewMode}
-        testOutput={state.executionLogs.join("\n")}
-        isTestRunning={state.isRunning}
-        onRunTest={handleRunTest}
-        contextKey="tests"
-      />
+      {/* Right Sidebar — AI — hidden when recording */}
+      {!state.isRecording && (
+        <AIRightSidebar
+          selectedRepo={selectedRepo}
+          basePath={basePath}
+          projectPath={projectPath}
+          agentTools={agentTools}
+          viewMode={viewMode}
+          workDocIsDraft={workDocIsDraft}
+          testViewMode={testViewMode}
+          testOutput={state.executionLogs.join("\n")}
+          isTestRunning={state.isRunning}
+          onRunTest={handleRunTest}
+          contextKey="tests"
+        />
+      )}
     </div>
   );
 }

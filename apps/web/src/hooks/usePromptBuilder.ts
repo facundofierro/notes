@@ -8,7 +8,7 @@ import {
 export interface PromptBuilderOptions {
   promptText: string;
   mode: "agent" | "plan" | "chat";
-  docMode: "modify" | "start";
+  docMode: "modify" | "start" | "plan";
   file: {
     path: string;
   };
@@ -47,19 +47,21 @@ export function usePromptBuilder() {
         normalizedPath.includes("/ai/") ||
         opts.viewMode === "ai";
 
-      const effectiveDocMode: "modify" | "start" =
+      const effectiveDocMode: "modify" | "start" | "plan" =
         isTestDoc || isAiDoc ? "modify" : opts.docMode;
 
       const operation =
-        effectiveDocMode === "modify"
-          ? isTestDoc
-            ? "modify_test"
-            : "modify_document"
-          : isEpicDoc
-            ? "create_tasks_from_epic"
-            : isTaskDoc
-              ? "work_on_task"
-              : "start";
+        effectiveDocMode === "plan"
+          ? "create_plan"
+          : effectiveDocMode === "modify"
+            ? isTestDoc
+              ? "modify_test"
+              : "modify_document"
+            : isEpicDoc
+              ? "create_tasks_from_epic"
+              : isTaskDoc
+                ? "work_on_task"
+                : "start";
 
       if (operation === "modify_test") {
         if (
@@ -98,6 +100,26 @@ export function usePromptBuilder() {
         return [
           `Modify the file at "${filePath}" with these user instructions:`,
           trimmed,
+        ].join("\n");
+      }
+
+      if (operation === "create_plan") {
+        return [
+          `Create a comprehensive implementation plan for the task at "${filePath}".`,
+          "",
+          "User instructions:",
+          trimmed,
+          "",
+          "Objectives:",
+          "1. Research the codebase to understand the context and requirements.",
+          "2. Ask clarifying questions if any critical information is missing or ambiguous.",
+          "3. Create a detailed plan document in \".agelum/work/plans/\" (relative to project root).",
+          "   - The plan file name should correspond to the task ID or name.",
+          "   - If the task is large, divide the plan into phases.",
+          "   - The plan should be detailed enough for an LLM to directly start working from it.",
+          "   - Do NOT include testing steps (testing will be handled separately).",
+          `4. Update the task file at "${filePath}" to link to the new plan file.`,
+          "   - Add the path to the plan file in the task file (e.g., in frontmatter or a dedicated section at the top).",
         ].join("\n");
       }
 

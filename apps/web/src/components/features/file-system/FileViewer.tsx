@@ -85,6 +85,7 @@ interface FileViewerProps {
   ) => void;
   testOutput?: string;
   isTestRunning?: boolean;
+  headerCenter?: React.ReactNode;
 }
 
 export default function FileViewer({
@@ -103,6 +104,7 @@ export default function FileViewer({
   onTestViewModeChange,
   testOutput,
   isTestRunning,
+  headerCenter,
 }: FileViewerProps) {
   const [isEditing, setIsEditing] =
     useState(false);
@@ -390,6 +392,12 @@ export default function FileViewer({
             </span>
           )}
         </div>
+
+        {headerCenter && (
+          <div className="flex-1 flex justify-center px-4">
+            {headerCenter}
+          </div>
+        )}
 
         {isTestFile && (
           <div className="flex p-1 rounded-lg border bg-background border-border">

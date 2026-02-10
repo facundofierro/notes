@@ -15,6 +15,9 @@ export function useTestsState() {
   const [isResizing, setIsResizing] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
 
+  // Recording
+  const [isRecording, setIsRecording] = React.useState(false);
+
   // Execution streaming
   const [isRunning, setIsRunning] = React.useState(false);
   const [runningTestId, setRunningTestId] = React.useState<string | null>(null);
@@ -128,6 +131,18 @@ export function useTestsState() {
       window.removeEventListener("mouseup", stopResizing);
     };
   }, [resize, stopResizing]);
+
+  // --- Recording ---
+  const startRecording = React.useCallback((testId: string) => {
+    setIsRecording(true);
+    setCenterView({ kind: "record", testId });
+  }, []);
+
+  const stopRecording = React.useCallback((testId: string) => {
+    setIsRecording(false);
+    setCenterView({ kind: "detail", testId });
+    fetchTests();
+  }, [fetchTests]);
 
   // --- Navigation ---
   const selectTest = React.useCallback((test: TestScenario) => {
@@ -283,6 +298,11 @@ export function useTestsState() {
     selectTest,
     goToDashboard,
     openExecution,
+
+    // Recording
+    isRecording,
+    startRecording,
+    stopRecording,
 
     // CRUD
     createTest,

@@ -13,7 +13,7 @@ import {
 } from "@agelum/shadcn";
 import {
   ChevronLeft, Plus, Trash2, Save, Play, Loader2, GripVertical,
-  ListChecks, Clock, Globe, Sparkles, Terminal
+  ListChecks, Clock, Globe, Sparkles, Terminal, Circle
 } from "lucide-react";
 import { ExecutionHistory } from "./ExecutionHistory";
 import { TestStepVisualizer } from "./TestStepVisualizer";
@@ -66,6 +66,7 @@ interface TestDetailViewProps {
   isRunning: boolean;
   onBack: () => void;
   onRun: (testId: string) => void;
+  onRecord?: (testId: string) => void;
   onSelectExecution: (executionId: string, testId: string) => void;
   fetchExecutions: (testId: string) => void;
 }
@@ -77,6 +78,7 @@ export function TestDetailView({
   isRunning,
   onBack,
   onRun,
+  onRecord,
   onSelectExecution,
   fetchExecutions,
 }: TestDetailViewProps) {
@@ -313,6 +315,16 @@ export function TestDetailView({
           >
             <Save className="w-3.5 h-3.5 mr-1.5" />
             {saving ? "Saving..." : "Save"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRecord?.(testId)}
+            disabled={isRunning}
+            className="h-7 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
+          >
+            <Circle className="w-3 h-3 mr-1.5 fill-red-500" />
+            Record
           </Button>
           <Button
             size="sm"
