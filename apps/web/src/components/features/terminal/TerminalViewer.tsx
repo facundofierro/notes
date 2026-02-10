@@ -10,6 +10,7 @@ interface TerminalViewerProps {
   className?: string;
   onInput?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
+  autoFocus?: boolean;
 }
 
 export function TerminalViewer({
@@ -17,6 +18,7 @@ export function TerminalViewer({
   className,
   onInput,
   onResize,
+  autoFocus,
 }: TerminalViewerProps) {
   const containerRef =
     React.useRef<HTMLDivElement>(null);
@@ -37,6 +39,13 @@ export function TerminalViewer({
   React.useEffect(() => {
     onResizeRef.current = onResize;
   }, [onResize]);
+
+  // Handle autoFocus
+  React.useEffect(() => {
+    if (autoFocus && terminalRef.current) {
+      terminalRef.current.focus();
+    }
+  }, [autoFocus]);
 
   // Initialize terminal
   React.useEffect(() => {
@@ -71,6 +80,14 @@ export function TerminalViewer({
     term.loadAddon(fitAddon);
 
     term.open(containerRef.current);
+    term.focus();
+
+    term.attachCustomKeyEventHandler((event) => {
+      if (event.code === "Escape") {
+        return false;
+      }
+      return true;
+    });
 
     // Wait for fonts to load before fitting so character measurements are accurate
     const doInitialFit = () => {

@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const name = body.name || "Untitled Test";
-    const group = body.group || "experimental";
+    const group = body.group || "EXPERIMENTAL";
     const folderName = body.folder || name.replace(/[^a-zA-Z0-9]/g, ""); 
     const id = body.id || `test-${Date.now()}`;
     

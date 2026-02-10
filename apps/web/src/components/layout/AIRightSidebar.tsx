@@ -580,6 +580,7 @@ Cancelled` : "Cancelled");
                   className="w-full h-full" 
                   onInput={handleTerminalInput}
                   onResize={(cols, rows) => setTermSize({ cols, rows })}
+                  autoFocus={rightSidebarView === "terminal"}
                 />
                 {loadingIndicatorVisible && isTerminalRunning && (
                    <div className="absolute bottom-4 right-4 z-10 bg-zinc-900/80 text-xs text-zinc-400 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg backdrop-blur-sm transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
@@ -594,7 +595,10 @@ Cancelled` : "Cancelled");
           </div>
           <div className="flex gap-2 p-2 border-t border-border">
             {isTerminalRunning && (
-              <button onClick={cancelTerminal} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border border-red-800 bg-red-900/50 hover:bg-red-900">Close</button>
+              <>
+                <button onClick={() => handleTerminalInput('\u001b')} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border border-yellow-800 bg-yellow-900/50 hover:bg-yellow-900">Stop</button>
+                <button onClick={cancelTerminal} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border border-red-800 bg-red-900/50 hover:bg-red-900">Close</button>
+              </>
             )}
             <button onClick={() => { setRightSidebarView("prompt"); if (docAiMode === "modify") refreshCurrentFile(); }} className="flex-1 px-3 py-2 text-sm text-white rounded-xl border bg-secondary border-border hover:bg-accent">
               {isTerminalRunning ? "Return to Prompt" : "Back to Prompt"}

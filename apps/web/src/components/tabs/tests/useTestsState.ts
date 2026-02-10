@@ -151,7 +151,7 @@ export function useTestsState() {
     try {
       const res = await fetch("/api/tests", {
         method: "POST",
-        body: JSON.stringify({ name: name || "Untitled Test", group: group || "experimental", steps: [] }),
+        body: JSON.stringify({ name: name || "Untitled Test", group: group || "EXPERIMENTAL", steps: [] }),
         headers: { "Content-Type": "application/json" }
       });
       if (res.ok) {

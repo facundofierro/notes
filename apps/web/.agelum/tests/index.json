@@ -7,5 +7,14 @@
     "description": "",
     "stepsCount": 1,
     "updatedAt": "2026-02-10T00:11:09.263Z"
+  },
+  {
+    "id": "test-1770725804989",
+    "name": "CLI Integration Test",
+    "group": "Integration Tests",
+    "folder": "CLIIntegrationTest",
+    "description": "Verify CLI test commands work",
+    "stepsCount": 0,
+    "updatedAt": "2026-02-10T12:16:44.989Z"
   }
 ]

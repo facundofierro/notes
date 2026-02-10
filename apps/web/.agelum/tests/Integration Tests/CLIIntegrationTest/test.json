@@ -1,0 +1,9 @@
+{
+  "id": "test-1770725804989",
+  "name": "CLI Integration Test",
+  "group": "Integration Tests",
+  "folder": "CLIIntegrationTest",
+  "description": "Verify CLI test commands work",
+  "steps": [],
+  "updatedAt": "2026-02-10T12:16:44.989Z"
+}
