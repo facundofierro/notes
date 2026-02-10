@@ -10,6 +10,7 @@ dist/
 .turbo/*
 .turbo/cookies/*
 .pnpm-store/*
+cli/target/
 
 # pnpm
 pnpm-lock.yaml
