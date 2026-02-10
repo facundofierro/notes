@@ -53,6 +53,7 @@ export function Header() {
 
   const visibleItems = React.useMemo(() => {
     const defaultItems: ViewMode[] = [
+      "ai",
       "ideas",
       "docs",
       "separator",
@@ -61,7 +62,7 @@ export function Header() {
       "tests",
       "review",
       "separator",
-      "ai",
+      "tools",
       "logs",
       "browser",
     ];

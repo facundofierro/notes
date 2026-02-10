@@ -18,21 +18,83 @@ export function TaskTests({ taskPath, repo }: TaskTestsProps) {
   const [tests, setTests] = React.useState<TestItem[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  // In a real implementation, we would fetch the linked tests JSON or derive it.
-  // For now, we'll mock or show empty state.
+  // Determine the path for the linked tests JSON file
+  // For a task at .agelum/work/tasks/pending/my-task.md, we want .agelum/work/tests/my-task.json
+  // We need to resolve this relative to the project root.
   
+  React.useEffect(() => {
+    if (!taskPath || !repo) return;
+    
+    const fetchTests = async () => {
+      setLoading(true);
+      try {
+        // 1. Derive taskId from taskPath
+        // taskPath is absolute, e.g. /User/.../repo/.agelum/work/tasks/pending/taskId.md
+        const fileName = taskPath.split('/').pop();
+        if (!fileName) return;
+        const taskId = fileName.replace('.md', '');
+        
+        // 2. Construct path to tests JSON
+        // We assume standard structure: .agelum/work/tests/{taskId}.json
+        // We need to find where .agelum is. 
+        // We can look for the ".agelum" segment in the taskPath?
+        
+        const agelumIndex = taskPath.indexOf("/.agelum/");
+        if (agelumIndex === -1) {
+             // Fallback or legacy support?
+             setTests([]);
+             return;
+        }
+        
+        const baseDir = taskPath.substring(0, agelumIndex);
+        const testsJsonPath = `${baseDir}/.agelum/work/tests/${taskId}.json`;
+        
+        // 3. Fetch file content
+        const res = await fetch(`/api/file?path=${encodeURIComponent(testsJsonPath)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const content = JSON.parse(data.content);
+          if (content && Array.isArray(content.tests)) {
+            setTests(content.tests);
+          }
+        } else {
+          // File might not exist yet, which is fine
+          setTests([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch task tests:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTests();
+  }, [taskPath, repo]);
+
+  const handleCreateTest = () => {
+      // TODO: Implement dialog to select existing tests or create new
+      alert("Feature not implemented: Add Test Dialog");
+  };
+
   return (
     <div className="flex flex-col h-full bg-background p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-lg font-semibold text-foreground">Task Verified Tests</h2>
-        <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+        <button 
+            onClick={handleCreateTest}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+        >
           <Plus className="w-4 h-4" />
           Add Test
         </button>
       </div>
 
       <div className="flex-1 overflow-auto">
-        {tests.length === 0 ? (
+        {loading ? (
+             <div className="flex justify-center items-center h-40 text-muted-foreground">
+                 Loading tests...
+             </div>
+        ) : tests.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-muted-foreground border border-dashed border-border rounded-lg bg-secondary/10">
             <p>No tests linked to this task.</p>
             <p className="text-xs mt-2">Create a new test or link existing ones.</p>

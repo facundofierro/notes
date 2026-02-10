@@ -11,6 +11,7 @@ import {
   Wrench,
   Minus,
   ScrollText,
+  Sparkles,
 } from "lucide-react";
 
 export const VIEW_MODE_CONFIG: Record<
@@ -42,6 +43,10 @@ export const VIEW_MODE_CONFIG: Record<
     icon: Eye,
   },
   ai: {
+    label: "AI",
+    icon: Sparkles,
+  },
+  tools: {
     label: "Tools",
     icon: Wrench,
   },

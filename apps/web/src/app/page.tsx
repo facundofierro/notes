@@ -8,6 +8,7 @@ import { EpicsTab } from "@/components/tabs/EpicsTab";
 import { TasksTab } from "@/components/tabs/TasksTab";
 import { TestsTab } from "@/components/tabs/TestsTab";
 import { ReviewTab } from "@/components/tabs/ReviewTab";
+import { ToolsTab } from "@/components/tabs/ToolsTab";
 import { AITab } from "@/components/tabs/AITab";
 import { LogsTab } from "@/components/tabs/LogsTab";
 import { BrowserTab } from "@/components/tabs/BrowserTab";
@@ -226,6 +227,7 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
     <div className="flex overflow-hidden flex-1 relative">
       <div className={tabClass("kanban")}><TasksTab /></div>
       <div className={tabClass("docs")}><DocsTab /></div>
+      <div className={tabClass("tools")}><ToolsTab /></div>
       <div className={tabClass("ai")}><AITab /></div>
       <div className={tabClass("tests")}><TestsTab /></div>
       <div className={tabClass("ideas")}><IdeasTab /></div>

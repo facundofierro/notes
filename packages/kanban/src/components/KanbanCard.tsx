@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Calendar,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,41 @@ function formatDate(date: Date): string {
   }
 }
 
+// Helper to parse title with date pattern: YY_MM_DD-HHMMSS-TaskName
+function parseTaskTitle(title: string) {
+  const regex = /^(\d{2})_(\d{2})_(\d{2})-(\d{2})(\d{2})(\d{2})-(.*)$/;
+  const match = title.match(regex);
+
+  if (match) {
+    const [_, year, month, day, hour, minute, second, restOfTitle] = match;
+    // Assume 20xx for year
+    const date = new Date(
+      2000 + parseInt(year),
+      parseInt(month) - 1, // Month is 0-indexed
+      parseInt(day),
+      parseInt(hour),
+      parseInt(minute),
+      parseInt(second)
+    );
+    
+    // Format date nicely: Feb 7, 09:21 AM
+    const formattedDate = date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return {
+      displayTitle: restOfTitle,
+      parsedDate: formattedDate,
+    };
+  }
+
+  return { displayTitle: title, parsedDate: null };
+}
+
 export function KanbanCard({
   card,
   onEdit,
@@ -86,10 +122,16 @@ export function KanbanCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : undefined,
   };
 
   const isCurrentlyDragging = isDragging || isSortableDragging;
   const isOverdue = card.dueDate && new Date(card.dueDate) < new Date();
+  
+  /* Only parse date for 'done' column as requested */
+  const { displayTitle, parsedDate } = (card.columnId === 'done') 
+    ? parseTaskTitle(card.title)
+    : { displayTitle: card.title, parsedDate: null };
 
   return (
     <div
@@ -126,8 +168,16 @@ export function KanbanCard({
         </div>
       )}
 
+      {/* Date Badge if parsed */}
+      {parsedDate && (
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1 select-none w-fit px-1.5 py-0.5 rounded bg-muted/50 border border-border/50">
+          <Clock className="w-3 h-3" />
+          <span>{parsedDate}</span>
+        </div>
+      )}
+
       {/* Title */}
-      <h4 className="text-[13px] font-medium leading-snug text-foreground">{card.title}</h4>
+      <h4 className="text-[13px] font-medium leading-snug text-foreground">{displayTitle}</h4>
 
       {/* Description */}
       {card.description && (

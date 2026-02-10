@@ -1,95 +1,79 @@
-import * as React from "react";
-import FileBrowser from "@/components/features/file-system/FileBrowser";
-import { WorkEditorTab } from "@/components/features/work/WorkEditorTab";
-import { useHomeStore } from "@/store/useHomeStore";
+"use client";
 
-interface FileNode {
-  name: string;
-  path: string;
-  type: "file" | "directory";
-  children?: FileNode[];
-  content?: string;
-}
+import * as React from "react";
+import { useHomeStore } from "@/store/useHomeStore";
+import { ProjectSelector } from "@/components/shared/ProjectSelector";
+import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
 
 export function AITab() {
   const store = useHomeStore();
-  const { 
-    selectedRepo, 
-    basePath, 
-    setSelectedFile,
-    handleFileSelect
+  const {
+    selectedRepo,
+    setSelectedRepo,
+    repositories,
+    isRepositoriesLoading,
+    handleStartApp,
+    handleStopApp,
+    agentTools,
+    handleRunTest,
   } = store;
 
-  const { selectedFile, currentPath } = store.getProjectState();
-  
-  const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
-
-  const loadFileTree = React.useCallback(() => {
-    if (selectedRepo) {
-      fetch(`/api/files?repo=${selectedRepo}&path=ai`)
-        .then((res) => res.json())
-        .then((data) => {
-          setFileTree(data.tree);
-        });
-    }
-  }, [selectedRepo]);
-
-  React.useEffect(() => {
-    loadFileTree();
-  }, [loadFileTree]);
-
-  const handleRename = async (newTitle: string) => {
-    if (!selectedFile) return;
-    const oldPath = selectedFile.path;
-    const dir = oldPath.split("/").slice(0, -1).join("/");
-    const fileName = oldPath.split("/").pop() || "";
-    const ext = fileName.includes(".") ? fileName.split(".").pop() : "";
-    const newPath =
-      ext && newTitle.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
-        ? `${dir}/${newTitle}`
-        : `${dir}/${newTitle}${ext ? `.${ext}` : ""}`;
-    const res = await fetch("/api/file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: oldPath,
-        newPath: newPath,
-        action: "rename",
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to rename file");
-    const next = { path: data.path, content: selectedFile.content };
-    setSelectedFile(next);
-    loadFileTree();
-    return next;
-  };
-
-  const onBack = () => setSelectedFile(null);
+  const { 
+    viewMode,
+    selectedFile,
+    workDocIsDraft,
+    testViewMode,
+    testOutput,
+    isTestRunning
+  } = store.getProjectState();
 
   return (
-    <>
-      <FileBrowser
-        fileTree={fileTree}
-        currentPath={currentPath}
-        onFileSelect={handleFileSelect}
-        basePath={basePath}
-        onRefresh={loadFileTree}
-        viewMode="ai"
-      />
-      <div className="flex overflow-hidden flex-1 bg-background">
-        {selectedFile ? (
-          <WorkEditorTab
-            onBack={onBack}
-            onRename={handleRename}
-            onRefresh={loadFileTree}
+    <div className="flex w-full h-full bg-background relative overflow-hidden">
+      {/* Left Sidebar - Project List (similar to wide mode concept) */}
+      <div className="w-[300px] border-r border-border flex flex-col bg-secondary/30">
+        <div className="p-4 border-b border-border">
+          <h2 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wider">Projects</h2>
+          <ProjectSelector 
+            repositories={repositories} 
+            selectedRepo={selectedRepo} 
+            onSelect={setSelectedRepo}
+            currentViewMode={viewMode}
+            isLoading={isRepositoriesLoading}
+            className="w-full"
           />
+        </div>
+        <div className="flex-1 overflow-auto p-2">
+           {/* Future: History of previous prompts/sessions per project could go here */}
+           <div className="text-xs text-muted-foreground text-center p-4 italic">
+             Select a project to view AI tools and history.
+           </div>
+        </div>
+      </div>
+
+      {/* Right Content - AI Tools */}
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        {selectedRepo ? (
+           <AIRightSidebar
+             selectedRepo={selectedRepo}
+             basePath={store.basePath}
+             projectPath={repositories.find(r => r.name === selectedRepo)?.path}
+             agentTools={agentTools}
+             viewMode="ai"
+             file={selectedFile}
+             workDocIsDraft={workDocIsDraft}
+             testViewMode={testViewMode}
+             testOutput={testOutput}
+             isTestRunning={isTestRunning}
+             onRunTest={handleRunTest}
+             className="w-full h-full border-0"
+             contextKey={`ai-tab-${selectedRepo}`}
+           />
         ) : (
-          <div className="flex flex-1 justify-center items-center text-muted-foreground">
-            Select a file to view and edit
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+            Select a project to start using AI tools
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

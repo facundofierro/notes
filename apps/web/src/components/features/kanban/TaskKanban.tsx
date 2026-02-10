@@ -97,7 +97,47 @@ export default function TaskKanban({
   const cards = useMemo<
     KanbanCardType[]
   >(() => {
-    return tasks.map((task, index) => ({
+    // Separate tasks by column to handle 'done' specially
+    const otherTasks = tasks.filter(t => t.state !== 'done');
+    let doneTasks = tasks.filter(t => t.state === 'done');
+
+    // Sort done tasks by timestamp in title (descending)
+    // Format: YY_MM_DD-HHMMSS-TaskName
+    const parseDateFromTitle = (title: string): number => {
+      const regex = /^(\d{2})_(\d{2})_(\d{2})-(\d{2})(\d{2})(\d{2})-(.*)$/;
+      const match = title.match(regex);
+      if (match) {
+        const [_, year, month, day, hour, minute, second] = match;
+        const date = new Date(
+          2000 + parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          parseInt(hour),
+          parseInt(minute),
+          parseInt(second)
+        );
+        return date.getTime();
+      }
+      return 0; // Fallback for sorting if no date found
+    };
+
+    doneTasks = doneTasks.sort((a, b) => {
+      const dateA = parseDateFromTitle(a.title) || new Date(a.createdAt).getTime();
+      const dateB = parseDateFromTitle(b.title) || new Date(b.createdAt).getTime();
+      return dateB - dateA; // Newest first
+    });
+
+    // Limit to 10
+    doneTasks = doneTasks.slice(0, 10);
+
+    const allVisibleTasks = [...otherTasks, ...doneTasks];
+
+    // Re-assign order based on the new sorted list for 'done' column
+    // For other columns, we keep existing order (based on index in original list effectively)
+    // actually original code used `index` as order which is implicitly the creation/fetch order
+    // We should map them to KanbanCardType
+    
+    return allVisibleTasks.map((task, index) => ({
       id: task.id,
       title: task.title,
       description: [
@@ -112,7 +152,7 @@ export default function TaskKanban({
         .filter(Boolean)
         .join("\n"),
       columnId: task.state,
-      order: index,
+      order: task.state === 'done' ? index : index, // Order matters most within column
     }));
   }, [tasks]);
 

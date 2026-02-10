@@ -108,7 +108,7 @@ export function usePromptBuilder() {
           `Create a comprehensive implementation plan for the task at "${filePath}".`,
           "",
           "User instructions:",
-          trimmed,
+          trimmed || "Create a plan for this task.",
           "",
           "Objectives:",
           "1. Research the codebase to understand the context and requirements.",
