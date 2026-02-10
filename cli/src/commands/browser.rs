@@ -83,12 +83,26 @@ async fn navigate_test(
 
 fn passthrough_to_agent_browser(args: Vec<String>) -> anyhow::Result<()> {
     // Execute agent-browser with the provided arguments
-    let status = Command::new("agent-browser")
+    let result = Command::new("agent-browser")
         .args(&args)
-        .status()?;
+        .status();
 
-    if !status.success() {
-        eprintln!("agent-browser command failed with status: {}", status);
+    match result {
+        Ok(status) => {
+            if !status.success() {
+                eprintln!("agent-browser command failed with status: {}", status);
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("Error: 'agent-browser' command not found.");
+            eprintln!("Please install it globally: npm install -g agent-browser");
+            eprintln!("Or add the local project version to your PATH:");
+            eprintln!("  export PATH=\"$PATH:$(pwd)/packages/test-engine/node_modules/.bin\"");
+            return Err(anyhow::anyhow!("agent-browser not found"));
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!("Failed to execute agent-browser: {}", e));
+        }
     }
 
     Ok(())

@@ -3,32 +3,45 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 
-export async function POST(request: Request) {
+const TEST_DIR = path.join(process.cwd(), ".agelum/tests");
+const INDEX_FILE = path.join(TEST_DIR, "index.json");
+
+function resolveTestPath(id: string): string | null {
+  if (fs.existsSync(INDEX_FILE)) {
+    try {
+      const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
+      const entry = index.find((t: any) => t.id === id);
+      if (entry && entry.group && entry.folder) {
+        const p = path.join(TEST_DIR, entry.group, entry.folder, "test.json");
+        if (fs.existsSync(p)) return p;
+      }
+    } catch { }
+  }
+  const flat = path.join(TEST_DIR, `${id}.json`);
+  if (fs.existsSync(flat)) return flat;
+  return null;
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = await request.json();
+    const { id } = await params;
     if (!id) return NextResponse.json({ error: "No test ID" }, { status: 400 });
 
-    const INDEX_FILE = path.join(process.cwd(), ".agelum/tests/index.json");
-
-    let testPath = "";
-    let testName = "Unknown Test";
-    if (fs.existsSync(INDEX_FILE)) {
-      const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
-      const testEntry = index.find((t: any) => t.id === id);
-      if (testEntry && testEntry.group && testEntry.folder) {
-        testPath = path.join(process.cwd(), ".agelum/tests", testEntry.group, testEntry.folder, "test.json");
-        testName = testEntry.name || testName;
-      }
+    const testPath = resolveTestPath(id);
+    if (!testPath || !fs.existsSync(testPath)) {
+        return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    // Fallback for legacy flat file structure if not found in index
-    if (!testPath || !fs.existsSync(testPath)) {
-       const legacyPath = path.join(process.cwd(), ".agelum/tests", `${id}.json`);
-       if (fs.existsSync(legacyPath)) {
-         testPath = legacyPath;
-       } else {
-         return NextResponse.json({ error: "Test not found" }, { status: 404 });
-       }
+    let testName = id;
+    if (fs.existsSync(INDEX_FILE)) {
+        try {
+            const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
+            const entry = index.find((t: any) => t.id === id);
+            if (entry) testName = entry.name || testName;
+        } catch {}
     }
 
     // Create execution directory
@@ -44,7 +57,6 @@ export async function POST(request: Request) {
     );
 
     const cwd = process.cwd();
-
     const encoder = new TextEncoder();
     const allLogs: string[] = [];
     const allScreenshots: string[] = [];
@@ -53,7 +65,8 @@ export async function POST(request: Request) {
       start(controller) {
         // Emit execution metadata as first line
         const meta = JSON.stringify({ type: "exec_start", executionId: execId, testId: id, startedAt });
-        controller.enqueue(encoder.encode(meta + "\n"));
+        controller.enqueue(encoder.encode(meta + "
+"));
 
         const child = spawn(
           "npx",
@@ -70,7 +83,8 @@ export async function POST(request: Request) {
           controller.enqueue(encoder.encode(text));
 
           // Collect logs and screenshots for persistence
-          const lines = text.split("\n");
+          const lines = text.split("
+");
           for (const line of lines) {
             if (!line.trim()) continue;
             allLogs.push(line);
@@ -96,7 +110,9 @@ export async function POST(request: Request) {
           const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
           const status = code === 0 ? "passed" : "failed";
 
-          controller.enqueue(encoder.encode(`\nProcess exited with code ${code}\n`));
+          controller.enqueue(encoder.encode(`
+Process exited with code ${code}
+`));
 
           // Persist execution result
           const result = {
@@ -127,7 +143,8 @@ export async function POST(request: Request) {
 
           // Emit completion event
           const completionEvent = JSON.stringify({ type: "exec_complete", executionId: execId, status, duration });
-          controller.enqueue(encoder.encode(completionEvent + "\n"));
+          controller.enqueue(encoder.encode(completionEvent + "
+"));
 
           controller.close();
         });
@@ -136,7 +153,8 @@ export async function POST(request: Request) {
           const completedAt = new Date().toISOString();
           const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
-          controller.enqueue(encoder.encode(`Error: ${err.message}\n`));
+          controller.enqueue(encoder.encode(`Error: ${err.message}
+`));
 
           // Persist error result
           const result = {
@@ -170,7 +188,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return new NextResponse(stream, {
+    return new Response(stream, {
         headers: {
             "Content-Type": "text/plain; charset=utf-8",
             "X-Execution-Id": execId,

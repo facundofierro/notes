@@ -17,6 +17,29 @@ This tool is designed to be used by AI agents or for automation, communicating w
 - Agelum Web App running (`pnpm web:dev` or inside Electron)
 - `agent-browser` installed (for browser automation features)
 
+### Installing agent-browser
+
+`agent-browser` is required for all browser automation features. It can be installed globally using npm:
+
+```bash
+npm install -g agent-browser
+```
+
+#### OS-Specific Setup
+
+- **macOS / Windows**: Standard npm installation should be enough.
+- **Linux**: After installing via npm, you may need to install browser dependencies:
+  ```bash
+  agent-browser install --with-deps
+  ```
+
+Alternatively, if you are working within the Agelum monorepo, you can use the version installed in `packages/test-engine`:
+
+```bash
+# Add to your PATH
+export PATH="$PATH:$(pwd)/packages/test-engine/node_modules/.bin"
+```
+
 ## Installation
 
 ```bash

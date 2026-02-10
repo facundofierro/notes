@@ -102,6 +102,7 @@ export function AIRightSidebar({
   const [isToolModelsLoading, setIsToolModelsLoading] = React.useState<Record<string, boolean>>({});
   // Use larger default to accommodate wide terminals before onResize fires
   const [termSize, setTermSize] = React.useState({ cols: 300, rows: 60 });
+  const [allowModify, setAllowModify] = React.useState(false);
   const [loadingIndicatorVisible, setLoadingIndicatorVisible] = React.useState(false);
 
   // Helper to trigger loading indicator
@@ -244,7 +245,8 @@ Cancelled` : "Cancelled"));
         body: JSON.stringify({
           cwd,
           cols,
-          rows
+          rows,
+          allowModify
         }),
         signal: ac.signal,
       });
@@ -410,7 +412,8 @@ Error: ${error.message}`);
           model: toolModelByTool[toolName] || undefined,
           cwd,
           cols,
-          rows
+          rows,
+          allowModify
         }),
         signal: controller.signal,
       });
@@ -705,6 +708,16 @@ Cancelled` : "Cancelled");
                   <button onClick={() => { setFilePickerOpen(true); fetchFiles(); }} className="p-1.5 text-muted-foreground hover:bg-background rounded-md"><AtSign className="w-4 h-4" /></button>
                   <button onClick={() => fileInputRef.current?.click()} className="p-1.5 text-muted-foreground hover:bg-background rounded-md"><ImageIcon className="w-4 h-4" /></button>
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+                  <div className="flex items-center gap-2 ml-2 border-l pl-2 border-border/50">
+                    <input 
+                      type="checkbox" 
+                      id="allow-modify"
+                      checked={allowModify} 
+                      onChange={(e) => setAllowModify(e.target.checked)} 
+                      className="accent-blue-500 h-3 w-3" 
+                    />
+                    <label htmlFor="allow-modify" className="text-[10px] text-muted-foreground whitespace-nowrap cursor-pointer select-none">Allow Modify</label>
+                  </div>
                 </div>
                 <div className="flex gap-1 items-center">
                   <button onClick={handleRecordAudio} className={`p-1.5 rounded-md ${isRecording ? "text-red-500 bg-red-500/10" : "text-muted-foreground"}`}><Mic className={`w-4 h-4 ${isRecording ? "animate-pulse" : ""}`} /></button>

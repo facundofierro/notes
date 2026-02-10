@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Badge
 } from "@agelum/shadcn";
-import { ChevronLeft, Plus, Trash2, Save, Play, Image as ImageIcon, Terminal } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Play, Image as ImageIcon, Terminal, Globe, Sparkles } from "lucide-react";
 
 // Types matching the engine
 interface TestStep {
@@ -32,9 +32,9 @@ interface TestEditorProps {
 }
 
 const STEP_TYPES = [
-  { value: "open", label: "Open URL" },
-  { value: "command", label: "Command (agent-browser)" },
-  { value: "prompt", label: "Prompt (AI Execution)" },
+  { value: "open", label: "Open URL", desc: "Navigate to a specific page", icon: Globe },
+  { value: "command", label: "Browser Command", desc: "Low-level browser actions", icon: Terminal },
+  { value: "prompt", label: "AI Prompt", desc: "Natural language instruction", icon: Sparkles },
 ];
 
 // Agent-browser commands reference for the Command step type
@@ -430,19 +430,41 @@ export function TestEditor({ testId, onBack }: TestEditorProps) {
                 <DialogTitle>{editingStepIndex !== null ? "Edit Step" : "Add Step"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label>Action</Label>
-                    <Select 
-                        value={currentStep.action} 
-                        onValueChange={v => updateCurrentStep("action", v)}
-                    >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {STEP_TYPES.map(t => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className="space-y-3">
+                    <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Step Type</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                        {STEP_TYPES.map((t) => {
+                            const Icon = t.icon;
+                            const isSelected = currentStep.action === t.value;
+                            return (
+                                <div
+                                    key={t.value}
+                                    onClick={() => updateCurrentStep("action", t.value)}
+                                    className={`
+                                        relative overflow-hidden cursor-pointer rounded-xl border transition-all duration-300 group active:scale-95
+                                        ${isSelected 
+                                            ? "bg-white/[0.06] border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.05)] ring-1 ring-white/10" 
+                                            : "border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 hover:shadow-lg"
+                                        }
+                                    `}
+                                >
+                                    <div className="p-3 flex flex-col items-center gap-2 text-center h-full justify-center">
+                                        <div className={`p-2 rounded-lg transition-colors duration-300 ${isSelected ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-zinc-500 group-hover:text-zinc-200"}`}>
+                                            <Icon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className={`text-xs font-bold mb-0.5 ${isSelected ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-200"}`}>{t.label}</div>
+                                            <div className="text-[9px] text-zinc-600 leading-tight px-1">{t.desc}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {isSelected && (
+                                        <div className="absolute -bottom-6 -right-6 w-12 h-12 bg-emerald-500/20 blur-xl rounded-full" />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
                 
                 {renderStepFields()}

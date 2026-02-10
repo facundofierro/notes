@@ -8,6 +8,7 @@ import {
   getModelsForTool,
   isCommandAvailable,
   resolveCommandPath,
+  getExtendedPath,
 } from "@/lib/agent-tools";
 
 import { registerProcess, appendOutput } from "@/lib/agent-store";
@@ -85,7 +86,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { tool, prompt, model, cwd, cols = 200, rows = 50 } =
+    const { tool, prompt, model, cwd, cols = 200, rows = 50, allowModify } =
       body;
 
     if (!tool || !prompt) {
@@ -127,6 +128,7 @@ export async function POST(
         toolName,
         prompt,
         model,
+        allowModify
       );
 
     const resolvedCommand =
@@ -177,7 +179,7 @@ export async function POST(
             cwd: cwd || undefined,
             env: {
               ...process.env,
-              PATH: process.env.PATH,
+              PATH: getExtendedPath(),
               COLUMNS: cols.toString(), // Force wider output for terminal viewer
               LINES: rows.toString(),
               FORCE_COLOR: "1", // Ensure colors are preserved

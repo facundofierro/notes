@@ -15,8 +15,8 @@ export interface AgentTool {
   modelFlag?: string | null;
   listModelsCommand?: string | null;
   promptFlag?: string | null;
-  supportedModels?: string[];
-  extraArgs?: string[];
+  supportedModels?: readonly string[];
+  extraArgs?: readonly string[];
 }
 
 export const AGENT_TOOLS: Record<string, AgentTool> = {
@@ -144,11 +144,41 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
 
 export type AgentToolName = keyof typeof AGENT_TOOLS;
 
+// Helper to get extended PATH with common user locations
+export function getExtendedPath(): string {
+  const home = process.env.HOME || "";
+  const commonPaths = [
+    `${home}/.local/bin`,
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    "/usr/sbin",
+    "/sbin",
+  ];
+
+  const currentPath = process.env.PATH || "";
+  const currentPaths = currentPath.split(":");
+
+  // Combine and deduplicate
+  const allPaths = [...commonPaths, ...currentPaths].filter(
+    (p) => p && p.trim() !== "",
+  );
+  const uniquePaths = [...new Set(allPaths)];
+
+  return uniquePaths.join(":");
+}
+
 export async function isCommandAvailable(
   command: string,
 ): Promise<boolean> {
   try {
-    await execAsync(`which ${command}`);
+    await execAsync(`which ${command}`, {
+      env: {
+        ...process.env,
+        PATH: getExtendedPath(),
+      },
+    });
     return true;
   } catch {
     return false;
@@ -159,9 +189,12 @@ export async function resolveCommandPath(
   command: string,
 ): Promise<string> {
   try {
-    const { stdout } = await execAsync(
-      `which ${command}`,
-    );
+    const { stdout } = await execAsync(`which ${command}`, {
+      env: {
+        ...process.env,
+        PATH: getExtendedPath(),
+      },
+    });
     return stdout.trim();
   } catch {
     return command;
@@ -206,12 +239,22 @@ export function buildAgentCommand(
   toolName: AgentToolName,
   prompt: string,
   model?: string,
+  allowModify?: boolean,
 ): { command: string; args: string[] } {
   const tool = AGENT_TOOLS[toolName];
   const args: string[] = [];
 
   if (tool.extraArgs) {
     args.push(...tool.extraArgs);
+  }
+
+  // Handle allowModify logic
+  if (allowModify) {
+    if (toolName === "claude") {
+      args.push("--dangerously-skip-permissions");
+    }
+    // Append permission text to prompt
+    prompt += "\n\n[SYSTEM] You have permission to read/write files and execute commands.";
   }
 
   if (model && tool.modelFlag) {
@@ -233,6 +276,7 @@ export async function executeAgentCommand(
   toolName: AgentToolName,
   prompt: string,
   model?: string,
+  allowModify?: boolean,
 ): Promise<{
   success: boolean;
   output: string;
@@ -257,6 +301,7 @@ export async function executeAgentCommand(
       toolName,
       prompt,
       model,
+      allowModify
     );
 
   const resolvedCommand =
