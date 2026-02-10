@@ -265,6 +265,8 @@ Cancelled` : "Cancelled"));
             contextKey,
             isRunning: true,
             startedAt: Date.now(),
+            prompt: "",
+            projectName: selectedRepo || undefined,
           });
         }
       }
@@ -443,6 +445,8 @@ Error: ${error.message}`);
             contextKey,
             isRunning: true,
             startedAt: Date.now(),
+            prompt: trimmedPrompt,
+            projectName: selectedRepo || undefined,
           });
         }
       }
@@ -770,7 +774,7 @@ Cancelled` : "Cancelled");
           </div>
 
           <div className="flex overflow-auto flex-col flex-1 p-3 border-b border-border">
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${isWide ? 'grid-cols-4' : 'grid-cols-2'}`}>
               {/* Left Column: CLI & Web */}
               <div className="flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">CLI & Web</div>

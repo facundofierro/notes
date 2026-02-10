@@ -26,6 +26,8 @@ export interface TerminalSessionInfo {
   contextKey: string;
   isRunning: boolean;
   startedAt: number;
+  prompt?: string;
+  projectName?: string;
 }
 
 export interface TabState {
