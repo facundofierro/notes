@@ -394,7 +394,7 @@ export default function FileViewer({
         </div>
 
         {headerCenter && (
-          <div className="flex-1 flex justify-center px-4">
+          <div className="flex-grow flex justify-center px-4 min-w-0">
             {headerCenter}
           </div>
         )}

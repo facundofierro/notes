@@ -127,7 +127,11 @@ export function WorkEditor({
     }
   };
 
-  const headerCenter = viewMode === "tasks" ? (
+  const showTaskSwitcher = 
+    (viewMode === "tasks" || viewMode === "kanban") || 
+    (!!file && file.path.toLowerCase().includes("tasks"));
+
+  const headerCenter = showTaskSwitcher ? (
     <div className="flex items-center p-1 bg-secondary rounded-lg border border-border h-8">
        <button 
          onClick={() => setTaskSubView("task")} 

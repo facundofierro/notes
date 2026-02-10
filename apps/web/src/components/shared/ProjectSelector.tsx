@@ -207,8 +207,14 @@ export function ProjectSelector({
     fetchBranch();
   }, [selectedRepo, repositories]);
 
-  const sortedRepos = React.useMemo(() => {
-    return [...repositories].sort((a, b) => {
+  const [visibleRepos, setVisibleRepos] = React.useState<Repository[]>(() => 
+    [...repositories].sort((a, b) => a.name.localeCompare(b.name))
+  );
+
+  const prevReposRef = React.useRef(repositories);
+
+  const sortRepositories = React.useCallback((repos: Repository[]) => {
+    return [...repos].sort((a, b) => {
       // 1. Active (Running)
       const aRunning = projectStatuses[a.name]?.isRunning ? 1 : 0;
       const bRunning = projectStatuses[b.name]?.isRunning ? 1 : 0;
@@ -222,9 +228,24 @@ export function ProjectSelector({
       // 3. Name
       return a.name.localeCompare(b.name);
     });
-  }, [repositories, projectStatuses, projectUsage]);
+  }, [projectStatuses, projectUsage]);
 
-  const filteredRepos = sortedRepos.filter((repo) =>
+  // Update visible repos when closed
+  React.useEffect(() => {
+    if (!open) {
+      setVisibleRepos(sortRepositories(repositories));
+    }
+  }, [open, sortRepositories, repositories]);
+
+  // Update if repositories list changes (even if open, to ensure new projects appear)
+  React.useEffect(() => {
+    if (prevReposRef.current !== repositories) {
+      setVisibleRepos(sortRepositories(repositories));
+      prevReposRef.current = repositories;
+    }
+  }, [repositories, sortRepositories]);
+
+  const filteredRepos = visibleRepos.filter((repo) =>
     repo.name.toLowerCase().includes(search.toLowerCase()),
   );
 
