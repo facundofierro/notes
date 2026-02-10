@@ -18,6 +18,7 @@ export interface ProjectConfig {
     dev?: string;
     run?: string;
     start?: string;
+    stop?: string;
   };
   url?: string;
   autoRun?: boolean;

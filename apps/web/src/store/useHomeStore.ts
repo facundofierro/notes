@@ -860,9 +860,16 @@ export const useHomeStore =
         },
 
         handleStopApp: async () => {
-          const { selectedRepo, projectStates } = get();
+          const { selectedRepo, settings, projectStates } = get();
           if (!selectedRepo) return;
           const pState = projectStates[selectedRepo];
+
+          const project = settings.projects?.find(
+            (p) => p.name === selectedRepo,
+          );
+          const stopCommand =
+            project?.commands?.stop ||
+            pState.projectConfig?.commands?.stop;
 
           // Find the main terminal
           const mainTerminal = pState.terminals?.find((t) => t.id === "main");
@@ -896,9 +903,25 @@ export const useHomeStore =
                   input: "\u0003",
                 }),
               });
+
+              // If there's a custom stop command, run it
+              if (stopCommand) {
+                setTimeout(async () => {
+                  await fetch("/api/terminal", {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      id: mainTerminal.processId,
+                      input: stopCommand + "\n",
+                    }),
+                  });
+                }, 200);
+              }
             }, 100);
           } catch (error) {
-            console.error("Failed to send Ctrl+C to terminal:", error);
+            console.error("Failed to send stop signals/command to terminal:", error);
           }
         },
 
@@ -918,6 +941,9 @@ export const useHomeStore =
             project?.commands?.dev ||
             pState.projectConfig?.commands?.dev ||
             "pnpm dev";
+          const stopCommand =
+            project?.commands?.stop ||
+            pState.projectConfig?.commands?.stop;
 
           // Switch to logs view
           get().setProjectState(() => ({
@@ -956,7 +982,26 @@ export const useHomeStore =
                 }),
               });
 
-              // Wait a bit then start again
+              let delay = 200;
+
+              // If there's a custom stop command, run it
+              if (stopCommand) {
+                setTimeout(async () => {
+                  await fetch("/api/terminal", {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      id: mainTerminal.processId,
+                      input: stopCommand + "\n",
+                    }),
+                  });
+                }, 200);
+                delay = 500; // Increase delay to wait for stop command
+              }
+
+              // Wait then start again
               setTimeout(async () => {
                 await fetch("/api/terminal", {
                   method: "PUT",
@@ -968,7 +1013,7 @@ export const useHomeStore =
                     input: devCommand + "\n",
                   }),
                 });
-              }, 200);
+              }, delay);
             }, 100);
           } catch (error) {
             console.error("Failed to restart in terminal:", error);

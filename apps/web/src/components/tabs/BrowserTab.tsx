@@ -60,6 +60,8 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     }
   }, [repoName, repositories, projectConfig, setProjectStateForRepo]);
 
+
+
   const browserPages = React.useMemo(() => {
     const pages = [];
     const mainUrl = currentProjectConfig?.url || "";
@@ -71,6 +73,42 @@ export function BrowserTab({ repoName }: { repoName: string }) {
     
     return pages;
   }, [currentProjectConfig]);
+
+  // Load cached favicons on mount
+  React.useEffect(() => {
+    const repo = repositories.find(r => r.name === repoName);
+    if (repo?.path) {
+      if ((!browserPagesFavicons || browserPagesFavicons.length === 0) && browserPages.length > 0) {
+        fetch(`/api/project/cache/favicons?path=${encodeURIComponent(repo.path)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.favicons && Array.isArray(data.favicons)) {
+              setProjectStateForRepo(repoName, () => ({ browserPagesFavicons: data.favicons }));
+            }
+          })
+          .catch(e => console.error("Failed to load favicon cache", e));
+      }
+    }
+  }, [repoName, repositories, browserPagesFavicons, browserPages.length, setProjectStateForRepo]);
+
+  // Save cached favicons Debounced
+  React.useEffect(() => {
+    const repo = repositories.find(r => r.name === repoName);
+    if (!repo?.path || !browserPagesFavicons || browserPagesFavicons.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      fetch('/api/project/cache/favicons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: repo.path,
+          favicons: browserPagesFavicons
+        })
+      }).catch(e => console.error("Failed to save favicon cache", e));
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [browserPagesFavicons, repoName, repositories]);
 
   const handleAddPage = async () => {
     const existingPages = currentProjectConfig?.browserPages || [];
@@ -490,19 +528,11 @@ export function BrowserTab({ repoName }: { repoName: string }) {
               title={idx === 0 ? "Project Page" : url}
             >
               {browserPagesFavicons[idx] ? (
-                 <img src={browserPagesFavicons[idx]} className="w-5 h-5 rounded-sm" alt="Tab Icon" />
+                 <img src={browserPagesFavicons[idx]} className="w-5 h-5 rounded-sm object-cover" alt="Tab Icon" />
               ) : (
                 <Globe className="w-5 h-5" />
               )}
             </button>
-            {idx > 0 && (
-              <button
-                onClick={(e) => handleRemovePage(e, idx)}
-                className="absolute -top-1 -right-1 p-0.5 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            )}
           </div>
         ))}
 
@@ -554,6 +584,15 @@ export function BrowserTab({ repoName }: { repoName: string }) {
                   placeholder="Enter URL..."
                 />
               </div>
+              {activeBrowserPageIndex > 0 && (
+                <button
+                  onClick={(e) => handleRemovePage(e, activeBrowserPageIndex)}
+                  className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  title="Close Page"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             {browserPages.map((pageUrl, idx) => {
               const currentUrl = browserPagesCurrentUrls[idx] || pageUrl;

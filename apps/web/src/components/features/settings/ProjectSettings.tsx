@@ -121,6 +121,18 @@ export function ProjectSettings({
                     className="bg-background border-border text-white text-sm"
                   />
                 </div>
+                <div className="grid gap-2 text-amber-500/90">
+                  <Label className="text-amber-500/80 text-xs flex items-center gap-2">
+                    Stop Command
+                    <span className="text-[9px] uppercase tracking-tighter bg-amber-500/10 px-1 rounded border border-amber-500/20">Optional</span>
+                  </Label>
+                  <Input
+                    value={project.commands?.stop || ""}
+                    onChange={(e) => updateCommand("stop", e.target.value)}
+                    placeholder="pnpm stop"
+                    className="bg-background border-amber-500/20 text-white text-sm focus:border-amber-500/50"
+                  />
+                </div>
               </div>
             </div>
           </div>
