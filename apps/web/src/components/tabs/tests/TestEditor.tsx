@@ -33,14 +33,42 @@ interface TestEditorProps {
 
 const STEP_TYPES = [
   { value: "open", label: "Open URL" },
-  { value: "click", label: "Click" },
-  { value: "type", label: "Type Text" },
-  { value: "wait", label: "Wait" },
-  { value: "snapshot", label: "Snapshot (AI)" },
-  { value: "prompt", label: "AI Prompt" },
-  { value: "verifyVisible", label: "Verify Visible" },
-  { value: "screenshot", label: "Screenshot" },
-  { value: "setViewport", label: "Set Viewport" },
+  { value: "command", label: "Command (agent-browser)" },
+  { value: "prompt", label: "Prompt (AI Execution)" },
+];
+
+// Agent-browser commands reference for the Command step type
+const AGENT_BROWSER_COMMANDS = [
+  // Core Commands
+  { cmd: "open <url>", desc: "Navigate to URL" },
+  { cmd: "click <selector>", desc: "Click element" },
+  { cmd: "dblclick <selector>", desc: "Double-click element" },
+  { cmd: "type <selector> <text>", desc: "Type into element" },
+  { cmd: "fill <selector> <text>", desc: "Clear and fill element" },
+  { cmd: "press <key>", desc: "Press key (Enter, Tab, etc.)" },
+  { cmd: "hover <selector>", desc: "Hover element" },
+  { cmd: "select <selector> <value>", desc: "Select dropdown option" },
+  { cmd: "check <selector>", desc: "Check checkbox" },
+  { cmd: "uncheck <selector>", desc: "Uncheck checkbox" },
+  { cmd: "scroll <direction> [px]", desc: "Scroll (up/down/left/right)" },
+  { cmd: "screenshot [path]", desc: "Take screenshot" },
+  { cmd: "snapshot", desc: "Get accessibility tree with refs" },
+  { cmd: "wait <selector>", desc: "Wait for element" },
+  { cmd: "eval <js>", desc: "Run JavaScript" },
+  // Get Info
+  { cmd: "get text <selector>", desc: "Get text content" },
+  { cmd: "get value <selector>", desc: "Get input value" },
+  { cmd: "get attr <selector> <attr>", desc: "Get attribute" },
+  { cmd: "get title", desc: "Get page title" },
+  { cmd: "get url", desc: "Get current URL" },
+  // Navigation
+  { cmd: "back", desc: "Go back" },
+  { cmd: "forward", desc: "Go forward" },
+  { cmd: "reload", desc: "Reload page" },
+  // Check State
+  { cmd: "is visible <selector>", desc: "Check if visible" },
+  { cmd: "is enabled <selector>", desc: "Check if enabled" },
+  { cmd: "is checked <selector>", desc: "Check if checked" },
 ];
 
 export function TestEditor({ testId, onBack }: TestEditorProps) {
@@ -160,7 +188,7 @@ export function TestEditor({ testId, onBack }: TestEditorProps) {
   // Step management functions...
   const addStep = () => {
     setEditingStepIndex(null);
-    setCurrentStep({ action: "click" });
+    setCurrentStep({ action: "open" });
     setIsDialogOpen(true);
   };
 
@@ -203,109 +231,62 @@ export function TestEditor({ testId, onBack }: TestEditorProps) {
             />
           </div>
         );
-      case "click":
-      case "check":
-      case "hover":
-      case "verifyVisible":
+      case "command":
         return (
-          <div className="space-y-2">
-            <Label>Selector / Ref</Label>
-            <Input 
-                value={currentStep.selector || ""} 
-                onChange={e => updateCurrentStep("selector", e.target.value)} 
-                placeholder="@e1 or #submit-btn or text=Submit"
-            />
-          </div>
-        );
-      case "type":
-        return (
-            <>
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Selector / Ref</Label>
+                <Label>Agent-Browser Command</Label>
                 <Input 
-                    value={currentStep.selector || ""} 
-                    onChange={e => updateCurrentStep("selector", e.target.value)} 
-                    placeholder="@input or #email"
+                    value={currentStep.command || ""} 
+                    onChange={e => updateCurrentStep("command", e.target.value)} 
+                    placeholder="click @submit or fill #email test@example.com"
+                    className="font-mono text-sm"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Enter any agent-browser command. Use @ref for AI-detected elements or CSS selectors.
+                </p>
               </div>
+              
+              {/* Command Reference Table */}
               <div className="space-y-2">
-                <Label>Valid Text</Label>
-                <Input 
-                    value={currentStep.text || ""} 
-                    onChange={e => updateCurrentStep("text", e.target.value)} 
-                    placeholder="Hello World"
-                />
+                <Label className="text-xs text-muted-foreground">Available Commands Reference</Label>
+                <ScrollArea className="h-[200px] w-full border rounded-md">
+                  <div className="p-3 space-y-1">
+                    {AGENT_BROWSER_COMMANDS.map((cmd, idx) => (
+                      <div 
+                        key={idx} 
+                        className="flex items-start gap-3 py-1.5 px-2 hover:bg-accent/50 rounded-sm cursor-pointer transition-colors"
+                        onClick={() => updateCurrentStep("command", cmd.cmd)}
+                      >
+                        <code className="text-xs font-mono text-emerald-400 flex-1 min-w-[180px]">
+                          {cmd.cmd}
+                        </code>
+                        <span className="text-xs text-muted-foreground flex-1">
+                          {cmd.desc}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground italic">
+                  💡 Click any command to use it as a template
+                </p>
               </div>
-            </>
-        );
-      case "wait":
-        return (
-            <>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select 
-                    value={currentStep.type || "time"} 
-                    onValueChange={v => updateCurrentStep("type", v)}
-                >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="time">Time (ms)</SelectItem>
-                        <SelectItem value="element">Element</SelectItem>
-                        <SelectItem value="url">URL</SelectItem>
-                    </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Value</Label>
-                <Input 
-                    value={currentStep.value || ""} 
-                    onChange={e => updateCurrentStep("value", e.target.value)} 
-                    placeholder="1000 or #element"
-                />
-              </div>
-            </>
+            </div>
         );
       case "prompt":
         return (
             <div className="space-y-2">
-                <Label>Instruction</Label>
-                <Input 
+                <Label>AI Instruction</Label>
+                <textarea 
                     value={currentStep.instruction || ""} 
                     onChange={e => updateCurrentStep("instruction", e.target.value)} 
-                    placeholder="Click the blue button and wait for modal"
+                    placeholder="Click the blue submit button and wait for the success modal to appear"
+                    className="w-full min-h-[100px] px-3 py-2 text-sm border border-input bg-background rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
                 />
-            </div>
-        );
-      case "screenshot":
-        return (
-            <div className="space-y-2">
-                <Label>Name (optional)</Label>
-                <Input 
-                    value={currentStep.name || ""} 
-                    onChange={e => updateCurrentStep("name", e.target.value)} 
-                    placeholder="login-page"
-                />
-            </div>
-        );
-      case "setViewport":
-        return (
-            <div className="flex gap-4">
-                <div className="space-y-2 flex-1">
-                    <Label>Width</Label>
-                    <Input 
-                        type="number"
-                        value={currentStep.width || 1280} 
-                        onChange={e => updateCurrentStep("width", parseInt(e.target.value || "0"))} 
-                    />
-                </div>
-                <div className="space-y-2 flex-1">
-                    <Label>Height</Label>
-                    <Input 
-                        type="number"
-                        value={currentStep.height || 720} 
-                        onChange={e => updateCurrentStep("height", parseInt(e.target.value || "0"))} 
-                    />
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Describe what you want the AI to do. This will execute using Gemini CLI in the background with agent-browser.
+                </p>
             </div>
         );
       default:
@@ -377,10 +358,17 @@ export function TestEditor({ testId, onBack }: TestEditorProps) {
                                     <Badge variant="outline">{step.action}</Badge>
                                     <span className="text-sm font-medium">
                                         {step.action === "open" && step.url}
-                                        {step.action === "click" && step.selector}
-                                        {step.action === "type" && `${step.selector} = "${step.text}"`}
-                                        {step.action === "prompt" && step.instruction}
-                                        {step.action === "wait" && `${step.type}: ${step.value}`}
+                                        {step.action === "command" && (
+                                          <code className="font-mono text-emerald-400">
+                                            {step.command}
+                                          </code>
+                                        )}
+                                        {step.action === "prompt" && (
+                                          <span className="italic text-muted-foreground">
+                                            {step.instruction?.substring(0, 60)}
+                                            {step.instruction?.length > 60 ? "..." : ""}
+                                          </span>
+                                        )}
                                     </span>
                                 </div>
                             </div>
