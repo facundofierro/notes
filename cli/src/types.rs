@@ -7,6 +7,8 @@ pub enum EntityType {
     Idea,
     Doc,
     Tool,
+    TestGroup,
+    Test,
 }
 
 impl std::fmt::Display for EntityType {
@@ -17,6 +19,8 @@ impl std::fmt::Display for EntityType {
             EntityType::Idea => write!(f, "idea"),
             EntityType::Doc => write!(f, "doc"),
             EntityType::Tool => write!(f, "tool"),
+            EntityType::TestGroup => write!(f, "testgroup"),
+            EntityType::Test => write!(f, "test"),
         }
     }
 }
@@ -31,6 +35,8 @@ impl std::str::FromStr for EntityType {
             "idea" => Ok(EntityType::Idea),
             "doc" => Ok(EntityType::Doc),
             "tool" => Ok(EntityType::Tool),
+            "testgroup" => Ok(EntityType::TestGroup),
+            "test" => Ok(EntityType::Test),
             _ => Err(format!("Invalid entity type: {}", s)),
         }
     }
@@ -80,4 +86,57 @@ pub struct CreateTaskRequest {
 #[allow(dead_code)]
 pub struct FileResponse {
     pub content: String,
+}
+
+// Test-related types
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TestGroup {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Test {
+    pub id: String,
+    pub name: String,
+    pub group: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TestStep {
+    pub id: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub order: i32,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TestExecution {
+    pub id: String,
+    pub test_id: String,
+    pub timestamp: String,
+    pub status: String,
+    pub error: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TestGroupResponse {
+    pub groups: Vec<TestGroup>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TestResponse {
+    pub tests: Vec<Test>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TestStepResponse {
+    pub steps: Vec<TestStep>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TestExecutionResponse {
+    pub executions: Vec<TestExecution>,
 }

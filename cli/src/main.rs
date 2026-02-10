@@ -106,6 +106,65 @@ enum Commands {
         #[arg(long)]
         entity: EntityType,
     },
+
+    /// Add a step to a test
+    TestAddStep {
+        #[arg(long)]
+        repo: String,
+        #[arg(long)]
+        test_id: String,
+        #[arg(long)]
+        command: String,
+        /// Space-separated arguments for the command
+        #[arg(long)]
+        args: Vec<String>,
+    },
+
+    /// Run a test
+    TestRun {
+        #[arg(long)]
+        repo: String,
+        #[arg(long)]
+        test_id: String,
+    },
+
+    /// Mark a test as finished
+    TestFinish {
+        #[arg(long)]
+        repo: String,
+        #[arg(long)]
+        test_id: String,
+        #[arg(long)]
+        status: String,
+        #[arg(long)]
+        error: Option<String>,
+    },
+
+    /// Get test executions
+    TestExecutions {
+        #[arg(long)]
+        repo: String,
+        #[arg(long)]
+        test_id: String,
+        #[arg(long, default_value = "5")]
+        last: usize,
+    },
+
+    /// Get test steps
+    TestSteps {
+        #[arg(long)]
+        repo: String,
+        #[arg(long)]
+        test_id: String,
+    },
+
+    /// Browser automation commands (wraps agent-browser)
+    /// Usage: agelum browser <command> [args...]
+    Browser {
+        /// All arguments to pass to agent-browser
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 #[tokio::main]
@@ -140,6 +199,24 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::StartAI { repo, entity } => {
             commands::start_ai::execute(&client, &cli.url, &repo, entity).await?;
+        }
+        Commands::TestAddStep { repo, test_id, command, args } => {
+            commands::test_add_step::execute(&client, &cli.url, &repo, &test_id, &command, args).await?;
+        }
+        Commands::TestRun { repo, test_id } => {
+            commands::test_run::execute(&client, &cli.url, &repo, &test_id).await?;
+        }
+        Commands::TestFinish { repo, test_id, status, error } => {
+            commands::test_finish::execute(&client, &cli.url, &repo, &test_id, &status, error).await?;
+        }
+        Commands::TestExecutions { repo, test_id, last } => {
+            commands::test_executions::execute(&client, &cli.url, &repo, &test_id, last).await?;
+        }
+        Commands::TestSteps { repo, test_id } => {
+            commands::test_steps::execute(&client, &cli.url, &repo, &test_id).await?;
+        }
+        Commands::Browser { args } => {
+            commands::browser::execute(&client, &cli.url, args).await?;
         }
     }
 
