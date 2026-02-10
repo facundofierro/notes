@@ -6,6 +6,7 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { ensureAgelumStructure } from "./project.js";
 
 // --- Types & Constants ---
 
@@ -26,23 +27,6 @@ type DocumentType =
   | "agent"
   | "context";
 
-const AGELUM_STRUCTURE = [
-  "doc/docs",
-  "doc/plan",
-  "doc/ideas",
-  "work/tasks/backlog",
-  "work/tasks/fixes",
-  "work/tasks/pending",
-  "work/tasks/doing",
-  "work/tasks/done",
-  "ai/commands",
-  "ai/skills",
-  "ai/agents",
-  "doc/context",
-  "work/epics",
-  "work/tests",
-];
-
 const nonTaskTypeToDir: Record<
   Exclude<DocumentType, "task">,
   string
@@ -57,31 +41,6 @@ const nonTaskTypeToDir: Record<
 };
 
 // --- Helpers ---
-
-function getAgelumPath(
-  repoPath: string,
-): string {
-  return path.join(repoPath, ".agelum");
-}
-
-function ensureAgelumStructure(
-  repoPath: string,
-): string {
-  const agelumPath =
-    getAgelumPath(repoPath);
-
-  fs.mkdirSync(agelumPath, {
-    recursive: true,
-  });
-  AGELUM_STRUCTURE.forEach((dir) => {
-    fs.mkdirSync(
-      path.join(agelumPath, dir),
-      { recursive: true },
-    );
-  });
-
-  return agelumPath;
-}
 
 function sanitizeFileNamePart(
   value: string,

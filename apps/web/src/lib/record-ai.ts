@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { readSettings } from "./settings";
 import { isCommandAvailable, getExtendedPath } from "./agent-tools";
 import { spawn } from "child_process";
@@ -9,8 +11,10 @@ export interface AIBackendInfo {
 }
 
 export interface AIRecommendation {
+  type: "command" | "prompt";
   command: string;
   args: string[];
+  instruction?: string; // original prompt for non-deterministic steps
   explanation: string;
   stepDescription: string;
 }
@@ -23,49 +27,42 @@ interface AIRecommendationInput {
   backend: "google-api" | "gemini-cli";
 }
 
-const SYSTEM_PROMPT_TEMPLATE = (deterministic: boolean) => `You are an AI assistant that translates natural language instructions into agent-browser commands.
-
-Given a browser screenshot and/or DOM snapshot, and a user instruction, return a JSON object with the exact agent-browser command to execute.
-
-Available commands:
-- open <url> — Navigate to URL
-- click <selector> — Click element
-- dblclick <selector> — Double-click element
-- type <selector> <text> — Type into element
-- fill <selector> <text> — Clear and fill element
-- press <key> — Press key (Enter, Tab, Escape, etc.)
-- hover <selector> — Hover element
-- select <selector> <value> — Select dropdown option
-- check <selector> — Check checkbox
-- uncheck <selector> — Uncheck checkbox
-- scroll <direction> [px] — Scroll (up/down/left/right)
-- wait <selector> — Wait for element
-- eval <js> — Run JavaScript
-- back — Go back
-- forward — Go forward
-- reload — Reload page
-
-${deterministic ? "IMPORTANT: You MUST use CSS selectors (id, data-testid, class-based selectors) instead of @ref snapshot references. This ensures deterministic, repeatable tests." : "You may use @ref references from the snapshot or CSS selectors to identify elements."}
-
-Respond ONLY with a valid JSON object in this exact format (no markdown, no explanation outside the JSON):
+// Shorter deterministic system prompt
+const DETERMINISTIC_SYSTEM_PROMPT = `Translate the browser instruction into a JSON agent-browser command.
+Given the DOM snapshot and instruction, return ONLY valid JSON:
 {
   "command": "click",
-  "args": ["#submit-btn"],
-  "explanation": "Clicks the submit button",
-  "stepDescription": "Click the submit button"
+  "args": ["#selector"],
+  "explanation": "Brief description",
+  "stepDescription": "Human-readable step"
+}
+Use CSS selectors (id, data-testid, class-based) for deterministic, repeatable steps. No @ref references.`;
+
+function getSkillFilePath(): string {
+  return path.join(process.cwd(), ".agelum", "ai", "skills", "agent-browser.md");
 }
 
-The "command" field is the agent-browser command name.
-The "args" field is an array of string arguments for the command.
-The "explanation" field briefly explains what the command does.
-The "stepDescription" field is a short human-readable description for the test step list.`;
+function getSnapshotFilePath(): string {
+  return path.join(process.cwd(), ".agelum", "temp", "snapshot.txt");
+}
+
+function saveSnapshotToFile(snapshot: string): string {
+  const snapshotPath = getSnapshotFilePath();
+  const dir = path.dirname(snapshotPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(snapshotPath, snapshot, "utf-8");
+  return snapshotPath;
+}
 
 export async function detectAvailableBackends(): Promise<AIBackendInfo[]> {
   const backends: AIBackendInfo[] = [];
 
   // Check Google API key
   const settings = await readSettings();
-  const googleApiKey = settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const googleApiKey =
+    settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (googleApiKey) {
     backends.push({
       id: "google-api",
@@ -89,11 +86,10 @@ export async function detectAvailableBackends(): Promise<AIBackendInfo[]> {
 
 async function getGoogleApiRecommendation(
   input: AIRecommendationInput,
-  apiKey: string
+  apiKey: string,
 ): Promise<AIRecommendation> {
   const parts: any[] = [];
 
-  // Add screenshot as inline image if available
   if (input.screenshot) {
     parts.push({
       inlineData: {
@@ -103,7 +99,6 @@ async function getGoogleApiRecommendation(
     });
   }
 
-  // Add snapshot and user prompt as text
   parts.push({
     text: `DOM Snapshot:\n${input.snapshot}\n\nUser instruction: ${input.prompt}`,
   });
@@ -115,7 +110,7 @@ async function getGoogleApiRecommendation(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT_TEMPLATE(input.deterministic) }],
+          parts: [{ text: DETERMINISTIC_SYSTEM_PROMPT }],
         },
         contents: [{ parts }],
         generationConfig: {
@@ -123,7 +118,7 @@ async function getGoogleApiRecommendation(
           responseMimeType: "application/json",
         },
       }),
-    }
+    },
   );
 
   if (!response.ok) {
@@ -137,7 +132,6 @@ async function getGoogleApiRecommendation(
     throw new Error("No response from Google AI API");
   }
 
-  // Parse JSON from response (handle possible markdown wrapping)
   let jsonStr = text.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
@@ -145,6 +139,7 @@ async function getGoogleApiRecommendation(
 
   const result = JSON.parse(jsonStr);
   return {
+    type: "command",
     command: result.command,
     args: Array.isArray(result.args) ? result.args.map(String) : [],
     explanation: result.explanation || "",
@@ -152,18 +147,25 @@ async function getGoogleApiRecommendation(
   };
 }
 
-async function getGeminiCliRecommendation(
-  input: AIRecommendationInput
+async function getDeterministicGeminiCliRecommendation(
+  input: AIRecommendationInput,
 ): Promise<AIRecommendation> {
-  const prompt = `${SYSTEM_PROMPT_TEMPLATE(input.deterministic)}\n\nDOM Snapshot:\n${input.snapshot}\n\nUser instruction: ${input.prompt}`;
+  const prompt = `${DETERMINISTIC_SYSTEM_PROMPT}\n\nDOM Snapshot:\n${input.snapshot}\n\nUser instruction: ${input.prompt}`;
 
   return new Promise((resolve, reject) => {
     const outputChunks: string[] = [];
     const errorChunks: string[] = [];
 
-    const child = spawn("gemini", ["-i", prompt], {
+    const child = spawn("gemini", ["-p", "", "-o", "json"], {
       env: { ...process.env, PATH: getExtendedPath() },
     });
+
+    if (child.stdin) {
+      child.stdin.end(prompt);
+    } else {
+      reject(new Error("Failed to create stdin for Gemini CLI process"));
+      return;
+    }
 
     child.stdout.on("data", (data) => {
       outputChunks.push(data.toString());
@@ -175,13 +177,16 @@ async function getGeminiCliRecommendation(
 
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`Gemini CLI exited with code ${code}: ${errorChunks.join("")}`));
+        reject(
+          new Error(
+            `Gemini CLI exited with code ${code}: ${errorChunks.join("")}`,
+          ),
+        );
         return;
       }
 
       const output = outputChunks.join("").trim();
       try {
-        // Extract JSON from output
         let jsonStr = output;
         const jsonMatch = output.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -190,6 +195,7 @@ async function getGeminiCliRecommendation(
 
         const result = JSON.parse(jsonStr);
         resolve({
+          type: "command",
           command: result.command,
           args: Array.isArray(result.args) ? result.args.map(String) : [],
           explanation: result.explanation || "",
@@ -204,7 +210,6 @@ async function getGeminiCliRecommendation(
       reject(new Error(`Failed to spawn gemini CLI: ${err.message}`));
     });
 
-    // 60s timeout for CLI
     setTimeout(() => {
       child.kill();
       reject(new Error("Gemini CLI timed out after 60 seconds"));
@@ -212,12 +217,91 @@ async function getGeminiCliRecommendation(
   });
 }
 
-export async function getAIRecommendation(
-  input: AIRecommendationInput
+async function getNonDeterministicRecommendation(
+  input: AIRecommendationInput,
 ): Promise<AIRecommendation> {
+  const snapshotPath = saveSnapshotToFile(input.snapshot);
+  const skillPath = getSkillFilePath();
+
+  const prompt = `You are a browser automation agent. Execute browser commands using the agelum CLI tool.
+
+Skill reference (available commands): ${skillPath}
+Current page snapshot: ${snapshotPath}
+
+Read the snapshot file to understand current page state, then execute the appropriate agelum CLI commands to accomplish the following instruction:
+
+${input.prompt}
+
+Use agelum commands to complete this task. Take a new snapshot if needed after interactions.`;
+
+  return new Promise((resolve, reject) => {
+    const outputChunks: string[] = [];
+    const errorChunks: string[] = [];
+
+    const child = spawn("gemini", ["-p", ""], {
+      env: { ...process.env, PATH: getExtendedPath() },
+    });
+
+    if (child.stdin) {
+      child.stdin.end(prompt);
+    } else {
+      reject(new Error("Failed to create stdin for Gemini CLI process"));
+      return;
+    }
+
+    child.stdout.on("data", (data) => {
+      outputChunks.push(data.toString());
+    });
+
+    child.stderr.on("data", (data) => {
+      errorChunks.push(data.toString());
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(
+          new Error(
+            `Gemini CLI exited with code ${code}: ${errorChunks.join("")}`,
+          ),
+        );
+        return;
+      }
+
+      // Non-deterministic: return the original prompt as the step instruction
+      resolve({
+        type: "prompt",
+        command: "",
+        args: [],
+        instruction: input.prompt,
+        explanation: `AI executed: ${input.prompt}`,
+        stepDescription: input.prompt,
+      });
+    });
+
+    child.on("error", (err) => {
+      reject(new Error(`Failed to spawn gemini CLI: ${err.message}`));
+    });
+
+    setTimeout(() => {
+      child.kill();
+      reject(new Error("Gemini CLI timed out after 120 seconds"));
+    }, 120000);
+  });
+}
+
+export async function getAIRecommendation(
+  input: AIRecommendationInput,
+): Promise<AIRecommendation> {
+  // Non-deterministic always uses gemini CLI with agelum tool execution
+  if (!input.deterministic) {
+    return getNonDeterministicRecommendation(input);
+  }
+
+  // Deterministic: use selected backend to generate a command
   if (input.backend === "google-api") {
     const settings = await readSettings();
-    const apiKey = settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const apiKey =
+      settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!apiKey) {
       throw new Error("Google API key not configured");
     }
@@ -225,7 +309,7 @@ export async function getAIRecommendation(
   }
 
   if (input.backend === "gemini-cli") {
-    return getGeminiCliRecommendation(input);
+    return getDeterministicGeminiCliRecommendation(input);
   }
 
   throw new Error(`Unknown AI backend: ${input.backend}`);

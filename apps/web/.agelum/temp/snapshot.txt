@@ -1,0 +1,216 @@
+- document:
+  - main:
+    - img
+    - combobox [ref=e1]:
+      - option "🇺🇸 English" [ref=e2] [selected]
+      - option "🇪🇸 Español" [ref=e3]
+      - option "🇷🇺 Русский" [ref=e4]
+    - text: Agelum studio
+    - paragraph: The Only All-in-One Interactive Content Platform You'll Ever Need
+    - paragraph: Video calls, interactive content creation, AI assistant, social media, payments, and Telegram integration - all in one place
+    - text: Join our growing community of teachers
+    - button "Start for Free Today" [ref=e5]
+    - paragraph: Join our early access program and help shape the future of online teaching
+    - img "Desktop View"
+    - img "Lesson View"
+    - img "Mini App View"
+    - button "Save Time on Marketing" [ref=e6]
+    - button "AI Assistant" [ref=e7]:
+      - img
+      - text: AI Assistant
+    - button "Create & Sell Courses" [ref=e8]:
+      - img
+      - text: Create & Sell Courses
+    - button "Live Classes" [ref=e9]:
+      - img
+      - text: Live Classes
+    - button "Student Engagement" [ref=e10]
+    - img
+    - text: Global Reach
+    - heading "Teach Students Anywhere in the World" [ref=e11] [level=2]
+    - paragraph: Break down geographical barriers with professional online classes. Real-time progress tracking, interactive content sharing, and seamless student management.
+    - img
+    - text: Expand your reach beyond local limitations
+    - img
+    - text: Real-time Progress Tracking
+    - img
+    - text: Interactive Content Sharing
+    - heading "Build Your Teaching Brand Automatically" [ref=e12] [level=1]
+    - paragraph: Stop spending hours weekly on social media. Our AI creates and schedules engaging content that attracts more students to your courses.
+    - paragraph: Multi-platform posting
+    - paragraph: Post your content simultaneously across all your social networks with a single click
+    - paragraph: Customizable templates
+    - paragraph: Create and save your own templates or choose from our library to maintain consistent branding
+    - paragraph: Smart scheduling
+    - paragraph: Schedule a week or month of posts in minutes using our intelligent posting calendar
+    - paragraph: Posting calendar
+    - paragraph: Visual calendar interface to plan and organize your content strategy effectively
+    - link "Instagram logo" [ref=e13]:
+      - /url: https://instagram.com/your-handle
+      - img "Instagram logo"
+    - link "Telegram logo" [ref=e14]:
+      - /url: https://t.me/your-handle
+      - img "Telegram logo"
+    - link "Facebook logo" [ref=e15]:
+      - /url: https://facebook.com/your-handle
+      - img "Facebook logo"
+    - link "VK logo" [ref=e16]:
+      - /url: https://vk.com/your-handle
+      - img "VK logo"
+    - heading "AI That Makes You a Better Teacher" [ref=e17] [level=2]
+    - paragraph: Stop spending nights grading papers. Our AI provides instant feedback, creates engaging content, and helps students learn more effectively.
+    - heading "Smart Text Corrections" [ref=e18] [level=3]
+    - paragraph: Real-time text analysis and corrections with detailed feedback to help students improve their writing skills.
+    - heading "Speech Assessment" [ref=e19] [level=3]
+    - paragraph: Audio recognition that provides instant feedback on pronunciation, fluency, and speaking skills.
+    - heading "AI Conversation Partner" [ref=e20] [level=3]
+    - paragraph: Free speaking practice with our AI assistant that adapts to provide natural, contextual responses.
+    - heading "Multi-Voice Dialog Generator" [ref=e21] [level=3]
+    - paragraph: Transform text into realistic audio conversations featuring multiple actors with distinct voices and personalities.
+    - heading "Social Media Content Assistant" [ref=e22] [level=3]
+    - paragraph: Generate engaging social media templates and content tailored to your teaching style and subject matter.
+    - heading "Educational Media Creator" [ref=e23] [level=3]
+    - paragraph: Create custom educational media including images, graphics, and animations to enhance your learning materials.
+    - heading "Create and Sell Courses - Build Your Teaching Business" [ref=e24] [level=1]
+    - paragraph: Build your course library and start earning from your expertise. Start free, upgrade to Pro for advanced features and AI credits.
+    - paragraph: Be among the first to build your teaching empire on our platform
+    - img "Courses"
+    - heading "Mobile Learning Made Simple" [ref=e25] [level=2]
+    - paragraph: Your students can access courses directly through Telegram - no app downloads required. Perfect for busy learners who want to study on their phones.
+    - text: Add multimedia to lessons
+    - paragraph: Add videos, images, and audio to your lessons.
+    - img "thumbnail"
+    - text: Personalized stickers
+    - paragraph: Set stickers to show to interact with your students.
+    - img "thumbnail"
+    - text: Get feedback
+    - paragraph: Get information from your students, allowing them to express their feelings.
+    - img "thumbnail"
+    - img "Schedule screenshot"
+    - heading "Teach Live Classes - Set Your Own Rates" [ref=e26] [level=1]
+    - paragraph: Schedule classes, set your rates, and earn commissions. Students book and pay automatically - you just show up and teach.
+    - paragraph: Join our early access program and be part of the teaching revolution
+    - img
+    - text: Easy Scheduling
+    - img
+    - text: Set Your Rates
+    - img
+    - text: Auto Payments
+    - img
+    - text: Time Management
+    - img
+    - text: Why Teachers Love Us
+    - img
+    - text: Students book and pay automatically
+    - img
+    - text: Set your own hourly rates
+    - img
+    - text: Manage availability with one click
+    - button "Start Teaching Live Classes" [ref=e27]
+    - img
+    - text: Dual Approach
+    - heading "Create Professional Content OR use Proven Materials" [ref=e28] [level=2]
+    - paragraph: Create course materials in minutes with our design tools, or buy proven content from other teachers. Focus on teaching, not content creation.
+    - img
+    - heading "Create Your Own" [ref=e29] [level=3]
+    - paragraph: Design tools and templates in minutes
+    - img
+    - heading "Buy from Others" [ref=e30] [level=3]
+    - paragraph: Access proven materials from successful teachers
+    - img
+    - text: Start teaching faster with professional materials
+    - img "Content Creation Tools"
+    - text: Multi-Platform
+    - heading "Teach Everywhere - Web and Telegram" [ref=e31] [level=2]
+    - paragraph: Create once, teach everywhere. Your courses work seamlessly on web interface and Telegram mobile app. Choose between bot mode for interactive lessons or web mode for rich content - both accessible everywhere. Students learn on their phones without downloading anything.
+    - img
+    - paragraph: Same course content across web and Telegram
+    - img
+    - paragraph: Students get push notifications and reminders
+    - img
+    - paragraph: Mobile-first learning for busy students
+    - img
+    - paragraph: Telegram wallet payments - no credit card needed
+    - img
+    - paragraph: Progress syncs across web and Telegram
+    - img
+    - paragraph: Reach students who can't install apps
+    - img
+    - text: Web +
+    - img
+    - text: Telegram Success Stories
+    - heading "See What Teachers Are Creating" [ref=e32] [level=2]
+    - paragraph: Discover how teachers are building successful online businesses with TOL. From course creation to student engagement, see real results.
+    - img
+    - text: "85% Course completion rates: 85% average"
+    - img
+    - text: "$2,500+ Teacher earnings: $2,500+ monthly average"
+    - img
+    - text: "4.8/5 Student satisfaction: 4.8/5 stars"
+    - img
+    - text: "50% Course creation time: 50% faster"
+    - img
+    - text: "3x Student engagement: 3x higher"
+    - paragraph: Join Successful Teachers Today!
+    - paragraph: Real results from real teachers
+    - img
+    - text: Professional Tools
+    - heading "Professional Tools for Serious Teachers" [ref=e33] [level=2]
+    - paragraph: Access powerful analytics, content management, and automation tools that help you grow your teaching business efficiently.
+    - img
+    - paragraph: Real-time analytics dashboard
+    - img
+    - paragraph: Automated student progress tracking
+    - img
+    - paragraph: Content management system
+    - img
+    - paragraph: Email marketing automation
+    - img
+    - paragraph: Payment processing integration
+    - img
+    - paragraph: API access for custom integrations
+    - paragraph: Everything you need to grow your teaching business
+    - img
+    - text: Frequently Asked Questions
+    - heading "Join a Growing Community" [ref=e34] [level=2]
+    - paragraph: Be part of the fastest-growing online teaching platform with thousands of active teachers and students worldwide.
+    - img
+    - heading "Can I decide the price of the susbscription for my courses?" [ref=e35] [level=3]
+    - paragraph: Yes! You can create your own subscription plans and set the price for each one of them.
+    - img
+    - heading "How much it cost?" [ref=e36] [level=3]
+    - paragraph: You can use it for free. Commisions are applied only on students payments.
+    - img
+    - heading "Can I offer free courses?" [ref=e37] [level=3]
+    - paragraph: Yes! You can create 1 demo lesson for each course and offer it for free!
+    - img
+    - heading "How much can I realistically earn?" [ref=e38] [level=3]
+    - paragraph: Teachers on our platform average $2,500+ monthly. Your earnings depend on course quality, pricing, and marketing efforts. Start free and scale as you grow!
+    - img
+    - heading "What if I'm not tech-savvy?" [ref=e39] [level=3]
+    - paragraph: Our platform is designed for teachers, not technicians. Simple drag-and-drop tools, video tutorials, and 24/7 support help you every step of the way.
+    - img
+    - heading "How do I get my first students?" [ref=e40] [level=3]
+    - paragraph: We provide marketing tools, social media automation, and platform visibility. Plus, our early access program includes promotional support to help you launch successfully.
+    - paragraph: Your students are waiting. Your teaching journey starts now.
+    - text: Build awesome courses with Agelum Studio!
+    - button "Start for Free Today" [ref=e41] [nth=1]
+    - paragraph: Free to start, upgrade when you're ready
+    - paragraph: Join our early access program and help shape the future
+    - text: Agelum studio
+    - paragraph: Have any questions?
+    - button "Contact us Contact us" [ref=e42]:
+      - img "Contact us"
+      - text: Contact us
+    - paragraph: or
+    - button "Community Join our community" [ref=e43]:
+      - img "Community"
+      - text: Join our community
+  - button "Close message" [ref=e44]:
+    - img
+  - paragraph: Hi! 👋 I'm your AI assistant. Do you have any question?
+  - button "Open AI chat assistant" [ref=e45]:
+    - img
+  - region "Notifications (F8)" [ref=e46]:
+    - list
+  - alert

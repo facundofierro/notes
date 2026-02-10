@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { ensureAgelumStructure } from "./project";
 
 export interface ProjectConfig {
   id: string;
@@ -159,10 +160,8 @@ export async function readProjectConfig(projectPath: string): Promise<Partial<Pr
 
 async function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>): Promise<void> {
   try {
+    ensureAgelumStructure(projectPath);
     const agelumDir = path.join(projectPath, ".agelum");
-    if (!fs.existsSync(agelumDir)) {
-      fs.mkdirSync(agelumDir, { recursive: true });
-    }
     const configPath = path.join(agelumDir, "config.json");
     
     // Only save project-specific fields to the project config

@@ -1,14 +1,10 @@
 {
   "id": "test-1770681934249",
   "name": "login",
-  "group": "experimental",
-  "folder": "login",
-  "description": "",
   "steps": [
     {
-      "action": "open",
-      "url": "https://studio.agelum.local/en"
+      "action": "command",
+      "command": "open https://studio.agelum.local/en"
     }
-  ],
-  "updatedAt": "2026-02-10T00:11:09.263Z"
+  ]
 }

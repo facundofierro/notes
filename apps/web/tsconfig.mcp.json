@@ -9,5 +9,5 @@
     "isolatedModules": false,
     "jsx": "react"
   },
-  "include": ["src/lib/mcp.ts", "src/lib/config.ts", "scripts/mcp-runner.ts"]
+  "include": ["src/lib/mcp.ts", "src/lib/project.ts", "src/lib/config.ts", "scripts/mcp-runner.ts"]
 }

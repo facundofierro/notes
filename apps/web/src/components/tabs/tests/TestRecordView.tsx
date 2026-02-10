@@ -28,8 +28,10 @@ import {
 import type { AIBackendInfo } from "@/lib/record-ai";
 
 interface RecordedStep {
+  type: "command" | "prompt";
   command: string;
   args: string[];
+  instruction?: string; // for prompt steps
   description: string;
 }
 
@@ -136,6 +138,7 @@ export function TestRecordView({
           const execData = await execRes.json();
           if (execData.success && !cancelled) {
             const step: RecordedStep = {
+              type: "command",
               command: "open",
               args: [previewUrl],
               description: `Open ${previewUrl}`,
@@ -159,6 +162,18 @@ export function TestRecordView({
 
           for (const step of existingSteps) {
             if (cancelled) break;
+
+            // Skip prompt steps during recording replay (they require LLM execution)
+            if (step.action === "prompt") {
+              replayedSteps.push({
+                type: "prompt",
+                command: "",
+                args: [],
+                instruction: step.instruction || "",
+                description: step.instruction || "AI prompt step",
+              });
+              continue;
+            }
 
             let command = "";
             let args: string[] = [];
@@ -199,7 +214,7 @@ export function TestRecordView({
               );
             }
 
-            replayedSteps.push({ command, args, description });
+            replayedSteps.push({ type: "command", command, args, description });
           }
 
           if (!cancelled) {
@@ -272,47 +287,70 @@ export function TestRecordView({
 
       const recommendation = await aiRes.json();
 
-      // 2. Execute the command
-      setStatusMessage(
-        `Executing: ${recommendation.command} ${recommendation.args.join(" ")}`,
-      );
-      const execRes = await fetch("/api/tests/record/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      if (recommendation.type === "prompt") {
+        // 2a. Non-deterministic: execution already happened via gemini CLI
+        // Just add the prompt step to the list and persist it
+        const newStep: RecordedStep = {
+          type: "prompt",
+          command: "",
+          args: [],
+          instruction: recommendation.instruction,
+          description: recommendation.stepDescription || recommendation.instruction || prompt.trim(),
+        };
+        setRecordedSteps((prev) => [...prev, newStep]);
+
+        await fetch(`/api/tests/${testId}/steps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "prompt",
+            instruction: recommendation.instruction || prompt.trim(),
+          }),
+        });
+      } else {
+        // 2b. Deterministic: execute the command
+        setStatusMessage(
+          `Executing: ${recommendation.command} ${recommendation.args.join(" ")}`,
+        );
+        const execRes = await fetch("/api/tests/record/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            command: recommendation.command,
+            args: recommendation.args,
+          }),
+        });
+
+        if (!execRes.ok) {
+          throw new Error("Command execution failed");
+        }
+
+        const execData = await execRes.json();
+        if (!execData.success) {
+          throw new Error(execData.error || "Command failed");
+        }
+
+        // 3. Add step to local list
+        const newStep: RecordedStep = {
+          type: "command",
           command: recommendation.command,
           args: recommendation.args,
-        }),
-      });
+          description:
+            recommendation.stepDescription ||
+            `${recommendation.command} ${recommendation.args.join(" ")}`,
+        };
+        setRecordedSteps((prev) => [...prev, newStep]);
 
-      if (!execRes.ok) {
-        throw new Error("Command execution failed");
+        // 4. Persist the step
+        const fullCommand = [recommendation.command, ...recommendation.args].join(
+          " ",
+        );
+        await fetch(`/api/tests/${testId}/steps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "command", command: fullCommand }),
+        });
       }
-
-      const execData = await execRes.json();
-      if (!execData.success) {
-        throw new Error(execData.error || "Command failed");
-      }
-
-      // 3. Add step to local list
-      const newStep: RecordedStep = {
-        command: recommendation.command,
-        args: recommendation.args,
-        description:
-          recommendation.stepDescription ||
-          `${recommendation.command} ${recommendation.args.join(" ")}`,
-      };
-      setRecordedSteps((prev) => [...prev, newStep]);
-
-      // 4. Persist the step
-      const fullCommand = [recommendation.command, ...recommendation.args].join(
-        " ",
-      );
-      await fetch(`/api/tests/${testId}/steps`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "command", command: fullCommand }),
-      });
 
       // 5. Capture updated state
       setStatusMessage("Capturing updated browser state...");
@@ -332,10 +370,12 @@ export function TestRecordView({
   async function handleStop() {
     // Save the test with all accumulated steps
     try {
-      const steps = recordedSteps.map((s) => ({
-        action: "command",
-        command: [s.command, ...s.args].join(" "),
-      }));
+      const steps = recordedSteps.map((s) => {
+        if (s.type === "prompt") {
+          return { action: "prompt", instruction: s.instruction || s.description };
+        }
+        return { action: "command", command: [s.command, ...s.args].join(" ") };
+      });
 
       await fetch(`/api/tests/${testId}`, {
         method: "PUT",
@@ -570,9 +610,12 @@ export function TestRecordView({
                         <div className="flex items-center gap-1.5">
                           <Badge
                             variant="outline"
-                            className="text-[9px] px-1 py-0 h-4 bg-white/[0.03] border-white/[0.06] text-emerald-400 flex-shrink-0"
+                            className={cn(
+                              "text-[9px] px-1 py-0 h-4 bg-white/[0.03] border-white/[0.06] flex-shrink-0",
+                              step.type === "prompt" ? "text-violet-400" : "text-emerald-400",
+                            )}
                           >
-                            {step.command}
+                            {step.type === "prompt" ? "prompt" : step.command}
                           </Badge>
                           <span className="text-[11px] text-zinc-400 truncate">
                             {step.description}
