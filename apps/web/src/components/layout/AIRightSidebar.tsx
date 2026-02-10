@@ -11,7 +11,6 @@ import {
   Copy,
   Search,
   X,
-  ChevronDown,
   Globe,
   Monitor,
   Loader2,
@@ -73,7 +72,7 @@ export function AIRightSidebar({
   const [openCodeWebLoadingLabel, setOpenCodeWebLoadingLabel] = React.useState("");
   const [openCodeWebError, setOpenCodeWebError] = React.useState("");
   const [pendingOpenCodeWebMessage, setPendingOpenCodeWebMessage] = React.useState<any>(null);
-  const [promptMode, setPromptMode] = React.useState<"agent" | "plan" | "chat">("agent");
+
   const [docAiMode, setDocAiMode] = React.useState<"modify" | "start" | "plan">("modify");
   const docAiModeRef = React.useRef(docAiMode);
   React.useEffect(() => { docAiModeRef.current = docAiMode; }, [docAiMode]);
@@ -344,10 +343,14 @@ Error: ${error.message}`);
     const cols = calculatedCols > 0 ? calculatedCols : termSize.cols;
     const rows = calculatedRows > 0 ? calculatedRows : termSize.rows;
 
+    // Capture the current docAiMode and file path to use in finally block
+    const currentDocAiMode = docAiMode;
+    const currentFilePath = file?.path;
+
     // If creating a plan, generate and store the plan path BEFORE building the prompt
     let generatedPlanPath: string | null = null;
-    if (docAiMode === "plan" && file?.path) {
-      const taskFileName = file.path.split('/').pop()?.replace('.md', '') || 'plan';
+    if (currentDocAiMode === "plan" && currentFilePath) {
+      const taskFileName = currentFilePath.split('/').pop()?.replace('.md', '') || 'plan';
       const timestamp = Date.now();
       generatedPlanPath = `.agelum/work/plans/${taskFileName}-${timestamp}.md`;
       setLastGeneratedPlanPath(generatedPlanPath);
@@ -357,7 +360,7 @@ Error: ${error.message}`);
 
     const rawPrompt = buildToolPrompt({
       promptText: trimmedPrompt,
-      mode: promptMode,
+      mode: "agent",
       docMode: docAiMode,
       file: file ? { path: file.path, planPath: (file as any).planPath } : undefined,
       viewMode: viewMode as any,
@@ -483,26 +486,32 @@ Cancelled` : "Cancelled");
       }
       
       // Post-processing: After plan creation, automatically update task frontmatter
-      if (docAiMode === "plan" && file?.path && lastGeneratedPlanPath) {
-        // Use the plan path that was generated when building the prompt
+      if (currentDocAiMode === "plan" && currentFilePath && generatedPlanPath) {
+        // Update the task file with the plan link
         fetch("/api/tasks/link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            taskPath: file.path,
-            planPath: lastGeneratedPlanPath,
+            taskPath: currentFilePath,
+            planPath: generatedPlanPath,
           }),
         })
-        .then(() => {
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to update task: ${response.statusText}`);
+          }
+          // Small delay to ensure file write completes
+          await new Promise(resolve => setTimeout(resolve, 100));
           // Refresh the task file to show the updated frontmatter
-          refreshCurrentFile();
+          await refreshCurrentFile();
+          console.log(`Task file updated with plan link: ${generatedPlanPath}`);
         })
         .catch((err) => {
           console.error("Failed to update task frontmatter:", err);
         });
       }
     }
-  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt, contextKey, registerTerminalSession, updateTerminalSession, terminalProcessId, agentTools, termSize.cols, termSize.rows, triggerLoadingIndicator]);
+  }, [file, promptText, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, basePath, projectPath, toolModelByTool, buildToolPrompt, contextKey, registerTerminalSession, updateTerminalSession, terminalProcessId, agentTools, termSize.cols, termSize.rows, triggerLoadingIndicator, refreshCurrentFile]);
 
   const ensureModelsForTool = React.useCallback(async (toolName: string) => {
     if (toolModelsByTool[toolName] || isToolModelsLoading[toolName]) return;
@@ -587,7 +596,7 @@ Cancelled` : "Cancelled");
   const handleCopyFullPrompt = React.useCallback(() => {
     const prompt = buildToolPrompt({
       promptText,
-      mode: promptMode,
+      mode: "agent",
       docMode: docAiMode,
       file: file ? { path: file.path, planPath: (file as any).planPath } : undefined,
       viewMode: viewMode as any,
@@ -603,7 +612,7 @@ Cancelled` : "Cancelled");
       finalPrompt = finalPrompt.split(`@${name}`).join(path);
     });
     navigator.clipboard.writeText(finalPrompt);
-  }, [file, promptText, promptMode, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, buildToolPrompt]);
+  }, [file, promptText, docAiMode, viewMode, testViewMode, testOutput, isTestRunning, selectedRepo, fileMap, buildToolPrompt]);
 
   const isWide = (rightSidebarView === "terminal" && isTerminalRunning) || rightSidebarView === "iframe";
 
@@ -711,14 +720,7 @@ Cancelled` : "Cancelled");
                 )}
               </div>
             )}
-            <div className="flex relative flex-1 justify-end items-center">
-              <select value={promptMode} onChange={(e) => setPromptMode(e.target.value as any)} className="pr-6 w-full h-full text-xs text-right bg-transparent appearance-none outline-none text-muted-foreground">
-                <option value="agent">Agent</option>
-                <option value="plan">Plan</option>
-                <option value="chat">Chat</option>
-              </select>
-              <ChevronDown className="absolute right-0 top-1/2 w-4 h-4 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-            </div>
+
           </div>
 
           <div className="p-3 border-b border-border">
