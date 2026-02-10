@@ -65,7 +65,7 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     supportedModels: ["claude-3-5-sonnet"],
   },
   gemini: {
-    name: "Gemini Code",
+    name: "Gemini",
     command: "gemini",
     type: "cli",
     modelFlag: "--model",
