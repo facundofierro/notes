@@ -13,19 +13,28 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { screenshot, snapshot, prompt, deterministic, backend } = await request.json();
+    console.log(`[RecordAI] Received request for backend: ${backend}`, {
+      prompt,
+      deterministic,
+      hasScreenshot: !!screenshot,
+      screenshotSize: screenshot?.length,
+      hasSnapshot: !!snapshot,
+      snapshotSize: snapshot?.length,
+    });
 
     if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+      return NextResponse.json({ error: "Prompt required" }, { status: 400 });
     }
 
     if (!backend) {
-      return NextResponse.json({ error: "Backend is required" }, { status: 400 });
+      return NextResponse.json({ error: "Backend required" }, { status: 400 });
     }
 
     if (!snapshot) {
-      return NextResponse.json({ error: "Snapshot is required" }, { status: 400 });
+      return NextResponse.json({ error: "Snapshot required" }, { status: 400 });
     }
 
+    console.log("[RecordAI] Calling getAIRecommendation...");
     const recommendation = await getAIRecommendation({
       screenshot,
       snapshot,
@@ -33,9 +42,11 @@ export async function POST(request: Request) {
       deterministic: deterministic ?? false,
       backend,
     });
+    console.log("[RecordAI] Recommendation received:", recommendation);
 
     return NextResponse.json(recommendation);
   } catch (error: any) {
+    console.error("[RecordAI] Exception:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -20,12 +20,14 @@
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
   },
   "dependencies": {
-    "agent-browser": "latest",
     "@agelum/llm-provider": "workspace:*",
+    "agent-browser": "latest",
     "zod": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^20.0.0",
+    "playwright": "^1.58.2",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
