@@ -316,7 +316,8 @@ Error: ${error.message}`);
 
   const runTool = React.useCallback(async (toolName: string) => {
     const trimmedPrompt = promptText.trim();
-    if (!trimmedPrompt) return;
+    const isPlanOrStart = docAiMode === "plan" || docAiMode === "start";
+    if (!trimmedPrompt && !isPlanOrStart) return;
 
     terminalAbortControllerRef.current?.abort();
     const controller = new AbortController();
@@ -801,7 +802,11 @@ Cancelled` : "Cancelled");
                   
                   return (
                     <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                      <button onClick={handleClick} disabled={!tool.available || (!isHighlighted && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
+                      <button 
+                        onClick={handleClick} 
+                        disabled={!tool.available || (!isHighlighted && !promptText.trim() && docAiMode !== "plan" && docAiMode !== "start")} 
+                        className="flex-1 px-3 py-3 text-left group relative"
+                      >
                         <div className="flex gap-2 items-center mb-0.5 pr-5">
                           <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
                           {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
@@ -846,7 +851,11 @@ Cancelled` : "Cancelled");
                   
                   return (
                     <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                      <button onClick={handleClick} disabled={!tool.available || (!isHighlighted && !promptText.trim())} className="flex-1 px-3 py-3 text-left group relative">
+                      <button 
+                        onClick={handleClick} 
+                        disabled={!tool.available || (!isHighlighted && !promptText.trim() && docAiMode !== "plan" && docAiMode !== "start")} 
+                        className="flex-1 px-3 py-3 text-left group relative"
+                      >
                         <div className="flex gap-2 items-center mb-0.5 pr-5">
                           <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
                           {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}

@@ -1,6 +1,8 @@
+---
+plan: .agelum/work/plans/auto-save-summary-1770741598559.md
+---
 # Auto-save Summary and Active Terminal Tracking
 
-**Plan:** [.agelum/work/plans/auto-save-summary.md](../../plans/auto-save-summary.md)
 
 ## Tasks
 

@@ -27,7 +27,8 @@ export function usePromptBuilder() {
   const buildToolPrompt = React.useCallback(
     (opts: PromptBuilderOptions) => {
       const trimmed = opts.promptText.trim();
-      if (!trimmed) return "";
+      const isPlanOrStart = opts.docMode === "plan" || opts.docMode === "start";
+      if (!trimmed && !isPlanOrStart) return "";
 
       const filePath = opts.file.path;
       const normalizedPath = filePath.replace(/\\/g, "/");
