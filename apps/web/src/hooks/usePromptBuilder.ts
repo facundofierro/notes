@@ -39,6 +39,7 @@ export function usePromptBuilder() {
     const isTaskDoc =
       normalizedPath.includes("/.agelum/work/tasks/") ||
       normalizedPath.includes("/agelum/tasks/") ||
+      normalizedPath.includes("/.agelum/work/plans/") ||
       opts.viewMode === "kanban" ||
       opts.viewMode === "tasks";
     const isTestDoc =
@@ -184,39 +185,46 @@ export function usePromptBuilder() {
       // If a plan file exists and has content, use it instead of the task file
       const planPath = opts.file.planPath;
       const targetPath = planPath || filePath;
-      const contextType = planPath ? "implementation plan" : "task document";
+      const isPlanFile = normalizedPath.includes("/.agelum/work/plans/");
+      const contextType = (planPath || isPlanFile) ? "implementation plan" : "task document";
 
-      // If generating a summary, prioritize that instruction
-      if (opts.generatedSummaryPath) {
-        return [
-          `Start working on the task at "${filePath}".`,
-          "",
-          `CRITICAL FIRST STEP: Create a summary of the task and your approach in "${opts.generatedSummaryPath}".`,
-          "This summary file should contain a high-level overview of what needs to be done.",
-          "",
-          `Then, proceed with the task execution using the ${contextType} at "${targetPath}" as context.`,
-          "",
-          "User instructions:",
-          trimmed,
-          "",
-          "NOTE: The task file will be automatically updated with a link to the summary.",
-        ].join("\n");
-      }
-
-      return [
+      const promptLines = [
         `Work on the ${contextType} at "${targetPath}" as the source of requirements and acceptance criteria.`,
         "",
         "User instructions:",
         trimmed,
-      ].join("\n");
+      ];
+
+      if (opts.generatedSummaryPath) {
+        promptLines.push(
+          "",
+          "FINAL STEP: When you have finished the task, you MUST create a summary of your work and the changes made in a new file at:",
+          `"${opts.generatedSummaryPath}"`,
+          "",
+        );
+      }
+
+      return promptLines.join("\n");
     }
 
-    return [
+    const promptLines = [
       `Start work using "${filePath}" as context.`,
       "",
       "User instructions:",
       trimmed,
-    ].join("\n");
+    ];
+
+    if (opts.generatedSummaryPath) {
+      promptLines.push(
+        "",
+        "FINAL STEP: When you have finished the task, you MUST create a summary of your work and the changes made in a new file at:",
+        `"${opts.generatedSummaryPath}"`,
+        "",
+        "NOTE: The task file is already updated with a link to this summary file, so you only need to create the file with the content.",
+      );
+    }
+
+    return promptLines.join("\n");
   }, []);
 
   return { buildToolPrompt };

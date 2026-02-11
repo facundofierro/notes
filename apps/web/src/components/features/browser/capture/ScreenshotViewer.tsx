@@ -1,6 +1,10 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import { Square, Trash2, ArrowRight, X, CheckCircle2 } from "lucide-react";
 import { Annotation, AnnotationType } from "@/types/entities";
+import {
+  computeArrowheadPoints,
+  ANNOTATION_COLORS,
+} from "@agelum/annotation";
 
 interface ScreenshotViewerProps {
   screenshot: string;
@@ -133,17 +137,8 @@ export function ScreenshotViewer({
     setIsDrawing(false);
   };
 
-  const renderArrowhead = (x1: number, y1: number, x2: number, y2: number) => {
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const arrowLength = 12;
-
-    const point1X = x2 - arrowLength * Math.cos(angle - Math.PI / 6);
-    const point1Y = y2 - arrowLength * Math.sin(angle - Math.PI / 6);
-    const point2X = x2 - arrowLength * Math.cos(angle + Math.PI / 6);
-    const point2Y = y2 - arrowLength * Math.sin(angle + Math.PI / 6);
-
-    return `${x2},${y2} ${point1X},${point1Y} ${point2X},${point2Y}`;
-  };
+  const renderArrowhead = (x1: number, y1: number, x2: number, y2: number) =>
+    computeArrowheadPoints(x1, y1, x2, y2);
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -241,22 +236,20 @@ export function ScreenshotViewer({
                       y1={ann.y}
                       x2={ann.endX}
                       y2={ann.endY}
-                      stroke="#3b82f6"
+                      stroke={ANNOTATION_COLORS.arrow.stroke}
                       strokeWidth="3"
                       markerEnd="url(#arrowhead)"
                     />
                     <polygon
                       points={renderArrowhead(ann.x, ann.y, ann.endX, ann.endY)}
-                      fill="#3b82f6"
+                      fill={ANNOTATION_COLORS.arrow.stroke}
                     />
                   </g>
                 );
               } else if (ann.type === "modify" || ann.type === "remove") {
-                const color = ann.type === "remove" ? "#dc2626" : "#f59e0b";
-                const fillColor =
-                  ann.type === "remove"
-                    ? "rgba(220, 38, 38, 0.15)"
-                    : "rgba(245, 158, 11, 0.15)";
+                const colors = ANNOTATION_COLORS[ann.type];
+                const color = colors.stroke;
+                const fillColor = colors.fill;
                 return (
                   <g key={ann.id}>
                     <rect
@@ -282,7 +275,7 @@ export function ScreenshotViewer({
                   y1={startPos.y}
                   x2={currentPos.x}
                   y2={currentPos.y}
-                  stroke="#3b82f6"
+                  stroke={ANNOTATION_COLORS.arrow.stroke}
                   strokeWidth="3"
                   strokeDasharray="5,5"
                 />
@@ -293,7 +286,7 @@ export function ScreenshotViewer({
                     currentPos.x,
                     currentPos.y,
                   )}
-                  fill="#3b82f6"
+                  fill={ANNOTATION_COLORS.arrow.stroke}
                   opacity="0.7"
                 />
               </g>
@@ -306,13 +299,9 @@ export function ScreenshotViewer({
                   y={Math.min(startPos.y, currentPos.y)}
                   width={Math.abs(currentPos.x - startPos.x)}
                   height={Math.abs(currentPos.y - startPos.y)}
-                  stroke={selectedTool === "remove" ? "#dc2626" : "#f59e0b"}
+                  stroke={ANNOTATION_COLORS[selectedTool].stroke}
                   strokeWidth="2"
-                  fill={
-                    selectedTool === "remove"
-                      ? "rgba(220, 38, 38, 0.15)"
-                      : "rgba(245, 158, 11, 0.15)"
-                  }
+                  fill={ANNOTATION_COLORS[selectedTool].fill}
                   strokeDasharray="5,5"
                 />
               )}
@@ -326,19 +315,13 @@ export function ScreenshotViewer({
             const badgeX = (ann.x || 0) + imgLeft;
             const badgeY = (ann.y || 0) + imgTop;
 
-            let bgColor = "bg-slate-700";
-            let glowColor = "rgba(0,0,0,0.3)";
-
-            if (ann.type === "modify") {
-              bgColor = "bg-orange-500";
-              glowColor = "rgba(245, 158, 11, 0.8)";
-            } else if (ann.type === "remove") {
-              bgColor = "bg-red-600";
-              glowColor = "rgba(220, 38, 38, 0.8)";
-            } else if (ann.type === "arrow") {
-              bgColor = "bg-blue-600";
-              glowColor = "rgba(37, 99, 235, 0.8)";
-            }
+            const badgeBgMap = {
+              modify: "bg-orange-500",
+              remove: "bg-red-600",
+              arrow: "bg-blue-600",
+            } as const;
+            const bgColor = badgeBgMap[ann.type] || "bg-slate-700";
+            const glowColor = ANNOTATION_COLORS[ann.type]?.glow || "rgba(0,0,0,0.3)";
 
             return (
               <div

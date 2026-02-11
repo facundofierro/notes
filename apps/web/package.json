@@ -10,6 +10,7 @@
     "build:mcp": "tsc -p tsconfig.mcp.json"
   },
   "dependencies": {
+    "@agelum/annotation": "workspace:*",
     "@agelum/kanban": "workspace:*",
     "@agelum/llm-provider": "workspace:*",
     "@agelum/shadcn": "workspace:*",

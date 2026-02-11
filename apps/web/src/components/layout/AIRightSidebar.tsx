@@ -147,13 +147,11 @@ export function AIRightSidebar({
   >({});
   // Use larger default to accommodate wide terminals before onResize fires
   const [termSize, setTermSize] = React.useState({ cols: 300, rows: 60 });
-  const [allowModify, setAllowModify] = React.useState(false);
   const [loadingIndicatorVisible, setLoadingIndicatorVisible] =
     React.useState(false);
   const [lastGeneratedPlanPath, setLastGeneratedPlanPath] = React.useState<
     string | null
   >(null);
-  const [createSummary, setCreateSummary] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
 
@@ -356,7 +354,7 @@ Cancelled`
           cwd,
           cols,
           rows,
-          allowModify,
+          allowModify: docAiMode === "modify",
         }),
         signal: ac.signal,
       });
@@ -419,6 +417,7 @@ Error: ${error.message}`,
     termSize.cols,
     termSize.rows,
     triggerLoadingIndicator,
+    docAiMode,
   ]);
 
   const handleTerminalInput = React.useCallback(
@@ -480,17 +479,66 @@ Error: ${error.message}`,
         const timestamp = Date.now();
         generatedPlanPath = `.agelum/work/plans/${taskFileName}-${timestamp}.md`;
         setLastGeneratedPlanPath(generatedPlanPath);
+
+        // Update the task file with the plan link immediately
+        fetch("/api/tasks/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskPath: currentFilePath,
+            planPath: generatedPlanPath,
+          }),
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`Failed to update task: ${response.statusText}`);
+            }
+            // Refresh the task file to show the updated frontmatter
+            await refreshCurrentFile();
+            console.log(
+              `Task file updated with plan link: ${generatedPlanPath}`,
+            );
+          })
+          .catch((err) => {
+            console.error("Failed to update task frontmatter:", err);
+          });
       } else {
         setLastGeneratedPlanPath(null);
       }
 
       // If creating a summary (in start mode), generate and store the path BEFORE building the prompt
       let generatedSummaryPath: string | null = null;
-      if (currentDocAiMode === "start" && createSummary && currentFilePath) {
+      if (currentDocAiMode === "start" && currentFilePath) {
         const taskFileName =
           currentFilePath.split("/").pop()?.replace(".md", "") || "task";
         const timestamp = Date.now();
         generatedSummaryPath = `.agelum/work/summaries/${taskFileName}-${timestamp}.md`;
+
+        // Update the task file with the summary link immediately
+        fetch("/api/tasks/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskPath: currentFilePath,
+            summaryPath: generatedSummaryPath,
+          }),
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`Failed to update task: ${response.statusText}`);
+            }
+            // Refresh the task file to show the updated frontmatter
+            await refreshCurrentFile();
+            console.log(
+              `Task file updated with summary link: ${generatedSummaryPath}`,
+            );
+          })
+          .catch((err) => {
+            console.error(
+              "Failed to update task frontmatter (summary):",
+              err,
+            );
+          });
       }
 
       const rawPrompt = buildToolPrompt({
@@ -582,7 +630,7 @@ Error: ${error.message}`,
             cwd,
             cols,
             rows,
-            allowModify,
+            allowModify: docAiMode === "modify",
           }),
           signal: controller.signal,
         });
@@ -656,76 +704,7 @@ Cancelled`
           updateTerminalSession(terminalProcessId, { isRunning: false });
         }
 
-        // Post-processing: After plan creation, automatically update task frontmatter
-        if (
-          currentDocAiMode === "plan" &&
-          currentFilePath &&
-          generatedPlanPath
-        ) {
-          // Update the task file with the plan link
-          fetch("/api/tasks/link", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              taskPath: currentFilePath,
-              planPath: generatedPlanPath,
-            }),
-          })
-            .then(async (response) => {
-              if (!response.ok) {
-                throw new Error(
-                  `Failed to update task: ${response.statusText}`,
-                );
-              }
-              // Small delay to ensure file write completes
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              // Refresh the task file to show the updated frontmatter
-              await refreshCurrentFile();
-              console.log(
-                `Task file updated with plan link: ${generatedPlanPath}`,
-              );
-            })
-            .catch((err) => {
-              console.error("Failed to update task frontmatter:", err);
-            });
-        }
 
-        // Post-processing: After summary creation, automatically update task frontmatter
-        if (
-          currentDocAiMode === "start" &&
-          currentFilePath &&
-          generatedSummaryPath
-        ) {
-          // Update the task file with the summary link
-          fetch("/api/tasks/link", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              taskPath: currentFilePath,
-              summaryPath: generatedSummaryPath,
-            }),
-          })
-            .then(async (response) => {
-              if (!response.ok) {
-                throw new Error(
-                  `Failed to update task: ${response.statusText}`,
-                );
-              }
-              // Small delay to ensure file write completes
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              // Refresh the task file to show the updated frontmatter
-              await refreshCurrentFile();
-              console.log(
-                `Task file updated with summary link: ${generatedSummaryPath}`,
-              );
-            })
-            .catch((err) => {
-              console.error(
-                "Failed to update task frontmatter (summary):",
-                err,
-              );
-            });
-        }
       }
     },
     [
@@ -1256,38 +1235,6 @@ Cancelled`
                   className="hidden"
                   accept="image/*"
                 />
-                <div className="flex items-center gap-2 ml-2 border-l pl-2 border-border/50">
-                  <input
-                    type="checkbox"
-                    id="allow-modify"
-                    checked={allowModify}
-                    onChange={(e) => setAllowModify(e.target.checked)}
-                    className="accent-blue-500 h-3 w-3"
-                  />
-                  <label
-                    htmlFor="allow-modify"
-                    className="text-[10px] text-muted-foreground whitespace-nowrap cursor-pointer select-none"
-                  >
-                    Allow Modify
-                  </label>
-                </div>
-                {docAiMode === "start" && (
-                  <div className="flex items-center gap-2 ml-2 border-l pl-2 border-border/50">
-                    <input
-                      type="checkbox"
-                      id="create-summary"
-                      checked={createSummary}
-                      onChange={(e) => setCreateSummary(e.target.checked)}
-                      className="accent-blue-500 h-3 w-3"
-                    />
-                    <label
-                      htmlFor="create-summary"
-                      className="text-[10px] text-muted-foreground whitespace-nowrap cursor-pointer select-none"
-                    >
-                      Summary
-                    </label>
-                  </div>
-                )}
               </div>
               <div className="flex gap-1 items-center">
                 <button

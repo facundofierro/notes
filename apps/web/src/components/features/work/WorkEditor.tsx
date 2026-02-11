@@ -329,21 +329,33 @@ export function WorkEditor({
       </button>
       <button
         onClick={() => setTaskSubView("plan")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${taskSubView === "plan" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
+          taskSubView === "plan"
+            ? "bg-background shadow-sm text-foreground"
+            : `text-muted-foreground hover:text-foreground ${!planPath ? "opacity-40" : ""}`
+        }`}
       >
         <LayoutList className="w-3.5 h-3.5" />
         Plan
       </button>
       <button
         onClick={() => setTaskSubView("summary")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${taskSubView === "summary" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
+          taskSubView === "summary"
+            ? "bg-background shadow-sm text-foreground"
+            : `text-muted-foreground hover:text-foreground ${!summaryPath ? "opacity-40" : ""}`
+        }`}
       >
         <LayoutList className="w-3.5 h-3.5" />
         Summary
       </button>
       <button
         onClick={() => setTaskSubView("tests")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${taskSubView === "tests" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
+          taskSubView === "tests"
+            ? "bg-background shadow-sm text-foreground"
+            : `text-muted-foreground hover:text-foreground ${!testsPath ? "opacity-40" : ""}`
+        }`}
       >
         <ListChecks className="w-3.5 h-3.5" />
         Tests
