@@ -17,8 +17,34 @@ export function EpicsTab() {
 
   const onBack = () => setTabFile("epics", null);
 
+  const isDraft = tabs?.epics?.workDocIsDraft;
+
   const onRename = selectedRepo
     ? async (newTitle: string) => {
+        if (isDraft && selectedFile) {
+           const oldPath = selectedFile.path;
+           const dir = oldPath.substring(0, oldPath.lastIndexOf('/'));
+           // Simple sanitization for draft filename
+           const safeName = newTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '-');
+           const newPath = `${dir}/${safeName || 'untitled'}.md`;
+           
+           // Update content
+           let newContent = selectedFile.content;
+           const headingRegex = /^#\s+(.+)$/m;
+           if (headingRegex.test(newContent)) {
+             newContent = newContent.replace(headingRegex, `# ${newTitle}`);
+           } else {
+             newContent = newContent + `\n\n# ${newTitle}`;
+           }
+
+           const next = {
+             path: newPath,
+             content: newContent
+           };
+           setTabFile("epics", next);
+           return next;
+        }
+
         const res = await fetch("/api/epics", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

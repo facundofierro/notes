@@ -106,6 +106,7 @@ export function AIRightSidebar({
   const [allowModify, setAllowModify] = React.useState(false);
   const [loadingIndicatorVisible, setLoadingIndicatorVisible] = React.useState(false);
   const [lastGeneratedPlanPath, setLastGeneratedPlanPath] = React.useState<string | null>(null);
+  const [createSummary, setCreateSummary] = React.useState(false);
 
   // Helper to trigger loading indicator
   const triggerLoadingIndicator = React.useCallback(() => {
@@ -372,6 +373,14 @@ Error: ${error.message}`);
       setLastGeneratedPlanPath(null);
     }
 
+    // If creating a summary (in start mode), generate and store the path BEFORE building the prompt
+    let generatedSummaryPath: string | null = null;
+    if (currentDocAiMode === "start" && createSummary && currentFilePath) {
+      const taskFileName = currentFilePath.split('/').pop()?.replace('.md', '') || 'task';
+      const timestamp = Date.now();
+      generatedSummaryPath = `.agelum/work/summaries/${taskFileName}-${timestamp}.md`;
+    }
+
     const rawPrompt = buildToolPrompt({
       promptText: trimmedPrompt,
       mode: "agent",
@@ -385,6 +394,7 @@ Error: ${error.message}`);
       } : undefined,
       selectedRepo,
       generatedPlanPath: generatedPlanPath || undefined,
+      generatedSummaryPath: generatedSummaryPath || undefined,
     } as PromptBuilderOptions);
 
     let prompt = rawPrompt;
@@ -522,6 +532,32 @@ Cancelled` : "Cancelled");
         })
         .catch((err) => {
           console.error("Failed to update task frontmatter:", err);
+        });
+      }
+
+      // Post-processing: After summary creation, automatically update task frontmatter
+      if (currentDocAiMode === "start" && currentFilePath && generatedSummaryPath) {
+        // Update the task file with the summary link
+        fetch("/api/tasks/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskPath: currentFilePath,
+            summaryPath: generatedSummaryPath,
+          }),
+        })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to update task: ${response.statusText}`);
+          }
+          // Small delay to ensure file write completes
+          await new Promise(resolve => setTimeout(resolve, 100));
+          // Refresh the task file to show the updated frontmatter
+          await refreshCurrentFile();
+          console.log(`Task file updated with summary link: ${generatedSummaryPath}`);
+        })
+        .catch((err) => {
+          console.error("Failed to update task frontmatter (summary):", err);
         });
       }
     }
@@ -780,6 +816,18 @@ Cancelled` : "Cancelled");
                     />
                     <label htmlFor="allow-modify" className="text-[10px] text-muted-foreground whitespace-nowrap cursor-pointer select-none">Allow Modify</label>
                   </div>
+                  {docAiMode === "start" && (
+                    <div className="flex items-center gap-2 ml-2 border-l pl-2 border-border/50">
+                      <input 
+                        type="checkbox" 
+                        id="create-summary"
+                        checked={createSummary} 
+                        onChange={(e) => setCreateSummary(e.target.checked)} 
+                        className="accent-blue-500 h-3 w-3" 
+                      />
+                      <label htmlFor="create-summary" className="text-[10px] text-muted-foreground whitespace-nowrap cursor-pointer select-none">Summary</label>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-1 items-center">
                   <button onClick={handleRecordAudio} className={`p-1.5 rounded-md ${isRecording ? "text-red-500 bg-red-500/10" : "text-muted-foreground"}`}><Mic className={`w-4 h-4 ${isRecording ? "animate-pulse" : ""}`} /></button>

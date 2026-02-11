@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
-import path from "path";
 
 interface LinkRequest {
   taskPath: string;
   planPath?: string;
   testsPath?: string;
+  summaryPath?: string;
 }
 
 /**
- * API endpoint to programmatically update task file frontmatter with links to plan/tests
+ * API endpoint to programmatically update task file frontmatter with links to plan/tests/summary
  * This ensures deterministic, reliable linking without depending on LLM behavior
  */
 export async function POST(request: Request) {
   try {
     const body: LinkRequest = await request.json();
-    const { taskPath, planPath, testsPath } = body;
+    const { taskPath, planPath, testsPath, summaryPath } = body;
 
     if (!taskPath) {
       return NextResponse.json(
@@ -24,9 +24,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!planPath && !testsPath) {
+    if (!planPath && !testsPath && !summaryPath) {
       return NextResponse.json(
-        { error: "At least one of planPath or testsPath is required" },
+        { error: "At least one of planPath, testsPath, or summaryPath is required" },
         { status: 400 }
       );
     }
@@ -46,32 +46,23 @@ export async function POST(request: Request) {
 
     if (frontmatterMatch) {
       // Frontmatter exists, update it
-      let frontmatterContent = frontmatterMatch[1];
+      const frontmatterContent = frontmatterMatch[1];
       const lines = frontmatterContent.split(/\r?\n/);
+      // We'll rebuild lines to ensure we don't duplicate
       
-      // Update or add plan field
-      if (planPath !== undefined) {
-        const planLineIndex = lines.findIndex(l => l.trim().startsWith('plan:'));
-        const planLine = `plan: ${planPath}`;
-        
-        if (planLineIndex !== -1) {
-          lines[planLineIndex] = planLine;
-        } else {
-          lines.push(planLine);
-        }
-      }
-      
-      // Update or add tests field
-      if (testsPath !== undefined) {
-        const testsLineIndex = lines.findIndex(l => l.trim().startsWith('tests:'));
-        const testsLine = `tests: ${testsPath}`;
-        
-        if (testsLineIndex !== -1) {
-          lines[testsLineIndex] = testsLine;
-        } else {
-          lines.push(testsLine);
-        }
-      }
+      const updateOrAdd = (key: string, value: string) => {
+         const index = lines.findIndex(l => l.trim().startsWith(`${key}:`));
+         const newLine = `${key}: ${value}`;
+         if (index !== -1) {
+           lines[index] = newLine;
+         } else {
+           lines.push(newLine);
+         }
+      };
+
+      if (planPath !== undefined) updateOrAdd('plan', planPath);
+      if (testsPath !== undefined) updateOrAdd('tests', testsPath);
+      if (summaryPath !== undefined) updateOrAdd('summary', summaryPath);
       
       const newFrontmatterContent = lines.join('\n'); // Standardize to \n internally
       const newFrontmatterBlock = `---\n${newFrontmatterContent}\n---${frontmatterMatch[2]}`;
@@ -81,6 +72,7 @@ export async function POST(request: Request) {
       const frontmatterFields: string[] = [];
       if (planPath) frontmatterFields.push(`plan: ${planPath}`);
       if (testsPath) frontmatterFields.push(`tests: ${testsPath}`);
+      if (summaryPath) frontmatterFields.push(`summary: ${summaryPath}`);
       
       const newFrontmatter = `---\n${frontmatterFields.join('\n')}\n---\n`;
       content = newFrontmatter + content;
@@ -95,6 +87,7 @@ export async function POST(request: Request) {
       updatedFields: {
         ...(planPath !== undefined && { plan: planPath }),
         ...(testsPath !== undefined && { tests: testsPath }),
+        ...(summaryPath !== undefined && { summary: summaryPath }),
       },
     });
   } catch (error) {

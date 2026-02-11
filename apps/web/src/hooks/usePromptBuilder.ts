@@ -21,6 +21,7 @@ export interface PromptBuilderOptions {
   };
   selectedRepo: string | null;
   generatedPlanPath?: string; // Pre-generated plan path for deterministic linking
+  generatedSummaryPath?: string; // Pre-generated summary path for deterministic linking
 }
 
 export function usePromptBuilder() {
@@ -181,6 +182,23 @@ export function usePromptBuilder() {
         const planPath = opts.file.planPath;
         const targetPath = planPath || filePath;
         const contextType = planPath ? "implementation plan" : "task document";
+        
+        // If generating a summary, prioritize that instruction
+        if (opts.generatedSummaryPath) {
+          return [
+            `Start working on the task at "${filePath}".`,
+            "",
+            `CRITICAL FIRST STEP: Create a summary of the task and your approach in "${opts.generatedSummaryPath}".`,
+            "This summary file should contain a high-level overview of what needs to be done.",
+            "",
+            `Then, proceed with the task execution using the ${contextType} at "${targetPath}" as context.`,
+            "",
+            "User instructions:",
+            trimmed,
+            "",
+            "NOTE: The task file will be automatically updated with a link to the summary.",
+          ].join("\n");
+        }
         
         return [
           `Work on the ${contextType} at "${targetPath}" as the source of requirements and acceptance criteria.`,

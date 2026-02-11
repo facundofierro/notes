@@ -1311,6 +1311,7 @@ export const useHomeStore =
                     ...currentFile,
                     content: opts.content,
                   },
+                  workDocIsDraft: false, // Mark as saved
                 };
                 hasTabUpdates = true;
               }

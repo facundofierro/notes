@@ -87,6 +87,7 @@ interface FileViewerProps {
   isTestRunning?: boolean;
   headerCenter?: React.ReactNode;
   allowEdit?: boolean;
+  defaultRenaming?: boolean;
 }
 
 export default function FileViewer({
@@ -107,6 +108,7 @@ export default function FileViewer({
   isTestRunning,
   headerCenter,
   allowEdit = true,
+  defaultRenaming = false,
 }: FileViewerProps) {
   const [isEditing, setIsEditing] =
     useState(false);
@@ -131,10 +133,15 @@ export default function FileViewer({
       if (editing === undefined) {
         setIsEditing(false);
       }
-      setIsRenaming(false);
-      setRenameValue("");
+      if (defaultRenaming) {
+        setIsRenaming(true);
+        setRenameValue("");
+      } else {
+        setIsRenaming(false);
+        setRenameValue("");
+      }
     }
-  }, [file, editing, value]);
+  }, [file, editing, value, defaultRenaming]);
 
   useEffect(() => {
     if (editing !== undefined) {
@@ -174,10 +181,35 @@ export default function FileViewer({
 
     setIsSaving(true);
     try {
+      let pathToSave = file.path;
+      let contentToSave = effectiveContent;
+
+      // Handle pending rename if saving while renaming
+      if (isRenaming && onRename && renameValue.trim()) {
+         try {
+           setIsRenamingSaving(true);
+           const result = await onRename(renameValue.trim());
+           if (result) {
+             pathToSave = result.path;
+             if (result.content !== undefined) {
+               contentToSave = result.content;
+               updateContent(result.content);
+             }
+           }
+           setIsRenaming(false);
+         } catch (err) {
+           console.error("Failed to rename during save:", err);
+           // If rename fails, we probably shouldn't save to old path if the intent was new name?
+           // But let's proceed or return?
+         } finally {
+            setIsRenamingSaving(false);
+         }
+      }
+
       if (onSave) {
         const result = await onSave({
-          path: file.path,
-          content: effectiveContent,
+          path: pathToSave,
+          content: contentToSave,
         });
         if (
           result?.content !== undefined
@@ -198,8 +230,8 @@ export default function FileViewer({
               "application/json",
           },
           body: JSON.stringify({
-            path: file.path,
-            content: effectiveContent,
+            path: pathToSave,
+            content: contentToSave,
           }),
         },
       );

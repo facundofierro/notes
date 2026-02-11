@@ -57,11 +57,13 @@ export function WorkEditor({
   contextKey,
   onSave,
 }: WorkEditorProps) {
-  const [taskSubView, setTaskSubView] = React.useState<"task" | "plan" | "tests">("task");
+  const [taskSubView, setTaskSubView] = React.useState<"task" | "plan" | "tests" | "summary">("task");
   const [planFile, setPlanFile] = React.useState<FileNode | null>(null);
   const [planLoading, setPlanLoading] = React.useState(false);
   const [planPathForAI, setPlanPathForAI] = React.useState<string | null>(null);
   const [testsPath, setTestsPath] = React.useState<string | null>(null);
+  const [summaryFile, setSummaryFile] = React.useState<FileNode | null>(null);
+  const [summaryLoading, setSummaryLoading] = React.useState(false);
 
   // Extract plan path from task file content
   const planPath = React.useMemo(() => {
@@ -79,6 +81,23 @@ export function WorkEditor({
        }
     }
     console.log('[WorkEditor] No plan path found in frontmatter or regex failed');
+    return null;
+  }, [file, viewMode]);
+
+  // Extract summary path from task file content
+  const summaryPath = React.useMemo(() => {
+    const isTaskView = viewMode === "tasks" || viewMode === "kanban";
+    if (!file?.content || !isTaskView) return null;
+    
+    // Check frontmatter with flexible line endings
+    const fmMatch = file.content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (fmMatch) {
+       const summaryLine = fmMatch[1].split(/\r?\n/).find(l => l.trim().startsWith('summary:'));
+       if (summaryLine) {
+         const val = summaryLine.split(':')[1].trim();
+         return val;
+       }
+    }
     return null;
   }, [file, viewMode]);
 
@@ -187,6 +206,45 @@ export function WorkEditor({
     }
   }, [taskSubView, planPath, projectPath, basePath, selectedRepo, planFile]);
 
+  // Fetch summary content when switching to summary view
+  React.useEffect(() => {
+    if (taskSubView === "summary" && summaryPath) {
+      let fetchPath = summaryPath;
+      if (!summaryPath.startsWith("/") && projectPath) {
+         fetchPath = `${projectPath}/${summaryPath}`.replace(/\/+/g, "/");
+      } else if (!summaryPath.startsWith("/") && basePath && selectedRepo) {
+         fetchPath = `${basePath}/${selectedRepo}/${summaryPath}`.replace(/\/+/g, "/");
+      }
+      
+      // Only fetch if we don't have the summary file loaded or if the path (absolute) changed
+      if (!summaryFile || !summaryFile.content || fetchPath !== (summaryFile as any).fullPath) {
+        setSummaryLoading(true);
+        
+        fetch(`/api/file?path=${encodeURIComponent(fetchPath)}`)
+          .then(res => {
+            if (res.ok) return res.json();
+            throw new Error(`Summary file not found: ${res.status} ${res.statusText}`);
+          })
+          .then(data => {
+            // Store with the relative path from frontmatter but also store absolute path for comparison
+            setSummaryFile({ 
+              path: summaryPath, 
+              content: data.content,
+              fullPath: fetchPath 
+            } as any);
+            setSummaryLoading(false);
+          })
+          .catch(err => {
+            console.error("[WorkEditor] Failed to fetch summary:", err);
+            setSummaryFile(null);
+            setSummaryLoading(false);
+          });
+      }
+    } else if (taskSubView !== "summary") {
+      setSummaryLoading(false);
+    }
+  }, [taskSubView, summaryPath, projectPath, basePath, selectedRepo, summaryFile]);
+
   const handleSaveFile = async (opts: { path: string; content: string }) => {
     if (onSave) {
       await onSave(opts);
@@ -203,6 +261,8 @@ export function WorkEditor({
         onFileChange({ path: opts.path, content: opts.content });
       } else if (taskSubView === "plan") {
         setPlanFile({ path: opts.path, content: opts.content });
+      } else if (taskSubView === "summary") {
+        setSummaryFile({ path: opts.path, content: opts.content });
       }
     }
   };
@@ -226,7 +286,14 @@ export function WorkEditor({
        >
          <LayoutList className="w-3.5 h-3.5" />
          Plan
-       </button>
+        </button>
+        <button 
+          onClick={() => setTaskSubView("summary")} 
+          className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${taskSubView === "summary" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <LayoutList className="w-3.5 h-3.5" />
+          Summary
+        </button>
        <button 
          onClick={() => setTaskSubView("tests")} 
          className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${taskSubView === "tests" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
@@ -320,11 +387,42 @@ export function WorkEditor({
                 <div className="text-xs text-muted-foreground bg-secondary/30 p-3 rounded border border-border">
                   <p>The file may have been moved or deleted. Try regenerating the plan.</p>
                 </div>
-              </div>
+                </div>
            </div>
-         ) : (
+         ) : taskSubView === "summary" && !summaryPath ? (
+            <div className="flex flex-col flex-1 bg-background">
+               <EditorHeader />
+               <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
+                 <div className="bg-secondary/20 p-4 rounded-full mb-4">
+                   <FileText className="w-8 h-8 opacity-50" />
+                 </div>
+                 <h3 className="text-lg font-medium text-foreground mb-2">No Summary Linked</h3>
+                 <p className="max-w-md mb-6 text-sm">This task doesn&apos;t have a linked summary yet. Check "Summary" when starting the task to create one.</p>
+               </div>
+            </div>
+          ) : taskSubView === "summary" && summaryLoading ? (
+            <div className="flex flex-col flex-1 bg-background">
+               <EditorHeader />
+               <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
+                 <div className="w-8 h-8 rounded-full border-2 animate-spin border-muted-foreground border-t-transparent mb-4" />
+                 <h3 className="text-lg font-medium text-foreground mb-2">Loading Summary...</h3>
+                 <p className="max-w-md text-sm">Fetching summary file from {summaryPath}</p>
+               </div>
+            </div>
+          ) : taskSubView === "summary" && !summaryFile ? (
+            <div className="flex flex-col flex-1 bg-background">
+               <EditorHeader />
+               <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground p-8 text-center">
+                 <div className="bg-red-900/20 p-4 rounded-full mb-4">
+                   <FileText className="w-8 h-8 text-red-400 opacity-50" />
+                 </div>
+                 <h3 className="text-lg font-medium text-foreground mb-2">Summary File Not Found</h3>
+                 <p className="max-w-md mb-6 text-sm">The summary file at <code className="text-xs bg-secondary/50 px-2 py-1 rounded">{summaryPath}</code> could not be loaded.</p>
+               </div>
+            </div>
+          ) : (
            <FileViewer
-             file={taskSubView === "plan" ? planFile : file}
+             file={taskSubView === "plan" ? planFile : taskSubView === "summary" ? summaryFile : file}
             onSave={handleSaveFile}
             onFileSaved={onRefresh}
             editing={workEditorEditing}
@@ -337,7 +435,14 @@ export function WorkEditor({
             testOutput={testOutput}
             isTestRunning={isTestRunning}
             headerCenter={headerCenter}
-            allowEdit={taskSubView === "task"}
+             allowEdit={taskSubView === "task"}
+            defaultRenaming={
+              workDocIsDraft &&
+              taskSubView === "task" &&
+              /^(epic|task|idea)-\d{13}(\.md)?$/.test(
+                file.path.split("/").pop() || "",
+              )
+            }
           />
         )}
       </div>

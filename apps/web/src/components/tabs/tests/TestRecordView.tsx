@@ -297,6 +297,12 @@ export function TestRecordView({
 
   async function captureState(cancelled?: boolean) {
     try {
+      setStatusMessage("Waiting for page updates...");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      if (cancelled) return;
+
+      setStatusMessage("Capturing browser state...");
       const res = await fetch("/api/tests/record/capture", {
         method: "POST",
       });
