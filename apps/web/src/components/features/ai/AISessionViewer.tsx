@@ -9,9 +9,10 @@ import { Loader2, Terminal } from "lucide-react";
 interface AISessionViewerProps {
   session: TerminalSessionInfo;
   sidebarWidth?: string;
+  sidebarWideWidth?: string;
 }
 
-export function AISessionViewer({ session, sidebarWidth }: AISessionViewerProps) {
+export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AISessionViewerProps) {
   const store = useHomeStore();
   const [fileContent, setFileContent] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -90,6 +91,7 @@ export function AISessionViewer({ session, sidebarWidth }: AISessionViewerProps)
               setFileContent(content);
             }}
             sidebarWidth={sidebarWidth}
+            sidebarWideWidth={sidebarWideWidth}
           />
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground w-full h-full">

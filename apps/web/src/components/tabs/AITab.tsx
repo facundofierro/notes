@@ -182,7 +182,7 @@ export function AITab() {
       <div className="flex-1 flex flex-col relative overflow-hidden">
         {selectedSession &&
         (selectedSession.filePath || !selectedSession.isRunning) ? (
-          <AISessionViewer session={selectedSession} sidebarWidth="50vw" />
+          <AISessionViewer session={selectedSession} sidebarWideWidth="50vw" />
         ) : selectedRepo ? (
           <AIRightSidebar
             selectedRepo={selectedRepo}
@@ -198,7 +198,8 @@ export function AITab() {
             testOutput={testOutput}
             isTestRunning={isTestRunning}
             onRunTest={handleRunTest}
-            className="w-full h-full border-0"
+            className="h-full border-0"
+            wideWidth="50vw"
             contextKey={
               selectedSession && selectedSession.isRunning
                 ? selectedSession.contextKey

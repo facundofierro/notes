@@ -50,6 +50,7 @@ interface AIRightSidebarProps {
   className?: string;
   contextKey?: string;
   width?: string;
+  wideWidth?: string;
 }
 
 export function AIRightSidebar({
@@ -67,6 +68,7 @@ export function AIRightSidebar({
   className = "",
   contextKey = "",
   width,
+  wideWidth,
 }: AIRightSidebarProps) {
   const { buildToolPrompt } = usePromptBuilder();
   const {
@@ -1002,10 +1004,25 @@ Cancelled`
     ? cliTools.slice(Math.ceil(cliTools.length / 2))
     : [];
 
+  // Determine effective width style and class
+  const effectiveStyleWidth = width || (isWide && wideWidth) || undefined;
+  
+  // Logic: 
+  // 1. If width is provided => No width utility class (style handles it).
+  // 2. If no width:
+  //    a. If isWide => If wideWidth provided (style handles it), else w-[50%].
+  //    b. If !isWide => w-[360px].
+  const effectiveWidthClass = width 
+    ? "" 
+    : isWide 
+      ? (wideWidth ? "" : "w-[50%]") 
+      : "w-[360px]";
+
   return (
     <div
-      style={{ width: width ? width : undefined }}
-      className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${!width ? (isWide ? "w-[50%]" : "w-[360px]") : ""} ${className}`}
+      ref={containerRef}
+      style={{ width: effectiveStyleWidth }}
+      className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${effectiveWidthClass} ${className}`}
     >
       {/* Terminal View */}
       <div
