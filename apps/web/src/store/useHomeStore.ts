@@ -84,6 +84,7 @@ export interface ProjectState {
   activeTerminalId: string;
   terminalSessions: TerminalSessionInfo[];
   tabs: Record<string, TabState>;
+  lastTerminalActivity: number;
 }
 
 const createDefaultProjectState =
@@ -136,6 +137,7 @@ const createDefaultProjectState =
         workDocIsDraft: false,
       },
     },
+    lastTerminalActivity: 0,
   });
 
 export interface HomeState {
@@ -483,6 +485,7 @@ export const useHomeStore =
                       prev.appLogs,
                     )
                   : updater,
+              lastTerminalActivity: Date.now(),
             }),
           );
         },
@@ -556,6 +559,7 @@ export const useHomeStore =
                         }
                       : t,
                 ),
+              lastTerminalActivity: Date.now(),
             }),
           );
         },

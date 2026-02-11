@@ -34,12 +34,25 @@ export function Header() {
     settings
   } = store;
 
-  const { viewMode, isAppRunning, isAppManaged } = store.getProjectState();
-
   // Defer persisted viewMode until after hydration to avoid SSR mismatch
   const [hasMounted, setHasMounted] = React.useState(false);
+  
+  // Terminal activity animation state
+  const { viewMode, isAppRunning, isAppManaged, lastTerminalActivity } = store.getProjectState();
+  const [isTerminalReceiving, setIsTerminalReceiving] = React.useState(false);
+
   React.useEffect(() => setHasMounted(true), []);
   const effectiveViewMode = hasMounted ? viewMode : "kanban";
+
+  React.useEffect(() => {
+    // If activity happened recently (e.g. less than 2s ago), show animation
+    // We check purely based on timestamp update to trigger the effect
+    if (lastTerminalActivity > 0) {
+      setIsTerminalReceiving(true);
+      const timer = setTimeout(() => setIsTerminalReceiving(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastTerminalActivity]);
 
   const [isAppActionsMenuOpen, setIsAppActionsMenuOpen] = React.useState(false);
 
@@ -109,15 +122,27 @@ export function Header() {
             const config = VIEW_MODE_CONFIG[mode];
             if (!config) return null;
             const Icon = config.icon;
+            
+            const isTerminalAndReceiving = mode === "logs" && isTerminalReceiving && effectiveViewMode !== "logs";
+            
             return (
               <button
                 key={`${mode}-${index}`}
                 onClick={() => setViewMode(mode as ViewMode)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${ 
-                  effectiveViewMode === mode ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent" 
+                  effectiveViewMode === mode 
+                    ? "text-amber-500 bg-amber-500/10" 
+                    : isTerminalAndReceiving 
+                      ? "text-amber-400/80 bg-amber-500/5 transition-all duration-300" // Subtle highlight for activity
+                      : "text-muted-foreground hover:bg-accent" 
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <div className="relative">
+                  <Icon className={`w-4 h-4 ${isTerminalAndReceiving ? "animate-pulse" : ""}`} />
+                  {isTerminalAndReceiving && (
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
+                  )}
+                </div>
                 {config.label}
               </button>
             );
