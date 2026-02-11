@@ -45,6 +45,30 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
       });
   }, [session.filePath]);
 
+  // Poll for file changes while session is running
+  React.useEffect(() => {
+    if (!session.filePath || !session.isRunning || isEditing) return;
+
+    const intervalId = setInterval(() => {
+      fetch(`/api/file?path=${encodeURIComponent(session.filePath!)}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load file");
+          return res.json();
+        })
+        .then((data) => {
+          setFileContent((prev) => {
+            if (prev === data.content) return prev;
+            return data.content;
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to poll session file:", err);
+        });
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [session.filePath, session.isRunning, isEditing]);
+
   const projectPath = React.useMemo(() => {
     const repoName = session.projectName || store.selectedRepo;
     if (!repoName) return null;

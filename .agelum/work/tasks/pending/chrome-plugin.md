@@ -48,22 +48,64 @@ The current implementation in the `BrowserTab` component (`apps/web/src/componen
 *   **UI Components**: Since the extension runs in a separate context, we need to ensure Tailwind and Shadcn styles are correctly bundled (likely using a build tool like Vite or Webpack for the extension).
 *   **Image Processing**: Replicating the "burn-in" canvas logic within the extension to generate the final annotated image before uploading.
 
+### Project Location and Setup
+
+1.  **Chrome Plugin**: 
+    *   Create the project at `apps/chrome-plugin`.
+    *   Initialize it as a new package within the monorepo.
+    *   Update `pnpm-workspace.yaml` to include `apps/chrome-plugin` if it's not already covered by `apps/*`.
+
+2.  **Backend & Website (`apps/site`)**:
+    *   Create a new project at `apps/site`.
+    *   This project will serve as the **Agelum landing page**, the **public website**, and the **central API gateway**.
+    *   **Responsibilities**:
+        *   Host the landing page and marketing content.
+        *   Provide the API endpoints for the Chrome Plugin to submit reports (e.g., `POST /api/v1/reports`).
+        *   Act as a bridge between the Chrome Plugin, the public web, and the internal Agelum notes data.
+        *   Handle authentication for plugin users (API Keys or shared sessions).
+
+3.  **Monorepo Integration**:
+    *   Use `pnpm init` in both new directories.
+    *   Configure `package.json` names (e.g., `@agelum/chrome-plugin` and `@agelum/site`).
+    *   Leverage shared packages like `@agelum/shadcn` for UI consistency across both the site and the plugin.
+
+### How to Achieve Drawing Over the Screenshot
+
+To replicate the drawing experience found in the `BrowserTab`, the plugin should follow this flow:
+
+1.  **Overlay Injection**:
+    *   When the user triggers "Capture & Draw", the **Background Script** captures the visible tab.
+    *   The **Content Script** injects a full-screen `<div>` with a high `z-index` into the target website.
+    *   This overlay should contain a `<canvas>` element or an SVG layer for the drawing tools.
+
+2.  **Capturing the Context**:
+    *   The captured image (Data URL) from `chrome.tabs.captureVisibleTab` is set as the background of the injected overlay. This prevents the user from accidentally interacting with the underlying page while drawing.
+
+3.  **Drawing Logic**:
+    *   **SVG Overlay (Recommended)**: Reuse the logic from `ScreenshotViewer.tsx`. Use an SVG layer to manage shapes (rectangles, arrows, badges) as state objects. This makes them easy to move, delete, or re-index.
+    *   **Event Listeners**: Attach `mousedown`, `mousemove`, and `mouseup` to the overlay to track coordinates and update the SVG/Canvas state.
+
+4.  **Coordinate Mapping**:
+    *   Ensure the coordinates captured on the overlay match the dimensions of the screenshot. If the viewport is zoomed, adjustments might be necessary.
+
+5.  **"Burning" the Annotations**:
+    *   Once the user finishes drawing, use a hidden `<canvas>` to:
+        1. Draw the original screenshot image.
+        2. Draw the SVG shapes or drawing paths on top.
+    *   Use `canvas.toDataURL('image/png')` to generate the final annotated image for upload.
+
 ### How to Create a Chrome Extension (Basic Steps)
 
-1.  **Project Location**:
-    *   Create a new directory at `apps/chrome-extension` in the monorepo.
-    *   This ensures it follows the project's structure alongside `apps/web` and `apps/electron`.
-2.  **Project Structure**:
+1.  **Project Structure**:
     *   `manifest.json`: Defines metadata, permissions, and entry points.
     *   `src/sidepanel/`: React application for the right panel.
     *   `src/background/`: Service worker for handling captures and API calls.
     *   `src/content/`: Scripts that run in the context of the web page.
-3.  **Drawing & Annotation UI**:
-    *   **Full-Screen Drawing Mode**: To provide a better drawing experience, the plugin can expand the `sidePanel` or, more effectively, inject a full-screen overlay into the current webpage (`src/content/`) when the user enters "Drawing Mode".
-    *   **Sidebar Expansion**: Alternatively, investigate if `chrome.sidePanel.setOptions` can be used to dynamically change the width or if we should use a custom-injected `<iframe>` instead of the official SidePanel API to have more control over the "expansion" to full screen.
-    *   **Reuse Components**: Try to reuse `ScreenshotViewer.tsx` and `TaskPanel.tsx` from `apps/web` by moving them to a shared package or carefully importing them if the build system allows.
-4.  **Development Flow**:
+2.  **Drawing & Annotation UI**:
+    *   **Full-Screen Drawing Mode**: As described above, use a content script to inject the drawing interface directly into the user's active tab.
+    *   **Sidebar Coordination**: The SidePanel should act as the "control center", allowing the user to switch between tools (Modify, Arrow, Remove) and providing the input fields for instructions.
+3.  **Development Flow**:
     *   Use a bundler (Vite is recommended) to compile TypeScript/React code.
     *   Load the `dist` folder into Chrome via `chrome://extensions/` (Developer Mode -> Load unpacked).
-5.  **API Integration**: Use `fetch` to communicate with the Agelum backend. Ensure CORS is handled or the Agelum API allows requests from the extension's origin.
+4.  **API Integration**: Use `fetch` to communicate with the Agelum backend. Ensure CORS is handled or the Agelum API allows requests from the extension's origin.
 
