@@ -56,6 +56,13 @@ export interface UserSettings {
   wordWrap: boolean;
   aiModel: string;
   aiProvider: string;
+  apiKeys: {
+    id: string;
+    provider: "openai" | "google" | "anthropic" | "xai" | "openrouter";
+    name: string;
+    key: string;
+    baseURL?: string;
+  }[];
   projects: ProjectConfig[];
   enabledAgents: string[];
   stagehandApiKey: string;
@@ -65,7 +72,7 @@ export interface UserSettings {
   grokApiKey: string;
   workflows: WorkflowConfig[];
   defaultWorkflowId?: string;
-  activeWorkflow?: string;
+  activeWorkflow: string;
   createBranchPerTask: boolean;
 }
 
@@ -82,6 +89,7 @@ const defaultSettings: UserSettings = {
   wordWrap: true,
   aiModel: "default",
   aiProvider: "auto",
+  apiKeys: [],
   projects: [],
   enabledAgents: ["*"],
   stagehandApiKey: "",
@@ -90,6 +98,7 @@ const defaultSettings: UserSettings = {
   googleApiKey: "",
   grokApiKey: "",
   workflows: [],
+  activeWorkflow: "default",
   createBranchPerTask: false,
 };
 

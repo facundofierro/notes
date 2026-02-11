@@ -26,6 +26,7 @@ import { SettingsTests } from "./SettingsTests";
 import { SettingsDefaults } from "./SettingsDefaults";
 import { SettingsWorkflows } from "./SettingsWorkflows";
 import { ProjectSettings } from "./ProjectSettings";
+import { SettingsLLM } from "./SettingsLLM";
 import { useHomeStore } from "@/store/useHomeStore";
 
 interface SettingsDialogProps {
@@ -45,7 +46,8 @@ type Tab =
   | "workflows"
   | "project-config"
   | "project-commands"
-  | "project-preview";
+  | "project-preview"
+  | "llm";
 
 export function SettingsDialog({
   open,
@@ -207,6 +209,12 @@ export function SettingsDialog({
       hidden: !!projectName,
     },
     {
+      id: "llm",
+      label: "LLM / AI",
+      icon: Bot,
+      hidden: !!projectName,
+    },
+    {
       id: "defaults",
       label: "Global Defaults",
       icon: SettingsIcon,
@@ -333,6 +341,12 @@ export function SettingsDialog({
           )}
           {activeTab === "defaults" && (
             <SettingsDefaults
+              settings={localSettings}
+              onChange={handleChange}
+            />
+          )}
+          {activeTab === "llm" && (
+            <SettingsLLM
               settings={localSettings}
               onChange={handleChange}
             />

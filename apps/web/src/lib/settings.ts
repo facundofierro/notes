@@ -27,6 +27,14 @@ export interface WorkflowConfig {
   items: string[];
 }
 
+export interface ApiKeyConfig {
+  id: string;
+  provider: "openai" | "google" | "anthropic" | "xai" | "openrouter";
+  name: string;
+  key: string;
+  baseURL?: string;
+}
+
 export interface UserSettings {
   theme: "light" | "dark" | "system";
   language: string;
@@ -52,6 +60,7 @@ export interface UserSettings {
   wordWrap: boolean;
   aiModel: string;
   aiProvider: string;
+  apiKeys: ApiKeyConfig[];
   projects: ProjectConfig[];
   enabledAgents: string[];
   stagehandApiKey: string;
@@ -92,6 +101,7 @@ export const defaultSettings: UserSettings =
     wordWrap: true,
     aiModel: "default",
     aiProvider: "auto",
+    apiKeys: [],
     projects: [],
     enabledAgents: ["*"],
     stagehandApiKey: "",

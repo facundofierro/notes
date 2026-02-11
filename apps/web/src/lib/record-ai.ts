@@ -3,11 +3,14 @@ import path from "node:path";
 import { readSettings } from "./settings";
 import { isCommandAvailable, getExtendedPath } from "./agent-tools";
 import { spawn } from "child_process";
+import { generateStructuredObject } from "@agelum/llm-provider";
+import { z } from "zod";
 
 export interface AIBackendInfo {
-  id: "google-api" | "gemini-cli";
+  id: string; // "gemini-cli" or apiKey.id
   label: string;
   model: string;
+  provider?: string;
 }
 
 export interface AIRecommendation {
@@ -24,20 +27,9 @@ interface AIRecommendationInput {
   snapshot: string;
   prompt: string;
   deterministic: boolean;
-  backend: "google-api" | "gemini-cli";
+  backend: string; // "gemini-cli" or apiKey.id
   projectPath?: string;
 }
-
-// Shorter deterministic system prompt for Google API
-const DETERMINISTIC_SYSTEM_PROMPT = `Translate the browser instruction into a JSON agent-browser command.
-Given the DOM snapshot and instruction, return ONLY valid JSON:
-{
-  "command": "click",
-  "args": ["#selector"],
-  "explanation": "Brief description",
-  "stepDescription": "Human-readable step"
-}
-Use CSS selectors (id, data-testid, class-based) for deterministic, repeatable steps. No @ref references.`;
 
 // Detailed prompt for Gemini CLI (local file access)
 const DETERMINISTIC_CLI_SYSTEM_PROMPT = `You are a browser automation agent. Translate the user instruction into a JSON command for the "agelum browser" tool.
@@ -80,25 +72,38 @@ function saveSnapshotToFile(snapshot: string, cwd: string): string {
 
 export async function detectAvailableBackends(): Promise<AIBackendInfo[]> {
   const backends: AIBackendInfo[] = [];
-
-  // Check Google API key
   const settings = await readSettings();
-  const googleApiKey =
-    settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (googleApiKey) {
-    backends.push({
-      id: "google-api",
-      label: "Google AI API",
-      model: "gemini-2.0-flash",
+
+  // 1. Add Configured API Keys
+  if (settings.apiKeys && settings.apiKeys.length > 0) {
+    settings.apiKeys.forEach((key) => {
+      backends.push({
+        id: key.id,
+        label: `${key.name} (${key.provider})`,
+        model: "default", // We could allow model selection in settings later
+        provider: key.provider,
+      });
     });
+  } else {
+    // 2. Fallback to legacy single keys (Google only for now as it was supported)
+    const googleApiKey =
+      settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (googleApiKey) {
+      backends.push({
+        id: "google-legacy",
+        label: "Google AI API (Legacy)",
+        model: "gemini-2.0-flash",
+        provider: "google",
+      });
+    }
   }
 
-  // Check gemini CLI
+  // 3. Check gemini CLI (Always available if installed)
   const hasGeminiCli = await isCommandAvailable("gemini");
   if (hasGeminiCli) {
     backends.push({
       id: "gemini-cli",
-      label: "Gemini CLI",
+      label: "Gemini CLI (Local)",
       model: "gemini-cli",
     });
   }
@@ -106,67 +111,95 @@ export async function detectAvailableBackends(): Promise<AIBackendInfo[]> {
   return backends;
 }
 
-async function getGoogleApiRecommendation(
+const StepSchema = z.object({
+  command: z.string(),
+  args: z.array(z.string()),
+  explanation: z.string(),
+  stepDescription: z.string(),
+});
+
+async function getProviderRecommendation(
   input: AIRecommendationInput,
-  apiKey: string,
+  backendId: string,
 ): Promise<AIRecommendation> {
-  const parts: any[] = [];
-
-  if (input.screenshot) {
-    parts.push({
-      inlineData: {
-        mimeType: "image/png",
-        data: input.screenshot,
-      },
-    });
+  const settings = await readSettings();
+  
+  // Find the key config
+  let config: any = null;
+  
+  if (backendId === "google-legacy") {
+    const key = settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Google API key not found");
+    config = {
+      provider: "google",
+      apiKey: key,
+      model: "gemini-2.0-flash",
+    };
+  } else {
+    const keyConfig = settings.apiKeys?.find(k => k.id === backendId);
+    if (!keyConfig) throw new Error(`API Key configuration not found for ID: ${backendId}`);
+    
+    // Select default models based on provider if not specified
+    let model = "gpt-4o";
+    if (keyConfig.provider === "google") model = "gemini-2.0-flash";
+    if (keyConfig.provider === "anthropic") model = "claude-3-5-sonnet-20241022";
+    if (keyConfig.provider === "xai") model = "grok-2-latest"; // Verify model name
+    if (keyConfig.provider === "openrouter") model = "google/gemini-2.0-flash-001"; // Default or configured
+    
+    config = {
+      provider: keyConfig.provider === "openrouter" ? "custom" : keyConfig.provider,
+      apiKey: keyConfig.key,
+      baseURL: keyConfig.baseURL,
+      model: model,
+    };
   }
 
-  parts.push({
-    text: `DOM Snapshot:\n${input.snapshot}\n\nUser instruction: ${input.prompt}`,
-  });
+  const systemPrompt = `You are a browser automation agent. Translate the browser instruction into a single step.
+  
+  Available commands:
+  - click(selector): Click an element.
+  - type(selector, text): Type text into an input.
+  - press(key): Press a key (e.g., 'Enter').
+  - wait(ms): Wait for a duration.
+  - scroll(x, y): Scroll part of the page.
+  
+  Return a structured object with the command, arguments (CSS selector preferred), explanation, and a short step description.`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+  const messages = [
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: DETERMINISTIC_SYSTEM_PROMPT }],
-        },
-        contents: [{ parts }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-        },
-      }),
+      role: "system" as const,
+      content: systemPrompt,
     },
-  );
+    {
+      role: "user" as const,
+      content: [
+        { type: "text" as const, text: `DOM Snapshot:\n${input.snapshot}` },
+        { type: "text" as const, text: `User instruction: ${input.prompt}` },
+        ...(input.screenshot ? [{ type: "image" as const, image: input.screenshot }] : []),
+      ],
+    },
+  ];
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Google AI API error: ${response.status} ${errorText}`);
+  try {
+    const result = await generateStructuredObject(
+      config,
+      messages,
+      StepSchema
+    );
+
+    const object = result.object as z.infer<typeof StepSchema>;
+
+    return {
+      type: "command",
+      command: object.command,
+      args: object.args,
+      explanation: object.explanation,
+      stepDescription: object.stepDescription,
+    };
+  } catch (error: any) {
+     console.error("LLM Provider Error:", error);
+     throw new Error(`AI Provider failed: ${error.message}`);
   }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("No response from Google AI API");
-  }
-
-  let jsonStr = text.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-  }
-
-  const result = JSON.parse(jsonStr);
-  return {
-    type: "command",
-    command: result.command,
-    args: Array.isArray(result.args) ? result.args.map(String) : [],
-    explanation: result.explanation || "",
-    stepDescription: result.stepDescription || result.explanation || "",
-  };
 }
 
 async function getDeterministicGeminiCliRecommendation(
@@ -355,20 +388,11 @@ export async function getAIRecommendation(
     return getNonDeterministicRecommendation(input);
   }
 
-  // Deterministic: use selected backend to generate a command
-  if (input.backend === "google-api") {
-    const settings = await readSettings();
-    const apiKey =
-      settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Google API key not configured");
-    }
-    return getGoogleApiRecommendation(input, apiKey);
-  }
-
+  // Deterministic: use selected backend
   if (input.backend === "gemini-cli") {
     return getDeterministicGeminiCliRecommendation(input);
   }
 
-  throw new Error(`Unknown AI backend: ${input.backend}`);
+  // Use LLM Provider
+  return getProviderRecommendation(input, input.backend);
 }

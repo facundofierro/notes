@@ -302,7 +302,9 @@ const defaultSettings: UserSettings = {
   googleApiKey: "",
   grokApiKey: "",
   workflows: [],
+  activeWorkflow: "default",
   createBranchPerTask: false,
+  apiKeys: [],
 };
 
 export const useHomeStore =

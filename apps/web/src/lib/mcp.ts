@@ -6,7 +6,7 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { ensureAgelumStructure } from "./project.js";
+import { ensureAgelumStructure } from "./project";
 
 // --- Types & Constants ---
 

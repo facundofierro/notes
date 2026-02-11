@@ -1,83 +1,99 @@
-import { OpenAI } from "openai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createXai } from "@ai-sdk/xai";
+import { generateText, generateObject, LanguageModel, CoreMessage, Tool } from "ai";
 import { z } from "zod";
 
-export interface LLMMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
+export interface LLMConfig {
+  provider: "openai" | "google" | "anthropic" | "xai" | "custom";
+  apiKey?: string;
+  baseURL?: string; // For custom providers like OpenRouter or local LLMs
+  model: string;
 }
 
 export interface CompletionOptions {
-  model?: string;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
   jsonMode?: boolean;
+  tools?: Record<string, any>;
 }
 
-export interface LLMProvider {
-  complete(messages: LLMMessage[], options?: CompletionOptions): Promise<string>;
-  generateObject<T>(
-    messages: LLMMessage[],
-    schema: z.ZodType<T>,
-    options?: CompletionOptions
-  ): Promise<T>;
-}
+export function createModel(config: LLMConfig): LanguageModel {
+  switch (config.provider) {
+    case "openai":
+      const openai = createOpenAI({
+        apiKey: config.apiKey || process.env.OPENAI_API_KEY,
+        baseURL: config.baseURL,
+      });
+      return openai(config.model) as unknown as LanguageModel;
+    
+    case "google":
+      const google = createGoogleGenerativeAI({
+        apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      });
+      return google(config.model) as unknown as LanguageModel;
+    
+    case "anthropic":
+      const anthropic = createAnthropic({
+        apiKey: config.apiKey || process.env.ANTHROPIC_API_KEY,
+      });
+      return anthropic(config.model) as unknown as LanguageModel;
 
-export class OpenAIProvider implements LLMProvider {
-  private client: OpenAI;
-
-  constructor(apiKey?: string, baseURL?: string) {
-    this.client = new OpenAI({
-      apiKey: apiKey || process.env.OPENAI_API_KEY,
-      baseURL,
-    });
-  }
-
-  async complete(messages: LLMMessage[], options?: CompletionOptions): Promise<string> {
-    const response = await this.client.chat.completions.create({
-      model: options?.model || "gpt-4o",
-      messages,
-      temperature: options?.temperature ?? 0.7,
-      max_tokens: options?.maxTokens,
-      response_format: options?.jsonMode ? { type: "json_object" } : undefined,
-    });
-
-    return response.choices[0].message.content || "";
-  }
-
-  async generateObject<T>(
-    messages: LLMMessage[],
-    schema: z.ZodType<T>,
-    options?: CompletionOptions
-  ): Promise<T> {
-    const jsonSchema = {
-      type: "object",
-      properties: (schema as any).shape, // Basic Zod handling, might need zod-to-json-schema for complex cases
-      required: Object.keys((schema as any).shape || {}),
-    };
-
-    // For better structured output, we prompt the model to output JSON
-    const msgs = [
-      ...messages,
-      {
-        role: "system" as const,
-        content: `You must respond with valid JSON matching the schema.`,
-      },
-    ];
-
-    const content = await this.complete(msgs, {
-      ...options,
-      jsonMode: true,
-    });
-
-    try {
-      const parsed = JSON.parse(content);
-      return schema.parse(parsed);
-
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    } catch (e: any) {
-      throw new Error(`Failed to parse/validate JSON: ${e.message}. Content: ${content}`);
-    }
+    case "xai":
+        const xai = createXai({
+            apiKey: config.apiKey || process.env.XAI_API_KEY,
+        });
+        return xai(config.model) as unknown as LanguageModel;
+    
+    case "custom":
+      // Treat custom as OpenAI compatible by default
+      const custom = createOpenAI({
+        apiKey: config.apiKey || "not-needed",
+        baseURL: config.baseURL,
+      });
+      return custom(config.model) as unknown as LanguageModel;
+      
+    default:
+      throw new Error(`Unsupported provider: ${config.provider}`);
   }
 }
 
-export const defaultProvider = new OpenAIProvider();
+export async function generateCompletion(
+  config: LLMConfig,
+  messages: CoreMessage[],
+  options?: CompletionOptions
+) {
+  const model = createModel(config);
+  
+  return generateText({
+    model,
+    messages,
+    temperature: options?.temperature,
+     maxTokens: options?.maxTokens,
+     topP: options?.topP,
+     tools: options?.tools,
+     ...options,
+  } as any);
+}
+
+export async function generateStructuredObject<T>(
+  config: LLMConfig,
+  messages: CoreMessage[],
+  schema: z.ZodType<T>,
+  options?: CompletionOptions
+) {
+  const model = createModel(config);
+
+  return generateObject({
+    model,
+    messages,
+    schema,
+    temperature: options?.temperature,
+    maxTokens: options?.maxTokens,
+    mode: options?.jsonMode ? "json" : "auto",
+    ...options,
+  } as any);
+}
+
