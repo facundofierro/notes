@@ -397,7 +397,7 @@ export function WorkEditor({
                    <FileText className="w-8 h-8 opacity-50" />
                  </div>
                  <h3 className="text-lg font-medium text-foreground mb-2">No Summary Linked</h3>
-                 <p className="max-w-md mb-6 text-sm">This task doesn&apos;t have a linked summary yet. Check "Summary" when starting the task to create one.</p>
+                 <p className="max-w-md mb-6 text-sm">This task doesn&apos;t have a linked summary yet. Check &quot;Summary&quot; when starting the task to create one.</p>
                </div>
             </div>
           ) : taskSubView === "summary" && summaryLoading ? (

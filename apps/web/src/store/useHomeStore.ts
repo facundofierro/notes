@@ -28,6 +28,7 @@ export interface TerminalSessionInfo {
   startedAt: number;
   prompt?: string;
   projectName?: string;
+  filePath?: string;
 }
 
 export interface TabState {
@@ -166,6 +167,9 @@ export interface HomeState {
     ProjectState
   >;
 
+  // Global History
+  historySessions: TerminalSessionInfo[];
+
   // Helpers
   getProjectState: () => ProjectState;
 
@@ -279,6 +283,7 @@ export interface HomeState {
     file: { path: string; content: string } | null
   ) => void;
   setTabEditing: (tabId: string, editing: boolean) => void;
+  setHistorySessions: (sessions: TerminalSessionInfo[]) => void;
 }
 
 const defaultSettings: UserSettings = {
@@ -323,6 +328,7 @@ export const useHomeStore =
         agentTools: [],
         isElectron: false,
         isGlobalOverlayOpen: false,
+        historySessions: [],
         projectStates: {},
 
         getProjectState: () => {
@@ -614,6 +620,8 @@ export const useHomeStore =
             },
           }));
         },
+
+        setHistorySessions: (historySessions) => set({ historySessions }),
 
         fetchSettings: async () => {
           try {

@@ -4,6 +4,8 @@ import * as React from "react";
 import { useHomeStore } from "@/store/useHomeStore";
 import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
 import { formatDistanceToNow } from "date-fns";
+import { AISessionViewer } from "@/components/features/ai/AISessionViewer";
+import { TerminalSessionInfo } from "@/store/useHomeStore";
 import { Clock, Zap } from "lucide-react";
 
 export function AITab() {
@@ -17,12 +19,37 @@ export function AITab() {
     handleStopApp,
     agentTools,
     handleRunTest,
+    setHistorySessions,
+    historySessions,
   } = store;
 
-  // Aggregate terminalSessions from all projects
-  const terminalSessions = React.useMemo(() => {
-    return Object.values(store.projectStates).flatMap(p => p.terminalSessions || []);
-  }, [store.projectStates]);
+  // Retrieve history on mount
+  React.useEffect(() => {
+    fetch("/api/history")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.history) {
+          setHistorySessions(data.history);
+        }
+      })
+      .catch((err) => console.error("Failed to load history:", err));
+  }, [setHistorySessions]);
+
+  // Merge active and history sessions
+  const mergedSessions = React.useMemo(() => {
+    const active = Object.values(store.projectStates).flatMap(
+      (p) => p.terminalSessions || []
+    );
+    const history = historySessions || [];
+
+    const map = new Map<string, TerminalSessionInfo>();
+    // Add history first
+    history.forEach((s) => map.set(s.processId, s));
+    // Overwrite with active (contains current isRunning state)
+    active.forEach((s) => map.set(s.processId, s));
+
+    return Array.from(map.values());
+  }, [store.projectStates, historySessions]);
 
   const { 
     viewMode,
@@ -37,7 +64,7 @@ export function AITab() {
 
   // Get last 20 sessions sorted by time, with active sessions first
   const sortedSessions = React.useMemo(() => {
-    const sessions = [...terminalSessions]
+    const sessions = [...mergedSessions]
       .sort((a, b) => {
         // Active sessions first
         if (a.isRunning && !b.isRunning) return -1;
@@ -45,12 +72,12 @@ export function AITab() {
         // Then by time (newest first)
         return b.startedAt - a.startedAt;
       })
-      .slice(0, 20);
+      .slice(0, 50); // Increased limit
     return sessions;
-  }, [terminalSessions]);
+  }, [mergedSessions]);
 
   // Extract project name from context key (format: "ai-tab-projectName" or similar)
-  const getProjectFromSession = (session: typeof terminalSessions[0]) => {
+  const getProjectFromSession = (session: TerminalSessionInfo) => {
     return session.projectName || session.contextKey.split('-').pop() || 'Unknown';
   };
 
@@ -59,6 +86,11 @@ export function AITab() {
     if (!prompt) return "Interactive terminal session";
     return prompt.length > maxLength ? prompt.substring(0, maxLength) + "..." : prompt;
   };
+
+  const selectedSession = React.useMemo(
+    () => sortedSessions.find((s) => s.processId === selectedSessionId),
+    [sortedSessions, selectedSessionId]
+  );
 
   return (
     <div className="flex w-full h-full bg-background relative overflow-hidden">
@@ -135,11 +167,13 @@ export function AITab() {
 
       {/* Right Content - AI Tools (Wide Mode) */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {selectedRepo ? (
+        {selectedSession && !selectedSession.isRunning ? (
+          <AISessionViewer session={selectedSession} />
+        ) : selectedRepo ? (
           <AIRightSidebar
             selectedRepo={selectedRepo}
             basePath={store.basePath}
-            projectPath={repositories.find(r => r.name === selectedRepo)?.path}
+            projectPath={repositories.find((r) => r.name === selectedRepo)?.path}
             agentTools={agentTools}
             viewMode="ai"
             file={selectedFile}
@@ -155,10 +189,9 @@ export function AITab() {
           <div className="flex flex-1 items-center justify-center flex-col gap-3 text-muted-foreground">
             <div className="text-sm">Welcome to AI Hub</div>
             <div className="text-xs text-center max-w-md">
-              {sortedSessions.length === 0 
+              {sortedSessions.length === 0
                 ? "Start by selecting a project from another tab and running an AI tool"
-                : "Select a session from the history to continue or start a new one"
-              }
+                : "Select a session from the history to continue or start a new one"}
             </div>
           </div>
         )}

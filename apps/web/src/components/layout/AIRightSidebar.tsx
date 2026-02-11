@@ -487,7 +487,23 @@ Error: ${error.message}`);
             startedAt: Date.now(),
             prompt: trimmedPrompt,
             projectName: selectedRepo || undefined,
+            filePath: currentFilePath || undefined,
           });
+
+          // Persist history
+          fetch("/api/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              processId,
+              toolName,
+              contextKey,
+              startedAt: Date.now(),
+              prompt: trimmedPrompt,
+              projectName: selectedRepo || undefined,
+              filePath: currentFilePath || undefined,
+            }),
+          }).catch((err) => console.error("Failed to save history:", err));
         }
       }
 
