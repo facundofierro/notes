@@ -262,7 +262,9 @@ export function AIRightSidebar({
           terminalAbortControllerRef.current = null;
         }
         setIsTerminalRunning(false);
-        if (contextKey) updateTerminalSession(processId, { isRunning: false });
+        if (contextKey && !controller.signal.aborted) {
+          updateTerminalSession(processId, { isRunning: false });
+        }
       }
     },
     [
@@ -399,7 +401,7 @@ Error: ${error.message}`,
       }
       setIsTerminalRunning(false);
       setLoadingIndicatorVisible(false);
-      if (localProcessId && contextKey) {
+      if (localProcessId && contextKey && !ac.signal.aborted) {
         updateTerminalSession(localProcessId, { isRunning: false });
       }
     }
@@ -646,7 +648,7 @@ Cancelled`
         }
         setIsTerminalRunning(false);
         setLoadingIndicatorVisible(false);
-        if (contextKey && terminalProcessId) {
+        if (contextKey && terminalProcessId && !controller.signal.aborted) {
           updateTerminalSession(terminalProcessId, { isRunning: false });
         }
 

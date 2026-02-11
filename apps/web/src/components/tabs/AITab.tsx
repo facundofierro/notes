@@ -198,7 +198,11 @@ export function AITab() {
             isTestRunning={isTestRunning}
             onRunTest={handleRunTest}
             className="w-full h-full border-0"
-            contextKey={`ai-tab-${selectedRepo}`}
+            contextKey={
+              selectedSession && selectedSession.isRunning
+                ? selectedSession.contextKey
+                : `ai-tab-${selectedRepo}`
+            }
           />
         ) : (
           <div className="flex flex-1 items-center justify-center flex-col gap-3 text-muted-foreground">
