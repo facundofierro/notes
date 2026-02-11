@@ -1,5 +1,11 @@
 {
   "id": "test-1770746839443",
   "name": "Untitled Test",
-  "steps": []
+  "steps": [
+    {
+      "action": "command",
+      "command": "open http://localhost:6500/"
+    }
+  ],
+  "updatedAt": "2026-02-11T10:53:37.151Z"
 }

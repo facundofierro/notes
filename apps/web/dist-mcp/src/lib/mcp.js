@@ -9,20 +9,7 @@ const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
-const AGELUM_STRUCTURE = [
-    "doc/docs",
-    "doc/plan",
-    "doc/ideas",
-    "work/tasks/pending",
-    "work/tasks/doing",
-    "work/tasks/done",
-    "ai/commands",
-    "ai/skills",
-    "ai/agents",
-    "doc/context",
-    "work/epics",
-    "work/tests",
-];
+const project_1 = require("./project");
 const nonTaskTypeToDir = {
     epic: "work/epics",
     plan: "doc/plan",
@@ -33,19 +20,6 @@ const nonTaskTypeToDir = {
     context: "doc/context",
 };
 // --- Helpers ---
-function getAgelumPath(repoPath) {
-    return node_path_1.default.join(repoPath, ".agelum");
-}
-function ensureAgelumStructure(repoPath) {
-    const agelumPath = getAgelumPath(repoPath);
-    node_fs_1.default.mkdirSync(agelumPath, {
-        recursive: true,
-    });
-    AGELUM_STRUCTURE.forEach((dir) => {
-        node_fs_1.default.mkdirSync(node_path_1.default.join(agelumPath, dir), { recursive: true });
-    });
-    return agelumPath;
-}
 function sanitizeFileNamePart(value) {
     return value
         .replace(/[\/\\]/g, "-")
@@ -73,10 +47,21 @@ function formatPriority(value) {
     }
     return String(Math.trunc(value)).padStart(2, "0");
 }
+function getTimestampPrefix() {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const day = now.getDate().toString().padStart(2, "0");
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const seconds = now.getSeconds().toString().padStart(2, "0");
+    return `${year}_${month}_${day}-${hours}${minutes}${seconds}`;
+}
 function buildFileName(args) {
     const title = sanitizeFileNamePart(args.title);
     if (!title)
         throw new Error("title is required");
+    const prefix = getTimestampPrefix();
     if (args.type === "task") {
         if (args.priority === undefined)
             throw new Error("priority is required for task");
@@ -84,13 +69,13 @@ function buildFileName(args) {
             throw new Error("storyPoints is required for task");
         const priority = formatPriority(args.priority);
         const storyPoints = formatStoryPoints(args.storyPoints);
-        return `${priority} ${title} (${storyPoints}).md`;
+        return `${prefix}-${priority} ${title} (${storyPoints}).md`;
     }
     if (args.storyPoints !== undefined) {
         const storyPoints = formatStoryPoints(args.storyPoints);
-        return `${title} (${storyPoints}).md`;
+        return `${prefix}-${title} (${storyPoints}).md`;
     }
-    return `${title}.md`;
+    return `${prefix}-${title}.md`;
 }
 function buildFrontmatter(args) {
     const lines = [
@@ -150,6 +135,9 @@ const tools = {
                 state: {
                     type: "string",
                     enum: [
+                        "backlog",
+                        "priority",
+                        "fixes",
                         "pending",
                         "doing",
                         "done",
@@ -207,6 +195,9 @@ const tools = {
                 fromState: {
                     type: "string",
                     enum: [
+                        "backlog",
+                        "priority",
+                        "fixes",
                         "pending",
                         "doing",
                         "done",
@@ -216,6 +207,9 @@ const tools = {
                 toState: {
                     type: "string",
                     enum: [
+                        "backlog",
+                        "priority",
+                        "fixes",
                         "pending",
                         "doing",
                         "done",
@@ -261,6 +255,9 @@ const tools = {
                 state: {
                     type: "string",
                     enum: [
+                        "backlog",
+                        "priority",
+                        "fixes",
                         "pending",
                         "doing",
                         "done",
@@ -347,10 +344,13 @@ function createAgelumMcpServer(globalConfigRoot) {
             const repoRootPath = findRepoRootPath(globalConfigRoot);
             if (!repoRootPath)
                 throw new Error("Could not find repository root");
-            const agelumPath = ensureAgelumStructure(repoRootPath);
+            const agelumPath = (0, project_1.ensureAgelumStructure)(repoRootPath);
             switch (name) {
                 case "create": {
-                    const { type, title, content = "", state = "pending", priority, storyPoints, fileName, epic, } = args;
+                    let { type, title, content = "", state = "pending", priority, storyPoints, fileName, epic, } = args;
+                    // Redirect legacy 'priority' to 'fixes'
+                    if (state === "priority")
+                        state = "fixes";
                     const resolvedFileName = ensureMdExtension(sanitizeFileNamePart(fileName ??
                         buildFileName({
                             type,
@@ -393,7 +393,10 @@ function createAgelumMcpServer(globalConfigRoot) {
                     };
                 }
                 case "move": {
-                    const { type, title = "", priority, storyPoints, fileName, fromState, toState, epic, } = args;
+                    let { type, title = "", priority, storyPoints, fileName, fromState, toState, epic, } = args;
+                    // Redirect legacy 'priority' to 'fixes'
+                    if (toState === "priority")
+                        toState = "fixes";
                     if (fromState === toState) {
                         throw new Error("fromState and toState must be different");
                     }
@@ -411,7 +414,7 @@ function createAgelumMcpServer(globalConfigRoot) {
                     }
                     sourceFileName =
                         ensureMdExtension(sourceFileName);
-                    let sourceDir = node_path_1.default.join(agelumPath, "tasks", fromState);
+                    let sourceDir = node_path_1.default.join(agelumPath, "work/tasks", fromState);
                     if (epic) {
                         sourceDir = node_path_1.default.join(sourceDir, sanitizeFileNamePart(epic));
                     }
@@ -419,14 +422,21 @@ function createAgelumMcpServer(globalConfigRoot) {
                     if (!node_fs_1.default.existsSync(sourcePath)) {
                         throw new Error(`Source file not found: ${sourcePath}`);
                     }
-                    let targetDir = node_path_1.default.join(agelumPath, "tasks", toState);
+                    let targetDir = node_path_1.default.join(agelumPath, "work/tasks", toState);
                     if (epic) {
                         targetDir = node_path_1.default.join(targetDir, sanitizeFileNamePart(epic));
                     }
                     node_fs_1.default.mkdirSync(targetDir, {
                         recursive: true,
                     });
-                    const targetPath = node_path_1.default.join(targetDir, sourceFileName);
+                    let targetFileName = sourceFileName;
+                    if (toState === "done") {
+                        const hasPrefix = /^\d{2}_\d{2}_\d{2}-\d{6}-/.test(sourceFileName);
+                        if (!hasPrefix) {
+                            targetFileName = `${getTimestampPrefix()}-${sourceFileName}`;
+                        }
+                    }
+                    const targetPath = node_path_1.default.join(targetDir, targetFileName);
                     if (node_fs_1.default.existsSync(targetPath)) {
                         throw new Error(`Target file already exists: ${targetPath}`);
                     }
@@ -444,7 +454,10 @@ function createAgelumMcpServer(globalConfigRoot) {
                     };
                 }
                 case "get": {
-                    const { type, title = "", state, priority, storyPoints, fileName, epic, } = args;
+                    let { type, title = "", state, priority, storyPoints, fileName, epic, } = args;
+                    // Redirect legacy 'priority' to 'fixes'
+                    if (state === "priority")
+                        state = "fixes";
                     let resolvedFileName = fileName;
                     if (!resolvedFileName) {
                         if (!title)
@@ -495,7 +508,7 @@ function createAgelumMcpServer(globalConfigRoot) {
                     let searchPath = "";
                     if (type === "task") {
                         if (state) {
-                            searchPath = node_path_1.default.join(agelumPath, "tasks", state);
+                            searchPath = node_path_1.default.join(agelumPath, "work/tasks", state);
                             if (epic) {
                                 searchPath =
                                     node_path_1.default.join(searchPath, sanitizeFileNamePart(epic));
@@ -510,13 +523,16 @@ function createAgelumMcpServer(globalConfigRoot) {
                             // If state is NOT provided, we can't reliably find it without searching.
                             // Let's assume state is optional but we try to find it.
                             const states = [
+                                "backlog",
+                                "priority",
+                                "fixes",
                                 "pending",
                                 "doing",
                                 "done",
                             ];
                             let foundPath = null;
                             for (const s of states) {
-                                let dir = node_path_1.default.join(agelumPath, "tasks", s);
+                                let dir = node_path_1.default.join(agelumPath, "work/tasks", s);
                                 if (epic)
                                     dir = node_path_1.default.join(dir, sanitizeFileNamePart(epic));
                                 const p = node_path_1.default.join(dir, resolvedFileName);

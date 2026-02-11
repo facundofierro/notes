@@ -10,6 +10,5 @@
       "action": "command",
       "command": "click @e5"
     }
-  ],
-  "updatedAt": "2026-02-10T22:56:05.193Z"
+  ]
 }

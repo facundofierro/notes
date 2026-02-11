@@ -6,7 +6,7 @@
     "folder": "login",
     "description": "",
     "stepsCount": 2,
-    "updatedAt": "2026-02-10T22:56:05.193Z"
+    "updatedAt": "2026-02-11T10:51:41.632Z"
   },
   {
     "id": "test-1770725804989",
@@ -23,8 +23,8 @@
     "group": "EXPERIMENTAL",
     "folder": "UntitledTest",
     "description": "",
-    "stepsCount": 0,
-    "updatedAt": "2026-02-10T18:03:30.495Z"
+    "stepsCount": 1,
+    "updatedAt": "2026-02-11T10:53:37.151Z"
   },
   {
     "id": "test-1770746839443",

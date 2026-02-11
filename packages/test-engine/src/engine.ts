@@ -1,15 +1,15 @@
 import { BrowserManager } from "agent-browser/dist/browser.js";
 import { executeCommand } from "agent-browser/dist/actions.js";
-import { LLMProvider, LLMMessage } from "@agelum/llm-provider";
+import { LLMConfig, generateStructuredObject, CoreMessage, z } from "@agelum/llm-provider";
 import { TestStep, TestScenario } from "./types";
 
 export class TestEngine {
   private browser: BrowserManager;
-  private llmProvider: LLMProvider;
+  private llmConfig: LLMConfig;
 
-  constructor(llmProvider: LLMProvider) {
+  constructor(llmConfig: LLMConfig) {
     this.browser = new BrowserManager();
-    this.llmProvider = llmProvider;
+    this.llmConfig = llmConfig;
   }
 
   private screenshotDir?: string;
@@ -144,7 +144,7 @@ export class TestEngine {
 
     // 2. Build prompt
     // We use the simpler snapshot for the LLM
-    const messages: LLMMessage[] = [
+    const messages: CoreMessage[] = [
       {
         role: "system",
         content: `You are a browser automation agent.
@@ -177,7 +177,9 @@ Prioritize using the simplified "refs" (e.g. @12, @e1) from the tree.
             messages.push({ role: "user", content: `New State:\n${newSnap.tree}` });
         }
 
-        const response = await this.llmProvider.generateObject(messages, 
+        const response = await generateStructuredObject(
+            this.llmConfig,
+            messages,
             // We define a loose schema for the output action
             // In a real app we'd define all allowed actions strictly.
              // This is just a placeholder schema
@@ -185,14 +187,11 @@ Prioritize using the simplified "refs" (e.g. @12, @e1) from the tree.
              // Since zod schemas are strict, let's use a "passthrough" or just object.
              // But generateObject requires a specific Zod schema.
              // Let's define a "NextAction" schema.
-             // For now, I'll use 'any' schema to allow flexibility and refine later.
-             {
-                 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-                 parse: (obj: any) => obj
-             } as any
+             // For now, I'll use 'z.any()' to allow flexibility and refine later.
+             z.any()
         );
         
-        const action = (response as any).step || (response as any); // Handle if it returns { step: ... } or just ...
+        const action = (response.object as any).step || (response.object as any); // Handle if it returns { step: ... } or just ...
         
         console.log("AI decided:", action);
 

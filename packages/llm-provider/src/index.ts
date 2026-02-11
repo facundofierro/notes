@@ -3,7 +3,9 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createXai } from "@ai-sdk/xai";
 import { generateText, generateObject, LanguageModel, CoreMessage, Tool } from "ai";
+export type { CoreMessage, Tool };
 import { z } from "zod";
+export { z };
 
 export interface LLMConfig {
   provider: "openai" | "google" | "anthropic" | "xai" | "custom";

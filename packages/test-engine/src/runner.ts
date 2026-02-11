@@ -1,6 +1,5 @@
 import { TestEngine } from "./engine";
 import { TestScenario } from "./types";
-import { defaultProvider } from "@agelum/llm-provider";
 import fs from "fs";
 import path from "path";
 
@@ -24,7 +23,16 @@ async function main() {
     // Parse using Zod schema
     const scenario = TestScenario.parse(json);
 
-    const engine = new TestEngine(defaultProvider);
+    // Create a default LLM config
+    // In the future this could come from env or config file
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const defaultConfig: any = {
+      provider: "openai",
+      model: "gpt-4o",
+      apiKey: process.env.OPENAI_API_KEY
+    };
+
+    const engine = new TestEngine(defaultConfig);
     
     // Create run directory
     const runId = `run-${Date.now()}`;
