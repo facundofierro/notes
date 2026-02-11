@@ -15,6 +15,7 @@ import { BrowserTab } from "@/components/tabs/BrowserTab";
 import { Header } from "@/components/layout/Header";
 import { useHomeStore, ProjectState } from "@/store/useHomeStore";
 import { FileSearchDialog } from "@/components/shared/FileSearchDialog";
+import { TextSearchDialog } from "@/components/shared/TextSearchDialog";
 
 export default function Home() {
   const store = useHomeStore();
@@ -61,13 +62,21 @@ export default function Home() {
 
   // File search dialog state
   const [isFileSearchOpen, setIsFileSearchOpen] = React.useState(false);
+  // Text search dialog state
+  const [isTextSearchOpen, setIsTextSearchOpen] = React.useState(false);
 
-  // Keyboard shortcut for file search
+  // Keyboard shortcuts
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // File Search: Cmd+P or Ctrl+P
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
         setIsFileSearchOpen((prev) => !prev);
+      }
+      // Text Search: Cmd+F or Ctrl+F
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setIsTextSearchOpen((prev) => !prev);
       }
     };
 
@@ -120,6 +129,10 @@ export default function Home() {
       <FileSearchDialog
         open={isFileSearchOpen}
         onOpenChange={setIsFileSearchOpen}
+      />
+      <TextSearchDialog
+        open={isTextSearchOpen}
+        onOpenChange={setIsTextSearchOpen}
       />
     </div>
   );

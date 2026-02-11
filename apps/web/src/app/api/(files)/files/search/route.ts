@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const repo = searchParams.get("repo");
   const query = searchParams.get("query");
+  const includeCommon = searchParams.get("includeCommon") === "true";
 
   if (!repo || !query) {
     return NextResponse.json(
@@ -43,24 +44,30 @@ export async function GET(request: NextRequest) {
     const searchQuery = query.toLowerCase();
     const maxResults = 50;
 
+    // Default excluded directories
+    let excludeDirs = [
+      "node_modules",
+      ".git",
+      ".next",
+      "dist",
+      "build",
+      ".agelum",
+      "coverage",
+      "target", // Rust/Maven
+      "vendor", // PHP/Go
+      "bin", // C#/Java
+      "obj", // C#
+    ];
+
+    // If includeCommon is true, only exclude .git (it's massive and rarely useful for file search)
+    if (includeCommon) {
+      excludeDirs = [".git"];
+    }
+
     // Attempt to use native 'find' command for performance on Unix systems
     if (process.platform !== "win32") {
       try {
         // Construct find command
-        // find <path> -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -iname '*query*' | head -n 50
-        // We use -ipath to allow flexible matching or -iname for filename matching
-        // The user prompt implies searching "files", usually by name.
-
-        const excludeDirs = [
-          "node_modules",
-          ".git",
-          ".next",
-          "dist",
-          "build",
-          ".agelum",
-          "coverage",
-        ];
-
         const excludes = excludeDirs
           .map((dir) => `-not -path '*/${dir}/*'`)
           .join(" ");
@@ -98,6 +105,8 @@ export async function GET(request: NextRequest) {
       type: "file" | "directory";
     }[] = [];
 
+    const excludeSet = new Set(excludeDirs);
+
     async function searchDir(dirPath: string, relativePath: string = "") {
       if (results.length >= maxResults) return;
 
@@ -107,16 +116,8 @@ export async function GET(request: NextRequest) {
         for (const entry of entries) {
           if (results.length >= maxResults) break;
 
-          // Skip common directories
-          if (
-            entry.isDirectory() &&
-            (entry.name === "node_modules" ||
-              entry.name === ".git" ||
-              entry.name === "dist" ||
-              entry.name === "build" ||
-              entry.name === ".next" ||
-              entry.name === ".agelum")
-          ) {
+          // Skip excluded directories
+          if (entry.isDirectory() && excludeSet.has(entry.name)) {
             continue;
           }
 

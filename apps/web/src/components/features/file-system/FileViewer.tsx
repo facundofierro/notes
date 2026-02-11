@@ -36,6 +36,7 @@ interface FileViewerProps {
   file: {
     path: string;
     content: string;
+    line?: number;
   } | null;
   value?: string;
   editing?: boolean;
@@ -88,6 +89,18 @@ export default function FileViewer({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [isRenamingSaving, setIsRenamingSaving] = useState(false);
+  const [editorInstance, setEditorInstance] = useState<any>(null);
+
+  useEffect(() => {
+    if (file?.line && editorInstance) {
+      // Small timeout to ensure content is loaded/rendered
+      setTimeout(() => {
+        editorInstance.revealLineInCenter(file.line);
+        editorInstance.setPosition({ lineNumber: file.line, column: 1 });
+        editorInstance.focus();
+      }, 100);
+    }
+  }, [file?.path, file?.line, editorInstance]);
 
   useEffect(() => {
     if (file) {
@@ -562,6 +575,9 @@ export default function FileViewer({
               scrollBeyondLastLine: false,
               tabSize: 2,
               wordWrap: "on",
+            }}
+            onMount={(editor) => {
+              setEditorInstance(editor);
             }}
             beforeMount={(monaco: any) => {
               monaco.languages.typescript.typescriptDefaults.setCompilerOptions(

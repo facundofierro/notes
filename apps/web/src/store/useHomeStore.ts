@@ -32,6 +32,7 @@ export interface TabState {
   selectedFile: {
     path: string;
     content: string;
+    line?: number;
   } | null;
   workEditorEditing: boolean;
   workDocIsDraft: boolean;
@@ -43,6 +44,7 @@ export interface ProjectState {
   selectedFile: {
     path: string;
     content: string;
+    line?: number;
   } | null;
   currentPath: string;
   isAppRunning: boolean;
@@ -189,6 +191,7 @@ export interface HomeState {
     file: {
       path: string;
       content: string;
+      line?: number;
     } | null,
   ) => void;
   setIsSettingsOpen: (open: boolean) => void;
@@ -231,7 +234,7 @@ export interface HomeState {
   }) => void;
   setTabFile: (
     tabId: string,
-    file: { path: string; content: string } | null,
+    file: { path: string; content: string; line?: number } | null,
   ) => void;
   setTabEditing: (tabId: string, editing: boolean) => void;
   setHistorySessions: (sessions: TerminalSessionInfo[]) => void;
@@ -928,6 +931,7 @@ export const useHomeStore = create<HomeState>()(
             selectedFile: {
               path: node.path,
               content: data.content || "",
+              line: node.line,
             },
             workEditorEditing: false,
             workDocIsDraft: false,
