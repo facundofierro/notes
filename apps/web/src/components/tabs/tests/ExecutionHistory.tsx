@@ -1,13 +1,39 @@
 import * as React from "react";
 import { cn, ScrollArea } from "@agelum/shadcn";
-import { Clock, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import type { TestExecutionSummary } from "./types";
 
 const STATUS_CONFIG = {
-  passed: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10", label: "Passed" },
-  failed: { icon: XCircle, color: "text-red-400", bg: "bg-red-500/10", label: "Failed" },
-  error: { icon: AlertCircle, color: "text-amber-400", bg: "bg-amber-500/10", label: "Error" },
-  running: { icon: Loader2, color: "text-blue-400", bg: "bg-blue-500/10", label: "Running" },
+  passed: {
+    icon: CheckCircle2,
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
+    label: "Passed",
+  },
+  failed: {
+    icon: XCircle,
+    color: "text-red-400",
+    bg: "bg-red-500/10",
+    label: "Failed",
+  },
+  error: {
+    icon: AlertCircle,
+    color: "text-amber-400",
+    bg: "bg-amber-500/10",
+    label: "Error",
+  },
+  running: {
+    icon: Loader2,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    label: "Running",
+  },
 };
 
 function formatDuration(ms?: number): string {
@@ -58,7 +84,12 @@ export function ExecutionHistory({
 
   if (executions.length === 0) {
     return (
-      <div className={cn("flex flex-col items-center justify-center py-8 text-zinc-600", className)}>
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center py-8 text-zinc-600",
+          className,
+        )}
+      >
         <Clock className="w-5 h-5 mb-2 opacity-50" />
         <span className="text-xs">No executions yet</span>
       </div>
@@ -81,21 +112,40 @@ export function ExecutionHistory({
                 "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-all duration-200",
                 isSelected
                   ? "bg-white/[0.06] border border-white/[0.08]"
-                  : "hover:bg-white/[0.03] border border-transparent"
+                  : "hover:bg-white/[0.03] border border-transparent",
               )}
             >
-              <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0", config.bg)}>
-                <StatusIcon className={cn("w-3.5 h-3.5", config.color, exec.status === "running" && "animate-spin")} />
+              <div
+                className={cn(
+                  "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0",
+                  config.bg,
+                )}
+              >
+                <StatusIcon
+                  className={cn(
+                    "w-3.5 h-3.5",
+                    config.color,
+                    exec.status === "running" && "animate-spin",
+                  )}
+                />
               </div>
               <div className="flex-1 min-w-0">
                 {showTestName && (
-                  <div className="text-[11px] font-medium text-zinc-300 truncate">{exec.testName}</div>
+                  <div className="text-[11px] font-medium text-zinc-300 truncate">
+                    {exec.testName}
+                  </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className={cn("text-[10px] font-medium", config.color)}>{config.label}</span>
-                  <span className="text-[10px] text-zinc-600">{formatDuration(exec.duration)}</span>
+                  <span className={cn("text-[10px] font-medium", config.color)}>
+                    {config.label}
+                  </span>
+                  <span className="text-[10px] text-zinc-600">
+                    {formatDuration(exec.duration)}
+                  </span>
                 </div>
-                <div className="text-[10px] text-zinc-600">{formatTime(exec.startedAt)}</div>
+                <div className="text-[10px] text-zinc-600">
+                  {formatTime(exec.startedAt)}
+                </div>
               </div>
               {exec.screenshotCount > 0 && (
                 <span className="text-[9px] text-zinc-600 bg-white/[0.03] px-1.5 py-0.5 rounded">

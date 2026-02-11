@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn, ChildProcess } from "node:child_process";
 import { readSettings, ProjectConfig } from "@/lib/settings";
-import { processStore, processOutputBuffers, processInputHandlers, cleanupProcess, cleanupProcessBuffer } from "@/lib/process-store";
+import {
+  processStore,
+  processOutputBuffers,
+  processInputHandlers,
+  cleanupProcess,
+  cleanupProcessBuffer,
+} from "@/lib/process-store";
 import fs from "fs/promises";
 
 export async function POST(request: NextRequest) {
@@ -12,17 +18,21 @@ export async function POST(request: NextRequest) {
     if (!repo || !command) {
       return NextResponse.json(
         { error: "Missing repo or command" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const settings = await readSettings();
-    let project = settings.projects?.find((p: ProjectConfig) => p.name === repo);
+    let project = settings.projects?.find(
+      (p: ProjectConfig) => p.name === repo,
+    );
 
     // If project not found directly, it might be from a folder container
     if (!project) {
-      const folderConfigs = settings.projects?.filter((p: ProjectConfig) => p.type === 'folder') || [];
-      
+      const folderConfigs =
+        settings.projects?.filter((p: ProjectConfig) => p.type === "folder") ||
+        [];
+
       for (const folderConfig of folderConfigs) {
         const potentialPath = `${folderConfig.path}/${repo}`;
         try {
@@ -32,7 +42,7 @@ export async function POST(request: NextRequest) {
               id: `${folderConfig.id}/${repo}`,
               name: repo,
               path: potentialPath,
-              type: 'project' as const,
+              type: "project" as const,
               folderConfigId: folderConfig.id,
             };
             break;
@@ -51,7 +61,7 @@ export async function POST(request: NextRequest) {
     if (!repoPath) {
       return NextResponse.json(
         { success: false, error: "Project path is missing" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,9 +73,9 @@ export async function POST(request: NextRequest) {
       LANG: "en_US.UTF-8",
       FORCE_COLOR: "1",
       BROWSER: "none",
-      CI: "1"
+      CI: "1",
     };
-    
+
     // Merge with existing path but ensure homebrew is first
     const systemPath = process.env.PATH || "";
     cleanEnv.PATH = `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${systemPath}`;
@@ -75,7 +85,9 @@ export async function POST(request: NextRequest) {
 
     let childProcess: ChildProcess;
     try {
-      console.log(`[System Command] Executing: ${cmd} ${args.join(" ")} in ${repoPath}`);
+      console.log(
+        `[System Command] Executing: ${cmd} ${args.join(" ")} in ${repoPath}`,
+      );
       childProcess = spawn(cmd, args, {
         cwd: repoPath,
         env: {
@@ -122,7 +134,10 @@ export async function POST(request: NextRequest) {
 
     childProcess.stderr?.on("data", (data) => {
       const existing = processOutputBuffers.get(pid) || "";
-      processOutputBuffers.set(pid, existing + `\x1b[31m${data.toString()}\x1b[m`);
+      processOutputBuffers.set(
+        pid,
+        existing + `\x1b[31m${data.toString()}\x1b[m`,
+      );
     });
 
     // Capture exit
@@ -132,7 +147,7 @@ export async function POST(request: NextRequest) {
 [Process exited] code=${code ?? "unknown"} signal=${signal ?? "unknown"}
 `;
       processOutputBuffers.set(pid, existing + exitLine);
-      
+
       cleanupProcess(repo, pid);
       setTimeout(() => {
         cleanupProcessBuffer(pid);
@@ -154,7 +169,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to execute system command" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

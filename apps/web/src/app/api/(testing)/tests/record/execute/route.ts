@@ -9,12 +9,18 @@ export async function POST(request: Request) {
 
     if (!command) {
       console.error("[RecordExecute] Missing command in request");
-      return NextResponse.json({ error: "Command is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Command is required" },
+        { status: 400 },
+      );
     }
 
     const resolvedPath = await resolveCommandPath("agent-browser");
     const fullArgs = [command, ...(args || [])];
-    console.log(`[RecordExecute] Spawning ${resolvedPath} with args:`, fullArgs);
+    console.log(
+      `[RecordExecute] Spawning ${resolvedPath} with args:`,
+      fullArgs,
+    );
 
     return new Promise<Response>((resolve) => {
       const outputChunks: string[] = [];
@@ -44,7 +50,7 @@ export async function POST(request: Request) {
             output: outputChunks.join(""),
             error: code !== 0 ? errorChunks.join("") : undefined,
             exitCode: code,
-          })
+          }),
         );
       });
 
@@ -53,15 +59,17 @@ export async function POST(request: Request) {
         resolve(
           NextResponse.json(
             { success: false, output: "", error: err.message, exitCode: -1 },
-            { status: 500 }
-          )
+            { status: 500 },
+          ),
         );
       });
 
       // 30s timeout
       setTimeout(() => {
         if (child.exitCode === null) {
-          console.error("[RecordExecute] Command timed out after 30 seconds, killing process");
+          console.error(
+            "[RecordExecute] Command timed out after 30 seconds, killing process",
+          );
           child.kill();
           resolve(
             NextResponse.json({
@@ -69,7 +77,7 @@ export async function POST(request: Request) {
               output: outputChunks.join(""),
               error: "Command timed out after 30 seconds",
               exitCode: -1,
-            })
+            }),
           );
         }
       }, 30000);

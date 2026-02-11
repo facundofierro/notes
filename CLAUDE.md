@@ -89,6 +89,7 @@ The app uses **Zustand** with localStorage persistence. The main store is `apps/
 - **Tab-Based State**: Tasks, Epics, and Ideas views maintain separate state using the `tabs` object
 
 Key state features:
+
 - `getProjectState()`: Returns state for currently selected repo
 - `setProjectState()`: Updates state for current repo
 - `setProjectStateForRepo()`: Updates state for specific repo
@@ -120,6 +121,7 @@ The system uses `apps/web/src/lib/agent-store.ts` to track long-running processe
 ### MCP Server
 
 The MCP server is built separately from the main Next.js app:
+
 - Source: `apps/web/src/mcp/`
 - Built with: `tsconfig.mcp.json`
 - Provides tools: `create`, `move`, `get` for managing `.agelum` documents

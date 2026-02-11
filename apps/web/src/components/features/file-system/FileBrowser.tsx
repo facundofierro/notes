@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -32,9 +27,7 @@ interface FileNode {
 interface FileBrowserProps {
   fileTree: FileNode | null;
   currentPath: string;
-  onFileSelect: (
-    node: FileNode,
-  ) => void;
+  onFileSelect: (node: FileNode) => void;
   onFolderSelect?: (node: FileNode) => void;
   basePath: string;
   onRefresh?: () => void;
@@ -67,64 +60,40 @@ function FileTreeNode({
 }: {
   node: FileNode;
   level: number;
-  onFileSelect: (
-    node: FileNode,
-  ) => void;
+  onFileSelect: (node: FileNode) => void;
   onFolderSelect?: (node: FileNode) => void;
   expandedPaths: Set<string>;
   toggleExpand: (path: string) => void;
-  onDelete: (
-    path: string,
-    type: "file" | "directory",
-  ) => void;
-  onAddFile: (
-    parentPath: string,
-  ) => void;
-  onAddFolder: (
-    parentPath: string,
-  ) => void;
+  onDelete: (path: string, type: "file" | "directory") => void;
+  onAddFile: (parentPath: string) => void;
+  onAddFolder: (parentPath: string) => void;
   onRunFolder?: (path: string) => void;
   newItem: {
     parentPath: string;
     type: "file" | "directory";
   } | null;
   newItemName: string;
-  setNewItemName: (
-    name: string,
-  ) => void;
+  setNewItemName: (name: string) => void;
   onCancelNewItem: () => void;
   onSaveNewItem: () => void;
   onCopyPath: (path: string) => void;
 }) {
-  const [showMenu, setShowMenu] =
-    useState(false);
-  const isExpanded = expandedPaths.has(
-    node.path,
-  );
-  const hasChildren =
-    node.children &&
-    node.children.length > 0;
-  const isSelectable =
-    node.type === "file" ||
-    !hasChildren;
+  const [showMenu, setShowMenu] = useState(false);
+  const isExpanded = expandedPaths.has(node.path);
+  const hasChildren = node.children && node.children.length > 0;
+  const isSelectable = node.type === "file" || !hasChildren;
 
   return (
     <div className="select-none">
       <div
         className={`group flex items-center gap-1 py-1 px-2 hover:bg-secondary rounded relative ${
-          isSelectable
-            ? "cursor-pointer"
-            : "cursor-default"
+          isSelectable ? "cursor-pointer" : "cursor-default"
         }`}
         style={{
           paddingLeft: `${level * 12 + 8}px`,
         }}
-        onMouseEnter={() =>
-          setShowMenu(true)
-        }
-        onMouseLeave={() =>
-          setShowMenu(false)
-        }
+        onMouseEnter={() => setShowMenu(true)}
+        onMouseLeave={() => setShowMenu(false)}
       >
         <div
           className="flex flex-1 gap-1 items-center"
@@ -154,22 +123,17 @@ function FileTreeNode({
           ) : (
             <FileText className="w-4 h-4 text-muted-foreground" />
           )}
-          <span className="text-sm text-foreground">
-            {node.name}
-          </span>
+          <span className="text-sm text-foreground">{node.name}</span>
         </div>
         {showMenu && (
           <div className="flex gap-1 items-center opacity-0 transition-opacity group-hover:opacity-100">
-            {node.type ===
-              "directory" && (
+            {node.type === "directory" && (
               <>
                 {onRunFolder && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRunFolder(
-                        node.path,
-                      );
+                      onRunFolder(node.path);
                     }}
                     className="p-1 rounded hover:bg-green-900"
                     title="Run all tests"
@@ -180,9 +144,7 @@ function FileTreeNode({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAddFile(
-                      node.path,
-                    );
+                    onAddFile(node.path);
                   }}
                   className="p-1 rounded hover:bg-accent"
                   title="New file"
@@ -192,9 +154,7 @@ function FileTreeNode({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAddFolder(
-                      node.path,
-                    );
+                    onAddFolder(node.path);
                   }}
                   className="p-1 rounded hover:bg-accent"
                   title="New folder"
@@ -216,15 +176,8 @@ function FileTreeNode({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (
-                  confirm(
-                    `Delete ${node.name}?`,
-                  )
-                ) {
-                  onDelete(
-                    node.path,
-                    node.type,
-                  );
+                if (confirm(`Delete ${node.name}?`)) {
+                  onDelete(node.path, node.type);
                 }
               }}
               className="p-1 rounded hover:bg-red-600"
@@ -235,93 +188,56 @@ function FileTreeNode({
           </div>
         )}
       </div>
-      {isExpanded &&
-        (hasChildren ||
-          newItem?.parentPath ===
-            node.path) && (
-          <div>
-            {newItem?.parentPath ===
-              node.path && (
-              <div
-                className="flex gap-1 items-center px-2 py-1"
-                style={{
-                  paddingLeft: `${(level + 1) * 12 + 8}px`,
+      {isExpanded && (hasChildren || newItem?.parentPath === node.path) && (
+        <div>
+          {newItem?.parentPath === node.path && (
+            <div
+              className="flex gap-1 items-center px-2 py-1"
+              style={{
+                paddingLeft: `${(level + 1) * 12 + 8}px`,
+              }}
+            >
+              {newItem.type === "directory" ? (
+                <Folder className="w-4 h-4 text-yellow-400" />
+              ) : (
+                <FileText className="w-4 h-4 text-muted-foreground" />
+              )}
+              <input
+                autoFocus
+                className="bg-background border border-primary rounded px-1 py-0.5 text-sm outline-none w-full"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onSaveNewItem();
+                  if (e.key === "Escape") onCancelNewItem();
                 }}
-              >
-                {newItem.type ===
-                "directory" ? (
-                  <Folder className="w-4 h-4 text-yellow-400" />
-                ) : (
-                  <FileText className="w-4 h-4 text-muted-foreground" />
-                )}
-                <input
-                  autoFocus
-                  className="bg-background border border-primary rounded px-1 py-0.5 text-sm outline-none w-full"
-                  value={newItemName}
-                  onChange={(e) =>
-                    setNewItemName(
-                      e.target.value,
-                    )
-                  }
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter"
-                    )
-                      onSaveNewItem();
-                    if (
-                      e.key === "Escape"
-                    )
-                      onCancelNewItem();
-                  }}
-                  onBlur={onSaveNewItem}
-                />
-              </div>
-            )}
-            {node.children?.map(
-              (child) => (
-                <FileTreeNode
-                  key={child.path}
-                  node={child}
-                  level={level + 1}
-                  onFileSelect={
-                    onFileSelect
-                  }
-                  onFolderSelect={onFolderSelect}
-                  expandedPaths={
-                    expandedPaths
-                  }
-                  toggleExpand={
-                    toggleExpand
-                  }
-                  onDelete={onDelete}
-                  onAddFile={onAddFile}
-                  onAddFolder={
-                    onAddFolder
-                  }
-                  onRunFolder={
-                    onRunFolder
-                  }
-                  newItem={newItem}
-                  newItemName={
-                    newItemName
-                  }
-                  setNewItemName={
-                    setNewItemName
-                  }
-                  onCancelNewItem={
-                    onCancelNewItem
-                  }
-                  onSaveNewItem={
-                    onSaveNewItem
-                  }
-                  onCopyPath={
-                    onCopyPath
-                  }
-                />
-              ),
-            )}
-          </div>
-        )}
+                onBlur={onSaveNewItem}
+              />
+            </div>
+          )}
+          {node.children?.map((child) => (
+            <FileTreeNode
+              key={child.path}
+              node={child}
+              level={level + 1}
+              onFileSelect={onFileSelect}
+              onFolderSelect={onFolderSelect}
+              expandedPaths={expandedPaths}
+              toggleExpand={toggleExpand}
+              onDelete={onDelete}
+              onAddFile={onAddFile}
+              onAddFolder={onAddFolder}
+              onRunFolder={onRunFolder}
+              newItem={newItem}
+              newItemName={newItemName}
+              setNewItemName={setNewItemName}
+              onCancelNewItem={onCancelNewItem}
+              onSaveNewItem={onSaveNewItem}
+              onCopyPath={onCopyPath}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -336,53 +252,35 @@ export default function FileBrowser({
   resizable = true,
 }: FileBrowserProps) {
   const { toast } = useToast();
-  const [
-    expandedPaths,
-    setExpandedPaths,
-  ] = useState<Set<string>>(new Set());
-  const [
-    sidebarWidth,
-    setSidebarWidth,
-  ] = useState(SIDEBAR_DEFAULT_WIDTH);
-  const [newItem, setNewItem] =
-    useState<{
-      parentPath: string;
-      type: "file" | "directory";
-    } | null>(null);
-  const [newItemName, setNewItemName] =
-    useState("");
-  const [isResizing, setIsResizing] =
-    useState(false);
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [newItem, setNewItem] = useState<{
+    parentPath: string;
+    type: "file" | "directory";
+  } | null>(null);
+  const [newItemName, setNewItemName] = useState("");
+  const [isResizing, setIsResizing] = useState(false);
   const resizeStartX = useRef(0);
-  const resizeStartWidth = useRef(
-    SIDEBAR_DEFAULT_WIDTH,
-  );
+  const resizeStartWidth = useRef(SIDEBAR_DEFAULT_WIDTH);
 
-  const handleCopyPath = (
-    path: string,
-  ) => {
+  const handleCopyPath = (path: string) => {
     navigator.clipboard.writeText(path);
     toast({
       title: "Copied",
-      description:
-        "File path copied to clipboard",
+      description: "File path copied to clipboard",
     });
   };
 
   useEffect(() => {
     if (!fileTree) return;
 
-    if (fileTree && fileTree.type === 'directory') {
-       setExpandedPaths(new Set([fileTree.path]));
+    if (fileTree && fileTree.type === "directory") {
+      setExpandedPaths(new Set([fileTree.path]));
     }
   }, [fileTree]);
 
-  const toggleExpand = (
-    path: string,
-  ) => {
-    const newExpanded = new Set(
-      expandedPaths,
-    );
+  const toggleExpand = (path: string) => {
+    const newExpanded = new Set(expandedPaths);
     if (newExpanded.has(path)) {
       newExpanded.delete(path);
     } else {
@@ -396,8 +294,7 @@ export default function FileBrowser({
       e.preventDefault();
       setIsResizing(true);
       resizeStartX.current = e.clientX;
-      resizeStartWidth.current =
-        sidebarWidth;
+      resizeStartWidth.current = sidebarWidth;
     },
     [sidebarWidth],
   );
@@ -405,24 +302,14 @@ export default function FileBrowser({
   useEffect(() => {
     if (!isResizing) return;
 
-    document.body.style.cursor =
-      "col-resize";
-    document.body.style.userSelect =
-      "none";
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
 
-    const handleMouseMove = (
-      e: MouseEvent,
-    ) => {
-      const delta =
-        e.clientX -
-        resizeStartX.current;
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - resizeStartX.current;
       const newWidth = Math.min(
         SIDEBAR_MAX_WIDTH,
-        Math.max(
-          SIDEBAR_MIN_WIDTH,
-          resizeStartWidth.current +
-            delta,
-        ),
+        Math.max(SIDEBAR_MIN_WIDTH, resizeStartWidth.current + delta),
       );
       setSidebarWidth(newWidth);
     };
@@ -431,33 +318,17 @@ export default function FileBrowser({
       setIsResizing(false);
     };
 
-    window.addEventListener(
-      "mousemove",
-      handleMouseMove,
-    );
-    window.addEventListener(
-      "mouseup",
-      handleMouseUp,
-    );
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
     return () => {
       document.body.style.cursor = "";
-      document.body.style.userSelect =
-        "";
-      window.removeEventListener(
-        "mousemove",
-        handleMouseMove,
-      );
-      window.removeEventListener(
-        "mouseup",
-        handleMouseUp,
-      );
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isResizing]);
 
-  const handleDelete = async (
-    path: string,
-    type: "file" | "directory",
-  ) => {
+  const handleDelete = async (path: string, type: "file" | "directory") => {
     try {
       const response = await fetch(
         `/api/file?path=${encodeURIComponent(path)}`,
@@ -473,33 +344,24 @@ export default function FileBrowser({
         });
         if (onRefresh) onRefresh();
       } else {
-        const data =
-          await response.json();
+        const data = await response.json();
         toast({
           title: "Error",
-          description:
-            data.error ||
-            `Failed to delete ${type}`,
+          description: data.error || `Failed to delete ${type}`,
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error(
-        "Failed to delete:",
-        error,
-      );
+      console.error("Failed to delete:", error);
       toast({
         title: "Error",
-        description:
-          "An unexpected error occurred",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
     }
   };
 
-  const handleAddFile = async (
-    path: string,
-  ) => {
+  const handleAddFile = async (path: string) => {
     setNewItem({
       parentPath: path,
       type: "file",
@@ -510,9 +372,7 @@ export default function FileBrowser({
     }
   };
 
-  const handleAddFolder = async (
-    path: string,
-  ) => {
+  const handleAddFolder = async (path: string) => {
     setNewItem({
       parentPath: path,
       type: "directory",
@@ -528,96 +388,64 @@ export default function FileBrowser({
     setNewItemName("");
   };
 
-  const handleSaveNewItem =
-    async () => {
-      if (
-        !newItem ||
-        !newItemName.trim()
-      ) {
-        handleCancelNewItem();
-        return;
+  const handleSaveNewItem = async () => {
+    if (!newItem || !newItemName.trim()) {
+      handleCancelNewItem();
+      return;
+    }
+    let name = newItemName.trim();
+
+    if (newItem.type === "file") {
+      const hasExtension = name.includes(".");
+      if (viewMode === "docs" && !hasExtension) {
+        name += ".md";
+      } else if (viewMode === "tests" && !hasExtension) {
+        name += ".ts";
       }
-      let name = newItemName.trim();
+    }
 
-      if (newItem.type === "file") {
-        const hasExtension = name.includes(".");
-        if (
-          viewMode === "docs" &&
-          !hasExtension
-        ) {
-          name += ".md";
-        } else if (
-          viewMode === "tests" &&
-          !hasExtension
-        ) {
-          name += ".ts";
-        }
-      }
+    const filePath = `${newItem.parentPath}/${name}`.replace(/\/+$/, "");
 
-      const filePath =
-        `${newItem.parentPath}/${name}`.replace(
-          /\/+$/,
-          "",
-        );
+    try {
+      const response = await fetch("/api/file", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: filePath,
+          action: newItem.type === "directory" ? "mkdir" : undefined,
+          content: "",
+        }),
+      });
 
-      try {
-        const response = await fetch(
-          "/api/file",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              path: filePath,
-              action:
-                newItem.type ===
-                "directory"
-                  ? "mkdir"
-                  : undefined,
-              content: "",
-            }),
-          },
-        );
-
-        if (response.ok) {
-          toast({
-            title: "Success",
-            description: `${
-              newItem.type ===
-              "directory"
-                ? "Folder"
-                : "File"
-            } created successfully`,
-          });
-          if (onRefresh) onRefresh();
-        } else {
-          const data =
-            await response.json();
-          toast({
-            title: "Error",
-            description:
-              data.error ||
-              `Failed to create ${newItem.type}`,
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error(
-          `Failed to create ${newItem.type}:`,
-          error,
-        );
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `${
+            newItem.type === "directory" ? "Folder" : "File"
+          } created successfully`,
+        });
+        if (onRefresh) onRefresh();
+      } else {
+        const data = await response.json();
         toast({
           title: "Error",
-          description:
-            "An unexpected error occurred",
+          description: data.error || `Failed to create ${newItem.type}`,
           variant: "destructive",
         });
-      } finally {
-        handleCancelNewItem();
       }
-    };
+    } catch (error) {
+      console.error(`Failed to create ${newItem.type}:`, error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      handleCancelNewItem();
+    }
+  };
 
   return (
     <>
@@ -632,9 +460,7 @@ export default function FileBrowser({
             aria-valuenow={sidebarWidth}
             tabIndex={0}
             className="absolute top-0 right-0 z-10 w-2 h-full border-r border-transparent transition-colors select-none cursor-col-resize hover:border-muted-foreground hover:bg-secondary active:bg-accent"
-            onMouseDown={
-              handleResizeStart
-            }
+            onMouseDown={handleResizeStart}
           />
         )}
         <div className="overflow-y-auto flex-1 p-2">
@@ -642,36 +468,20 @@ export default function FileBrowser({
             <FileTreeNode
               node={fileTree}
               level={0}
-              onFileSelect={
-                onFileSelect
-              }
+              onFileSelect={onFileSelect}
               onFolderSelect={onFolderSelect}
-              expandedPaths={
-                expandedPaths
-              }
-              toggleExpand={
-                toggleExpand
-              }
+              expandedPaths={expandedPaths}
+              toggleExpand={toggleExpand}
               onDelete={handleDelete}
               onAddFile={handleAddFile}
-              onAddFolder={
-                handleAddFolder
-              }
+              onAddFolder={handleAddFolder}
               onRunFolder={onRunFolder}
               newItem={newItem}
               newItemName={newItemName}
-              setNewItemName={
-                setNewItemName
-              }
-              onCancelNewItem={
-                handleCancelNewItem
-              }
-              onSaveNewItem={
-                handleSaveNewItem
-              }
-              onCopyPath={
-                handleCopyPath
-              }
+              setNewItemName={setNewItemName}
+              onCancelNewItem={handleCancelNewItem}
+              onSaveNewItem={handleSaveNewItem}
+              onCopyPath={handleCopyPath}
             />
           ) : (
             <p className="p-2 text-sm text-muted-foreground">

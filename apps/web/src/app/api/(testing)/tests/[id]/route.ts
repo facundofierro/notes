@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -16,7 +15,9 @@ function resolveTestPath(id: string): string | null {
         const p = path.join(TEST_DIR, entry.group, entry.folder, "test.json");
         if (fs.existsSync(p)) return p;
       }
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
   }
   // Fallback to flat file structure
   const flat = path.join(TEST_DIR, `${id}.json`);
@@ -26,7 +27,7 @@ function resolveTestPath(id: string): string | null {
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -41,8 +42,8 @@ export async function GET(
     const json = JSON.parse(content);
 
     return NextResponse.json({
-        id,
-        ...json
+      id,
+      ...json,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,7 +52,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -60,7 +61,10 @@ export async function PUT(
     const body = await request.json();
 
     if (!body.name || !Array.isArray(body.steps)) {
-         return NextResponse.json({ error: "Invalid test structure. Name and steps array required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid test structure. Name and steps array required." },
+        { status: 400 },
+      );
     }
 
     let filePath = resolveTestPath(id);
@@ -70,9 +74,9 @@ export async function PUT(
     }
 
     const testContent = {
-        id,
-        name: body.name,
-        steps: body.steps
+      id,
+      name: body.name,
+      steps: body.steps,
     };
 
     fs.writeFileSync(filePath, JSON.stringify(testContent, null, 2));
@@ -88,7 +92,9 @@ export async function PUT(
           entry.updatedAt = new Date().toISOString();
           fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     return NextResponse.json({ success: true });
@@ -99,7 +105,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -113,7 +119,9 @@ export async function DELETE(
       try {
         const remaining = fs.readdirSync(dir);
         if (remaining.length === 0) fs.rmdirSync(dir);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     // Remove from index
@@ -122,7 +130,9 @@ export async function DELETE(
         const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
         const filtered = index.filter((t: any) => t.id !== id);
         fs.writeFileSync(INDEX_FILE, JSON.stringify(filtered, null, 2));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     return NextResponse.json({ success: true });

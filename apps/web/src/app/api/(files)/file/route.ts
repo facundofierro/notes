@@ -2,14 +2,9 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-export async function GET(
-  request: Request,
-) {
-  const { searchParams } = new URL(
-    request.url,
-  );
-  const filePath =
-    searchParams.get("path");
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const filePath = searchParams.get("path");
 
   if (!filePath) {
     return NextResponse.json({
@@ -24,44 +19,25 @@ export async function GET(
       });
     }
 
-    const content = fs.readFileSync(
-      filePath,
-      "utf-8",
-    );
+    const content = fs.readFileSync(filePath, "utf-8");
     return NextResponse.json({
       content,
     });
   } catch (error) {
-    return NextResponse.json(
-      { content: "" },
-      { status: 500 },
-    );
+    return NextResponse.json({ content: "" }, { status: 500 });
   }
 }
 
-export async function POST(
-  request: Request,
-) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const {
-      path: filePath,
-      content,
-      action,
-      newPath,
-    } = body;
+    const { path: filePath, content, action, newPath } = body;
 
     if (!filePath) {
-      return NextResponse.json(
-        { error: "Path is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Path is required" }, { status: 400 });
     }
 
-    if (
-      action === "rename" &&
-      newPath
-    ) {
+    if (action === "rename" && newPath) {
       if (!fs.existsSync(filePath)) {
         return NextResponse.json(
           {
@@ -93,14 +69,12 @@ export async function POST(
 
     if (action === "mkdir") {
       if (fs.existsSync(filePath)) {
-        const stats =
-          fs.statSync(filePath);
+        const stats = fs.statSync(filePath);
         if (stats.isDirectory()) {
           return NextResponse.json({
             success: true,
             path: filePath,
-            message:
-              "Directory already exists",
+            message: "Directory already exists",
           });
         }
         return NextResponse.json(
@@ -136,12 +110,7 @@ export async function POST(
       });
     }
 
-    if (
-      fs.existsSync(filePath) &&
-      fs
-        .statSync(filePath)
-        .isDirectory()
-    ) {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
       return NextResponse.json(
         {
           error: `Cannot write file: a directory already exists at this path: ${filePath}`,
@@ -155,49 +124,31 @@ export async function POST(
       const buffer = Buffer.from(content, "base64");
       fs.writeFileSync(filePath, buffer);
     } else {
-      fs.writeFileSync(
-        filePath,
-        content || "",
-      );
+      fs.writeFileSync(filePath, content || "");
     }
     return NextResponse.json({
       success: true,
       path: filePath,
     });
   } catch (error) {
-    console.error(
-      "Error in POST /api/file:",
-      error,
-    );
+    console.error("Error in POST /api/file:", error);
     return NextResponse.json(
       {
-        error:
-          "Failed to process request",
-        details:
-          error instanceof Error
-            ? error.message
-            : String(error),
+        error: "Failed to process request",
+        details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },
     );
   }
 }
 
-export async function DELETE(
-  request: Request,
-) {
+export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(
-      request.url,
-    );
-    const filePath =
-      searchParams.get("path");
+    const { searchParams } = new URL(request.url);
+    const filePath = searchParams.get("path");
 
     if (!filePath) {
-      return NextResponse.json(
-        { error: "Path is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Path is required" }, { status: 400 });
     }
 
     if (!fs.existsSync(filePath)) {
@@ -223,9 +174,6 @@ export async function DELETE(
       success: true,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Sets up a message listener that handles screenshot capture requests from the parent window.
  * This should be called from within an iframe context.
- * 
+ *
  * The handler listens for `agelum:capture-request` messages and responds with
  * `agelum:capture-response` messages containing a data URL of the captured content.
  */
@@ -12,7 +12,7 @@ export function setupIframeCaptureHandler() {
 
   const handleCaptureRequest = async (event: MessageEvent) => {
     const { data } = event;
-    
+
     // Only handle agelum capture requests
     if (!data || data.type !== "agelum:capture-request") {
       return;
@@ -36,7 +36,7 @@ export function setupIframeCaptureHandler() {
           id: captureId,
           dataUrl,
         },
-        "*"
+        "*",
       );
     }
   };
@@ -60,7 +60,10 @@ async function captureDocument(): Promise<string> {
       });
       return canvas.toDataURL("image/png");
     } catch (err) {
-      console.warn("html2canvas failed, falling back to basic canvas capture:", err);
+      console.warn(
+        "html2canvas failed, falling back to basic canvas capture:",
+        err,
+      );
     }
   }
 
@@ -75,10 +78,10 @@ async function captureDocument(): Promise<string> {
 function captureDocumentWithCanvas(): string {
   const canvas = document.createElement("canvas");
   const rect = document.documentElement.getBoundingClientRect();
-  
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  
+
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Could not get canvas context");
@@ -91,7 +94,7 @@ function captureDocumentWithCanvas(): string {
   // For a more complete capture, we'd need to render the DOM tree
   // For now, this is a basic implementation
   // A better approach would require html2canvas or similar library
-  
+
   return canvas.toDataURL("image/png");
 }
 
@@ -114,13 +117,15 @@ export async function captureDocumentAdvanced(): Promise<string> {
   }
 
   // Fill background
-  const bgColor = window.getComputedStyle(document.documentElement).backgroundColor;
+  const bgColor = window.getComputedStyle(
+    document.documentElement,
+  ).backgroundColor;
   ctx.fillStyle = bgColor || "white";
   ctx.fillRect(0, 0, width, height);
 
   // Serialize current DOM to SVG and render
   // This is a complex operation that would require proper DOM to SVG conversion
   // For production use, html2canvas or similar library is recommended
-  
+
   return canvas.toDataURL("image/png");
 }

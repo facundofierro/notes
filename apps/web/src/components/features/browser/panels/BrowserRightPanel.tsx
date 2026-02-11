@@ -1,11 +1,5 @@
 import React, { useState } from "react";
-import {
-  CheckCircle2,
-  FileCode,
-  Network,
-  Terminal,
-  Zap,
-} from "lucide-react";
+import { CheckCircle2, FileCode, Network, Terminal, Zap } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,

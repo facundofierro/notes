@@ -1,22 +1,22 @@
 export type KanbanColumnColor =
-  | 'gray'
-  | 'red'
-  | 'orange'
-  | 'amber'
-  | 'yellow'
-  | 'lime'
-  | 'green'
-  | 'emerald'
-  | 'teal'
-  | 'cyan'
-  | 'sky'
-  | 'blue'
-  | 'indigo'
-  | 'violet'
-  | 'purple'
-  | 'fuchsia'
-  | 'pink'
-  | 'rose';
+  | "gray"
+  | "red"
+  | "orange"
+  | "amber"
+  | "yellow"
+  | "lime"
+  | "green"
+  | "emerald"
+  | "teal"
+  | "cyan"
+  | "sky"
+  | "blue"
+  | "indigo"
+  | "violet"
+  | "purple"
+  | "fuchsia"
+  | "pink"
+  | "rose";
 
 export interface KanbanLabel {
   id: string;
@@ -38,7 +38,7 @@ export interface KanbanCard {
   labels?: KanbanLabel[];
   assignees?: KanbanAssignee[];
   dueDate?: Date;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  priority?: "low" | "medium" | "high" | "urgent";
   order?: number;
 }
 
@@ -52,7 +52,11 @@ export interface KanbanColumn {
 export interface KanbanBoardProps {
   columns: KanbanColumn[];
   cards: KanbanCard[];
-  onCardMove?: (cardId: string, sourceColumnId: string, targetColumnId: string) => void;
+  onCardMove?: (
+    cardId: string,
+    sourceColumnId: string,
+    targetColumnId: string,
+  ) => void;
   onCardClick?: (card: KanbanCard) => void;
   onCardEdit?: (card: KanbanCard) => void;
   onCardDelete?: (cardId: string) => void;

@@ -20,21 +20,22 @@ export function WorkEditorTab({
 }: WorkEditorTabProps & { tabId?: string }) {
   const store = useHomeStore();
   const projectState = store.getProjectState();
-  
-  const {
-    viewMode,
-    testViewMode,
-    testOutput,
-    isTestRunning,
-    tabs,
-  } = projectState;
+
+  const { viewMode, testViewMode, testOutput, isTestRunning, tabs } =
+    projectState;
 
   // Resolve state based on tabId or fallback to global (legacy)
   const tabState = tabId ? tabs[tabId] : null;
 
-  const selectedFile = tabState ? tabState.selectedFile : projectState.selectedFile;
-  const workEditorEditing = tabState ? tabState.workEditorEditing : projectState.workEditorEditing;
-  const workDocIsDraft = tabState ? tabState.workDocIsDraft : projectState.workDocIsDraft;
+  const selectedFile = tabState
+    ? tabState.selectedFile
+    : projectState.selectedFile;
+  const workEditorEditing = tabState
+    ? tabState.workEditorEditing
+    : projectState.workEditorEditing;
+  const workDocIsDraft = tabState
+    ? tabState.workDocIsDraft
+    : projectState.workDocIsDraft;
 
   const {
     setSelectedFile,
@@ -46,7 +47,7 @@ export function WorkEditorTab({
     basePath,
     repositories,
     settings,
-    agentTools
+    agentTools,
   } = store;
 
   const handleFileChange = React.useCallback(
@@ -57,7 +58,7 @@ export function WorkEditorTab({
         setSelectedFile(file);
       }
     },
-    [tabId, setTabFile, setSelectedFile]
+    [tabId, setTabFile, setSelectedFile],
   );
 
   const handleEditingChange = React.useCallback(
@@ -68,7 +69,7 @@ export function WorkEditorTab({
         store.setProjectState(() => ({ workEditorEditing: editing }));
       }
     },
-    [tabId, setTabEditing, store]
+    [tabId, setTabEditing, store],
   );
 
   const projectPath = React.useMemo(() => {
@@ -98,7 +99,9 @@ export function WorkEditorTab({
       onWorkEditorEditingChange={handleEditingChange}
       workDocIsDraft={workDocIsDraft}
       testViewMode={testViewMode}
-      onTestViewModeChange={(mode) => store.setProjectState(() => ({ testViewMode: mode }))}
+      onTestViewModeChange={(mode) =>
+        store.setProjectState(() => ({ testViewMode: mode }))
+      }
       testOutput={testOutput}
       isTestRunning={isTestRunning}
       onRunTest={handleRunTest}

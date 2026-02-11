@@ -6,10 +6,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import {
-  Plus,
-  MoreHorizontal,
-} from "lucide-react";
+import { Plus, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./KanbanCard";
@@ -22,49 +19,29 @@ import type {
 interface KanbanColumnProps {
   column: KanbanColumnType;
   cards: KanbanCardType[];
-  onAddCard?: (
-    columnId: string,
-  ) => void;
-  onCardEdit?: (
-    card: KanbanCardType,
-  ) => void;
-  onCardDelete?: (
-    cardId: string,
-  ) => void;
-  onCardClick?: (
-    card: KanbanCardType,
-  ) => void;
+  onAddCard?: (columnId: string) => void;
+  onCardEdit?: (card: KanbanCardType) => void;
+  onCardDelete?: (cardId: string) => void;
+  onCardClick?: (card: KanbanCardType) => void;
 }
 
-const columnColorMap: Record<
-  KanbanColumnColor,
-  string
-> = {
+const columnColorMap: Record<KanbanColumnColor, string> = {
   gray: "bg-gray-400 dark:bg-gray-500",
   red: "bg-red-400 dark:bg-red-500",
-  orange:
-    "bg-orange-400 dark:bg-orange-500",
-  amber:
-    "bg-amber-400 dark:bg-amber-500",
-  yellow:
-    "bg-yellow-400 dark:bg-yellow-500",
+  orange: "bg-orange-400 dark:bg-orange-500",
+  amber: "bg-amber-400 dark:bg-amber-500",
+  yellow: "bg-yellow-400 dark:bg-yellow-500",
   lime: "bg-lime-400 dark:bg-lime-500",
-  green:
-    "bg-green-400 dark:bg-green-500",
-  emerald:
-    "bg-emerald-400 dark:bg-emerald-500",
+  green: "bg-green-400 dark:bg-green-500",
+  emerald: "bg-emerald-400 dark:bg-emerald-500",
   teal: "bg-teal-400 dark:bg-teal-500",
   cyan: "bg-cyan-400 dark:bg-cyan-500",
   sky: "bg-sky-400 dark:bg-sky-500",
   blue: "bg-blue-400 dark:bg-blue-500",
-  indigo:
-    "bg-indigo-400 dark:bg-indigo-500",
-  violet:
-    "bg-violet-400 dark:bg-violet-500",
-  purple:
-    "bg-purple-400 dark:bg-purple-500",
-  fuchsia:
-    "bg-fuchsia-400 dark:bg-fuchsia-500",
+  indigo: "bg-indigo-400 dark:bg-indigo-500",
+  violet: "bg-violet-400 dark:bg-violet-500",
+  purple: "bg-purple-400 dark:bg-purple-500",
+  fuchsia: "bg-fuchsia-400 dark:bg-fuchsia-500",
   pink: "bg-pink-400 dark:bg-pink-500",
   rose: "bg-rose-400 dark:bg-rose-500",
 };
@@ -77,22 +54,17 @@ export function KanbanColumn({
   onCardDelete,
   onCardClick,
 }: KanbanColumnProps) {
-  const { setNodeRef, isOver } =
-    useDroppable({
-      id: column.id,
-      data: {
-        type: "column",
-        column,
-      },
-    });
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+    data: {
+      type: "column",
+      column,
+    },
+  });
 
-  const cardIds = cards.map(
-    (card) => card.id,
-  );
+  const cardIds = cards.map((card) => card.id);
   const isEmpty = cards.length === 0;
-  const color = isEmpty
-    ? "gray"
-    : column.color || "gray";
+  const color = isEmpty ? "gray" : column.color || "gray";
 
   return (
     <div
@@ -100,8 +72,7 @@ export function KanbanColumn({
         "group flex h-full flex-1 basis-0 min-w-[160px] flex-col rounded-2xl transition-all duration-200",
         "bg-secondary/50 backdrop-blur-sm",
         "border border-border",
-        isOver &&
-          "bg-secondary border-blue-500/40",
+        isOver && "bg-secondary border-blue-500/40",
       )}
     >
       {/* Column Header */}
@@ -116,9 +87,7 @@ export function KanbanColumn({
           <h3
             className={cn(
               "font-semibold text-sm transition-colors",
-              isEmpty
-                ? "text-muted-foreground"
-                : "text-foreground",
+              isEmpty ? "text-muted-foreground" : "text-foreground",
             )}
           >
             {column.title}
@@ -133,9 +102,7 @@ export function KanbanColumn({
               variant="ghost"
               size="icon"
               className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
-              onClick={() =>
-                onAddCard(column.id)
-              }
+              onClick={() => onAddCard(column.id)}
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>
@@ -161,9 +128,7 @@ export function KanbanColumn({
         >
           <SortableContext
             items={cardIds}
-            strategy={
-              verticalListSortingStrategy
-            }
+            strategy={verticalListSortingStrategy}
           >
             {cards.map((card) => (
               <KanbanCard
@@ -189,9 +154,7 @@ export function KanbanColumn({
           <Button
             variant="ghost"
             className="w-full h-9 justify-center gap-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl text-xs font-normal border border-dashed border-border hover:border-muted-foreground/50 transition-all"
-            onClick={() =>
-              onAddCard(column.id)
-            }
+            onClick={() => onAddCard(column.id)}
           >
             <Plus className="h-3.5 w-3.5" />
             Add card

@@ -5,9 +5,9 @@ import { useHomeStore } from "@/store/useHomeStore";
 import { ScrollArea } from "@agelum/shadcn";
 
 export function NetworkPanel({ repo }: PanelProps) {
-  const projectState = useHomeStore(s => s.projectStates[repo]);
-  const clearNetworkLogs = useHomeStore(s => s.clearNetworkLogs);
-  
+  const projectState = useHomeStore((s) => s.projectStates[repo]);
+  const clearNetworkLogs = useHomeStore((s) => s.clearNetworkLogs);
+
   const logs = projectState?.networkLogs || [];
 
   const formatSize = (bytes?: number) => {
@@ -75,15 +75,29 @@ export function NetworkPanel({ repo }: PanelProps) {
                   className="text-[11px] hover:bg-accent/50 transition-colors group"
                 >
                   <td className="px-3 py-1.5 font-mono font-bold text-muted-foreground">
-                    <span className={log.method === "BROWSER" ? "text-amber-500" : ""}>{log.method}</span>
+                    <span
+                      className={
+                        log.method === "BROWSER" ? "text-amber-500" : ""
+                      }
+                    >
+                      {log.method}
+                    </span>
                   </td>
                   <td className="px-3 py-1.5 truncate relative" title={log.url}>
                     <div className="flex items-center gap-1.5">
-                      <Globe className={`w-3 h-3 shrink-0 ${log.method === "BROWSER" ? "text-amber-500" : "text-muted-foreground"}`} />
-                      <span className={`truncate ${log.method === "BROWSER" ? "text-amber-500 font-medium" : ""}`}>{log.url}</span>
+                      <Globe
+                        className={`w-3 h-3 shrink-0 ${log.method === "BROWSER" ? "text-amber-500" : "text-muted-foreground"}`}
+                      />
+                      <span
+                        className={`truncate ${log.method === "BROWSER" ? "text-amber-500 font-medium" : ""}`}
+                      >
+                        {log.url}
+                      </span>
                     </div>
                   </td>
-                  <td className={`px-3 py-1.5 font-mono ${getStatusColor(log.status, log.method)}`}>
+                  <td
+                    className={`px-3 py-1.5 font-mono ${getStatusColor(log.status, log.method)}`}
+                  >
                     {log.status || (log.finished ? "Fail" : "...")}
                   </td>
                   <td className="px-3 py-1.5 text-muted-foreground truncate">

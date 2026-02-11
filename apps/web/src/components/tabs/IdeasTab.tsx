@@ -5,12 +5,7 @@ import { useHomeStore } from "@/store/useHomeStore";
 
 export function IdeasTab() {
   const store = useHomeStore();
-  const { 
-    selectedRepo, 
-    setTabFile,
-    handleIdeaSelect,
-    openWorkDraft
-  } = store;
+  const { selectedRepo, setTabFile, handleIdeaSelect, openWorkDraft } = store;
 
   const { tabs } = store.getProjectState();
   const selectedFile = tabs?.ideas?.selectedFile;
@@ -22,27 +17,30 @@ export function IdeasTab() {
   const onRename = selectedRepo
     ? async (newTitle: string) => {
         if (isDraft && selectedFile) {
-           const oldPath = selectedFile.path;
-           const dir = oldPath.substring(0, oldPath.lastIndexOf('/'));
-           // Simple sanitization for draft filename
-           const safeName = newTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '-');
-           const newPath = `${dir}/${safeName || 'untitled'}.md`;
-           
-           // Update content
-           let newContent = selectedFile.content;
-           const headingRegex = /^#\s+(.+)$/m;
-           if (headingRegex.test(newContent)) {
-             newContent = newContent.replace(headingRegex, `# ${newTitle}`);
-           } else {
-             newContent = newContent + `\n\n# ${newTitle}`;
-           }
+          const oldPath = selectedFile.path;
+          const dir = oldPath.substring(0, oldPath.lastIndexOf("/"));
+          // Simple sanitization for draft filename
+          const safeName = newTitle
+            .trim()
+            .replace(/[^a-zA-Z0-9-_\s]/g, "")
+            .replace(/\s+/g, "-");
+          const newPath = `${dir}/${safeName || "untitled"}.md`;
 
-           const next = {
-             path: newPath,
-             content: newContent
-           };
-           setTabFile("ideas", next);
-           return next;
+          // Update content
+          let newContent = selectedFile.content;
+          const headingRegex = /^#\s+(.+)$/m;
+          if (headingRegex.test(newContent)) {
+            newContent = newContent.replace(headingRegex, `# ${newTitle}`);
+          } else {
+            newContent = newContent + `\n\n# ${newTitle}`;
+          }
+
+          const next = {
+            path: newPath,
+            content: newContent,
+          };
+          setTabFile("ideas", next);
+          return next;
         }
 
         const res = await fetch("/api/ideas", {
@@ -69,16 +67,14 @@ export function IdeasTab() {
   return (
     <div className="flex-1 bg-background">
       {selectedFile ? (
-        <WorkEditorTab
-          onBack={onBack}
-          onRename={onRename}
-          tabId="ideas"
-        />
+        <WorkEditorTab onBack={onBack} onRename={onRename} tabId="ideas" />
       ) : selectedRepo ? (
         <IdeasKanban
           repo={selectedRepo}
           onIdeaSelect={handleIdeaSelect}
-          onCreateIdea={({ state: s }) => openWorkDraft({ kind: "idea", state: s })}
+          onCreateIdea={({ state: s }) =>
+            openWorkDraft({ kind: "idea", state: s })
+          }
         />
       ) : null}
     </div>

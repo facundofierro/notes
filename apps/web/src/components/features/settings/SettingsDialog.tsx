@@ -1,14 +1,8 @@
 "use client";
 
 import * as React from "react";
-import {
-  Dialog,
-  DialogContent,
-  Button,
-} from "@agelum/shadcn";
-import {
-  UserSettings,
-} from "@/hooks/use-settings";
+import { Dialog, DialogContent, Button } from "@agelum/shadcn";
+import { UserSettings } from "@/hooks/use-settings";
 import {
   RotateCcw,
   Save,
@@ -65,26 +59,21 @@ export function SettingsDialog({
     resetSettings,
   } = useHomeStore();
 
-  const [
-    localSettings,
-    setLocalSettings,
-  ] =
-    React.useState<UserSettings>(
-      settings,
-    );
-    
+  const [localSettings, setLocalSettings] =
+    React.useState<UserSettings>(settings);
+
   React.useEffect(() => {
     const loadProjectConfig = async () => {
       if (
-        open && 
-        projectName && 
-        projectPath && 
-        settings.projects && 
-        !settings.projects.find(p => p.name === projectName)
+        open &&
+        projectName &&
+        projectPath &&
+        settings.projects &&
+        !settings.projects.find((p) => p.name === projectName)
       ) {
         try {
           const res = await fetch(
-            `/api/project/config?path=${encodeURIComponent(projectPath)}`
+            `/api/project/config?path=${encodeURIComponent(projectPath)}`,
           );
           const data = await res.json();
           if (data.config) {
@@ -93,12 +82,12 @@ export function SettingsDialog({
               name: projectName,
               path: projectPath,
               type: "project" as const,
-              ...data.config
+              ...data.config,
             };
-            
-            setLocalSettings(prev => ({
+
+            setLocalSettings((prev) => ({
               ...prev,
-              projects: [...(prev.projects || []), newProject]
+              projects: [...(prev.projects || []), newProject],
             }));
           }
         } catch (error) {
@@ -106,18 +95,13 @@ export function SettingsDialog({
         }
       }
     };
-    
+
     loadProjectConfig();
   }, [open, projectName, projectPath, settings.projects]);
-  const [hasChanges, setHasChanges] =
-    React.useState(false);
-  const [activeTab, setActiveTab] =
-    React.useState<Tab>(
-      initialTab ||
-        (projectName
-          ? "project-config"
-          : "defaults"),
-    );
+  const [hasChanges, setHasChanges] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<Tab>(
+    initialTab || (projectName ? "project-config" : "defaults"),
+  );
 
   React.useEffect(() => {
     if (open && initialTab) {
@@ -131,9 +115,7 @@ export function SettingsDialog({
     setLocalSettings(settings);
   }, [settings]);
 
-  const handleChange = <
-    K extends keyof UserSettings,
-  >(
+  const handleChange = <K extends keyof UserSettings>(
     key: K,
     value: UserSettings[K],
   ) => {
@@ -146,9 +128,7 @@ export function SettingsDialog({
 
   const handleSave = async () => {
     try {
-      await updateSettings(
-        localSettings,
-      );
+      await updateSettings(localSettings);
       setHasChanges(false);
       onOpenChange(false);
       onSave?.();
@@ -227,23 +207,16 @@ export function SettingsDialog({
     },
   ];
 
-  const visibleTabs = tabs.filter(
-    (t) => !t.hidden,
-  );
+  const visibleTabs = tabs.filter((t) => !t.hidden);
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[1200px] w-[95vw] h-[85vh] flex gap-0 p-0 overflow-hidden bg-background border-border text-foreground">
         {/* Sidebar */}
         <div className="flex flex-col gap-2 p-4 w-64 border-r border-border bg-background">
           <div className="px-2 pt-2 mb-4">
             <h2 className="text-lg font-bold text-white">
-              {projectName
-                ? "Project Settings"
-                : "System Settings"}
+              {projectName ? "Project Settings" : "System Settings"}
             </h2>
           </div>
 
@@ -254,9 +227,7 @@ export function SettingsDialog({
                 <Button
                   key={tab.id}
                   variant="ghost"
-                  onClick={() =>
-                    setActiveTab(tab.id)
-                  }
+                  onClick={() => setActiveTab(tab.id)}
                   className={`w-full justify-start gap-3 ${activeTab === tab.id ? "bg-secondary text-white" : "text-muted-foreground hover:text-white hover:bg-secondary/50"}`}
                 >
                   <Icon className="w-4 h-4" />
@@ -268,9 +239,7 @@ export function SettingsDialog({
 
           <div className="flex flex-col gap-2 pt-4 mt-auto border-t border-border">
             {error ? (
-              <div className="px-2 py-1 text-xs text-red-400">
-                {error}
-              </div>
+              <div className="px-2 py-1 text-xs text-red-400">{error}</div>
             ) : null}
             <Button
               variant="outline"
@@ -284,9 +253,7 @@ export function SettingsDialog({
 
             <Button
               onClick={handleSave}
-              disabled={
-                isLoading || !hasChanges
-              }
+              disabled={isLoading || !hasChanges}
               className="gap-2 justify-start w-full text-white bg-amber-600 shadow-lg hover:bg-amber-700 shadow-amber-600/20"
             >
               <Save className="w-4 h-4" />
@@ -328,16 +295,10 @@ export function SettingsDialog({
             />
           )}
           {activeTab === "agents" && (
-            <SettingsAgents
-              settings={localSettings}
-              onChange={handleChange}
-            />
+            <SettingsAgents settings={localSettings} onChange={handleChange} />
           )}
           {activeTab === "tests" && (
-            <SettingsTests
-              settings={localSettings}
-              onChange={handleChange}
-            />
+            <SettingsTests settings={localSettings} onChange={handleChange} />
           )}
           {activeTab === "defaults" && (
             <SettingsDefaults
@@ -346,25 +307,24 @@ export function SettingsDialog({
             />
           )}
           {activeTab === "llm" && (
-            <SettingsLLM
-              settings={localSettings}
-              onChange={handleChange}
-            />
+            <SettingsLLM settings={localSettings} onChange={handleChange} />
           )}
-          {activeTab ===
-            "workflows" && (
+          {activeTab === "workflows" && (
             <SettingsWorkflows
               settings={localSettings}
               onChange={handleChange}
               activeWorkflowId={
                 projectName
-                  ? localSettings.projects?.find((p) => p.name === projectName)?.workflowId
+                  ? localSettings.projects?.find((p) => p.name === projectName)
+                      ?.workflowId
                   : undefined
               }
               onSelectWorkflow={
                 projectName
                   ? (id) => {
-                      const updatedProjects = (localSettings.projects || []).map((p) =>
+                      const updatedProjects = (
+                        localSettings.projects || []
+                      ).map((p) =>
                         p.name === projectName
                           ? {
                               ...p,

@@ -34,7 +34,7 @@ export function CreatePRDialog({
   const [submitting, setSubmitting] = React.useState(false);
   const [branches, setBranches] = React.useState<string[]>([]);
   const [currentBranch, setCurrentBranch] = React.useState("");
-  
+
   // Form State
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
@@ -48,11 +48,15 @@ export function CreatePRDialog({
     setError(null);
     try {
       // Fetch available branches
-      const branchesRes = await fetch(`/api/github?action=branches&path=${encodeURIComponent(repoPath)}`);
+      const branchesRes = await fetch(
+        `/api/github?action=branches&path=${encodeURIComponent(repoPath)}`,
+      );
       const branchesData = await branchesRes.json();
-      
+
       // Fetch current branch
-      const currentRes = await fetch(`/api/github?action=current-branch&path=${encodeURIComponent(repoPath)}`);
+      const currentRes = await fetch(
+        `/api/github?action=current-branch&path=${encodeURIComponent(repoPath)}`,
+      );
       const currentData = await currentRes.json();
 
       if (branchesData.branches) {
@@ -61,16 +65,16 @@ export function CreatePRDialog({
       if (currentData.branch) {
         setCurrentBranch(currentData.branch);
         setSourceBranch(currentData.branch);
-        
+
         // Auto-generate title from branch name if empty
         if (!title) {
-            // humanize branch name: feature/foo-bar -> Foo Bar
-            const humanized = currentData.branch
-                .split('/')
-                .pop()
-                .replace(/-/g, ' ')
-                .replace(/^\w/, (c: string) => c.toUpperCase());
-            setTitle(humanized);
+          // humanize branch name: feature/foo-bar -> Foo Bar
+          const humanized = currentData.branch
+            .split("/")
+            .pop()
+            .replace(/-/g, " ")
+            .replace(/^\w/, (c: string) => c.toUpperCase());
+          setTitle(humanized);
         }
       }
     } catch (err) {
@@ -109,7 +113,7 @@ export function CreatePRDialog({
       });
 
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || "Failed to create PR");
       }
@@ -140,9 +144,9 @@ export function CreatePRDialog({
         </DialogHeader>
 
         {loading ? (
-           <div className="flex justify-center py-8">
-             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-           </div>
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             {error && (
@@ -152,40 +156,44 @@ export function CreatePRDialog({
             )}
 
             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <Label>Source Branch (Head)</Label>
-                 <Select value={sourceBranch} onValueChange={setSourceBranch}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {branches.map(b => (
-                            <SelectItem key={b} value={b}>{b}</SelectItem>
-                        ))}
-                    </SelectContent>
-                 </Select>
-               </div>
-               <div className="space-y-2">
-                 <Label>Target Branch (Base)</Label>
-                 <Select value={targetBranch} onValueChange={setTargetBranch}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {branches.map(b => (
-                            <SelectItem key={b} value={b}>{b}</SelectItem>
-                        ))}
-                    </SelectContent>
-                 </Select>
-               </div>
+              <div className="space-y-2">
+                <Label>Source Branch (Head)</Label>
+                <Select value={sourceBranch} onValueChange={setSourceBranch}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target Branch (Base)</Label>
+                <Select value={targetBranch} onValueChange={setTargetBranch}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
-              <Input 
-                id="title" 
-                value={title} 
-                onChange={e => setTitle(e.target.value)} 
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 placeholder="Brief summary of changes"
                 required
               />
@@ -193,34 +201,40 @@ export function CreatePRDialog({
 
             <div className="space-y-2">
               <Label htmlFor="body">Description</Label>
-              <Textarea 
-                id="body" 
-                value={body} 
-                onChange={e => setBody(e.target.value)} 
+              <Textarea
+                id="body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
                 placeholder="Describe your changes..."
                 className="min-h-[150px]"
               />
             </div>
 
             <div className="flex items-center space-x-2">
-                <input
-                    type="checkbox"
-                    id="draft" 
-                    checked={isDraft} 
-                    onChange={(e) => setIsDraft(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <Label htmlFor="draft" className="font-normal cursor-pointer">
-                    Create as Draft
-                </Label>
+              <input
+                type="checkbox"
+                id="draft"
+                checked={isDraft}
+                onChange={(e) => setIsDraft(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <Label htmlFor="draft" className="font-normal cursor-pointer">
+                Create as Draft
+              </Label>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting || !title}>
-                {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {submitting && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
                 Create Pull Request
               </Button>
             </div>

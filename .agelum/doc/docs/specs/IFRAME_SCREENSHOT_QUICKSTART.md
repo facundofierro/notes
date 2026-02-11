@@ -7,21 +7,25 @@ You can now capture screenshots of webpages embedded in the browser panel withou
 ## How to Use
 
 ### 1. Open the Browser Panel
+
 - Go to the "Browser" view in the main navigation
 - Enter a URL (any website or your local app)
 
 ### 2. Capture a Screenshot
+
 - Click the camera icon in the right panel
 - The screenshot will be captured directly from the iframe
 - No permission dialog will appear
 
 ### 3. Annotate the Screenshot
+
 - Use the toolbar buttons to add annotations:
   - **Modify** (orange box): Mark areas that need changes
   - **Move** (blue circle): Mark areas to move
   - **Remove** (red box): Mark areas to delete
 
 ### 4. Create a Task
+
 - Click on an annotation to add instructions
 - Click "Create Task" to save with annotations
 - The task will include your annotated screenshot
@@ -38,6 +42,7 @@ You can now capture screenshots of webpages embedded in the browser panel withou
 ### Supported Capture Methods
 
 The system tries these methods in order:
+
 1. **html2canvas** - Best quality if available
 2. **Canvas viewport capture** - Default fallback
 3. **Basic fallback** - Last resort
@@ -45,6 +50,7 @@ The system tries these methods in order:
 ### For Better Screenshots
 
 Add this to pages you want to embed for best quality:
+
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 ```
@@ -52,6 +58,7 @@ Add this to pages you want to embed for best quality:
 ## Common Scenarios
 
 ### Scenario 1: Capturing Your Local App
+
 ```
 1. Start your app (e.g., npm run dev)
 2. Get the URL (usually http://localhost:3000 or similar)
@@ -60,6 +67,7 @@ Add this to pages you want to embed for best quality:
 ```
 
 ### Scenario 2: Capturing External Websites
+
 ```
 1. Enter any website URL
 2. The iframe will show the website
@@ -68,7 +76,9 @@ Add this to pages you want to embed for best quality:
 ```
 
 ### Scenario 3: Falls Back to Display Capture
+
 If the iframe capture fails for any reason:
+
 1. The "Capture Screen" button can still use full-screen capture
 2. Use `navigator.mediaDevices.getDisplayMedia()` (may show permission dialog)
 3. You can then annotate the full screen
@@ -76,28 +86,36 @@ If the iframe capture fails for any reason:
 ## Troubleshooting
 
 ### Screenshot is blank or shows placeholder text
+
 **Cause**: html2canvas not available and viewport capture used
 **Solution**:
+
 - Add html2canvas library to your embedded page
 - Or make sure content is in the visible viewport
 
 ### Capture takes too long or times out
+
 **Cause**: Large page or performance issues
 **Solution**:
+
 - Try scrolling the iframe to show the area you want
 - Wait for the page to fully load
 - Reduce page complexity if possible
 
 ### Cross-origin errors in console
+
 **Cause**: Iframe and parent are from different origins
 **Solution**:
+
 - This is expected and safe
 - Viewport capture will still work
 - Full-page capture may be limited
 
 ### Script injection failed message
+
 **Cause**: Browser or iframe security policy
 **Solution**:
+
 - Check browser console for details
 - Ensure iframe allows scripts
 - Try a different URL
@@ -105,6 +123,7 @@ If the iframe capture fails for any reason:
 ## File Structure
 
 New files added:
+
 ```
 apps/web/src/
 ├── components/
@@ -117,6 +136,7 @@ public/
 ```
 
 Modified files:
+
 ```
 apps/web/src/app/page.tsx               # Added injector component
 ```
@@ -124,6 +144,7 @@ apps/web/src/app/page.tsx               # Added injector component
 ## API Reference
 
 ### IframeCaptureInjector Props
+
 ```typescript
 interface IframeCaptureInjectorProps {
   iframeRef: React.RefObject<HTMLIFrameElement>;
@@ -131,6 +152,7 @@ interface IframeCaptureInjectorProps {
 ```
 
 ### Message Format
+
 ```javascript
 // Request
 {

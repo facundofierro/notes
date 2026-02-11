@@ -1,5 +1,10 @@
 import * as React from "react";
-import type { TestScenario, TestCenterView, TestExecution, TestExecutionSummary } from "./types";
+import type {
+  TestScenario,
+  TestCenterView,
+  TestExecution,
+  TestExecutionSummary,
+} from "./types";
 
 export function useTestsState() {
   // Tests list
@@ -7,8 +12,12 @@ export function useTestsState() {
   const [loading, setLoading] = React.useState(true);
 
   // Selection & view
-  const [selectedTestId, setSelectedTestId] = React.useState<string | null>(null);
-  const [centerView, setCenterView] = React.useState<TestCenterView>({ kind: "dashboard" });
+  const [selectedTestId, setSelectedTestId] = React.useState<string | null>(
+    null,
+  );
+  const [centerView, setCenterView] = React.useState<TestCenterView>({
+    kind: "dashboard",
+  });
 
   // Sidebar resize
   const [sidebarWidth, setSidebarWidth] = React.useState(280);
@@ -21,12 +30,18 @@ export function useTestsState() {
   // Execution streaming
   const [isRunning, setIsRunning] = React.useState(false);
   const [runningTestId, setRunningTestId] = React.useState<string | null>(null);
-  const [currentExecutionId, setCurrentExecutionId] = React.useState<string | null>(null);
+  const [currentExecutionId, setCurrentExecutionId] = React.useState<
+    string | null
+  >(null);
   const [executionLogs, setExecutionLogs] = React.useState<string[]>([]);
-  const [executionScreenshots, setExecutionScreenshots] = React.useState<string[]>([]);
+  const [executionScreenshots, setExecutionScreenshots] = React.useState<
+    string[]
+  >([]);
 
   // Execution history
-  const [executions, setExecutions] = React.useState<TestExecutionSummary[]>([]);
+  const [executions, setExecutions] = React.useState<TestExecutionSummary[]>(
+    [],
+  );
   const [executionsLoading, setExecutionsLoading] = React.useState(false);
 
   // --- Fetch tests ---
@@ -53,7 +68,9 @@ export function useTestsState() {
   const fetchExecutions = React.useCallback(async (testId?: string) => {
     setExecutionsLoading(true);
     try {
-      const url = testId ? `/api/tests/executions?testId=${testId}` : "/api/tests/executions";
+      const url = testId
+        ? `/api/tests/executions?testId=${testId}`
+        : "/api/tests/executions";
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -68,7 +85,7 @@ export function useTestsState() {
 
   // --- Fetch groups ---
   const [groups, setGroups] = React.useState<string[]>([]);
-  
+
   const fetchGroups = React.useCallback(async () => {
     try {
       const res = await fetch("/api/tests/groups");
@@ -85,22 +102,25 @@ export function useTestsState() {
     fetchGroups();
   }, [fetchGroups]);
 
-  const createGroup = React.useCallback(async (name: string) => {
-    try {
-      const res = await fetch("/api/tests/groups", {
-        method: "POST",
-        body: JSON.stringify({ name }),
-        headers: { "Content-Type": "application/json" }
-      });
-      if (res.ok) {
-        await fetchGroups();
-        return true;
+  const createGroup = React.useCallback(
+    async (name: string) => {
+      try {
+        const res = await fetch("/api/tests/groups", {
+          method: "POST",
+          body: JSON.stringify({ name }),
+          headers: { "Content-Type": "application/json" },
+        });
+        if (res.ok) {
+          await fetchGroups();
+          return true;
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-    }
-    return false;
-  }, [fetchGroups]);
+      return false;
+    },
+    [fetchGroups],
+  );
 
   // --- Sidebar resize ---
   const startResizing = React.useCallback(() => {
@@ -120,7 +140,7 @@ export function useTestsState() {
         }
       }
     },
-    [isResizing]
+    [isResizing],
   );
 
   React.useEffect(() => {
@@ -138,11 +158,14 @@ export function useTestsState() {
     setCenterView({ kind: "record", testId });
   }, []);
 
-  const stopRecording = React.useCallback((testId: string) => {
-    setIsRecording(false);
-    setCenterView({ kind: "detail", testId });
-    fetchTests();
-  }, [fetchTests]);
+  const stopRecording = React.useCallback(
+    (testId: string) => {
+      setIsRecording(false);
+      setCenterView({ kind: "detail", testId });
+      fetchTests();
+    },
+    [fetchTests],
+  );
 
   // --- Navigation ---
   const selectTest = React.useCallback((test: TestScenario) => {
@@ -157,121 +180,141 @@ export function useTestsState() {
     fetchExecutions();
   }, [fetchTests, fetchExecutions]);
 
-  const openExecution = React.useCallback((executionId: string, testId: string) => {
-    setCenterView({ kind: "execution", executionId, testId });
-  }, []);
+  const openExecution = React.useCallback(
+    (executionId: string, testId: string) => {
+      setCenterView({ kind: "execution", executionId, testId });
+    },
+    [],
+  );
 
   // --- CRUD ---
-  const createTest = React.useCallback(async (name?: string, group?: string) => {
-    try {
-      const res = await fetch("/api/tests", {
-        method: "POST",
-        body: JSON.stringify({ name: name || "Untitled Test", group: group || "EXPERIMENTAL", steps: [] }),
-        headers: { "Content-Type": "application/json" }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        await fetchTests();
-        setSelectedTestId(data.id);
-        setCenterView({ kind: "detail", testId: data.id });
-        return data;
+  const createTest = React.useCallback(
+    async (name?: string, group?: string) => {
+      try {
+        const res = await fetch("/api/tests", {
+          method: "POST",
+          body: JSON.stringify({
+            name: name || "Untitled Test",
+            group: group || "EXPERIMENTAL",
+            steps: [],
+          }),
+          headers: { "Content-Type": "application/json" },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          await fetchTests();
+          setSelectedTestId(data.id);
+          setCenterView({ kind: "detail", testId: data.id });
+          return data;
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-    }
-    return null;
-  }, [fetchTests]);
+      return null;
+    },
+    [fetchTests],
+  );
 
-  const deleteTest = React.useCallback(async (id: string) => {
-    try {
-      await fetch(`/api/tests/${id}`, { method: "DELETE" });
-      if (selectedTestId === id) {
-        goToDashboard();
+  const deleteTest = React.useCallback(
+    async (id: string) => {
+      try {
+        await fetch(`/api/tests/${id}`, { method: "DELETE" });
+        if (selectedTestId === id) {
+          goToDashboard();
+        }
+        await fetchTests();
+      } catch (e) {
+        console.error(e);
       }
-      await fetchTests();
-    } catch (e) {
-      console.error(e);
-    }
-  }, [selectedTestId, goToDashboard, fetchTests]);
+    },
+    [selectedTestId, goToDashboard, fetchTests],
+  );
 
   // --- Run test ---
-  const runTest = React.useCallback(async (testId: string) => {
-    if (isRunning) return;
-    setIsRunning(true);
-    setRunningTestId(testId);
-    setExecutionLogs([]);
-    setExecutionScreenshots([]);
-    setCurrentExecutionId(null);
+  const runTest = React.useCallback(
+    async (testId: string) => {
+      if (isRunning) return;
+      setIsRunning(true);
+      setRunningTestId(testId);
+      setExecutionLogs([]);
+      setExecutionScreenshots([]);
+      setCurrentExecutionId(null);
 
-    try {
-      const res = await fetch("/api/tests/execute", {
-        method: "POST",
-        body: JSON.stringify({ id: testId }),
-        headers: { "Content-Type": "application/json" }
-      });
+      try {
+        const res = await fetch("/api/tests/execute", {
+          method: "POST",
+          body: JSON.stringify({ id: testId }),
+          headers: { "Content-Type": "application/json" },
+        });
 
-      const execId = res.headers.get("X-Execution-Id");
-      if (execId) {
-        setCurrentExecutionId(execId);
-        setCenterView({ kind: "execution", executionId: execId, testId });
-      }
+        const execId = res.headers.get("X-Execution-Id");
+        if (execId) {
+          setCurrentExecutionId(execId);
+          setCenterView({ kind: "execution", executionId: execId, testId });
+        }
 
-      const reader = res.body?.getReader();
-      if (!reader) return;
+        const reader = res.body?.getReader();
+        if (!reader) return;
 
-      const decoder = new TextDecoder();
-      let buffer = "";
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
 
-        const lines = buffer.split("\n");
-        const lastPart = lines.pop();
-        buffer = lastPart !== undefined ? lastPart : "";
+          const lines = buffer.split("\n");
+          const lastPart = lines.pop();
+          buffer = lastPart !== undefined ? lastPart : "";
 
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          setExecutionLogs(prev => [...prev, line]);
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            setExecutionLogs((prev) => [...prev, line]);
 
-          try {
-            const jsonMatch = line.match(/^\{.*\}$/);
-            if (jsonMatch) {
-              const event = JSON.parse(jsonMatch[0]);
-              if (event.type === "exec_start" && event.executionId) {
-                setCurrentExecutionId(event.executionId);
-                if (!execId) {
-                  setCenterView({ kind: "execution", executionId: event.executionId, testId });
+            try {
+              const jsonMatch = line.match(/^\{.*\}$/);
+              if (jsonMatch) {
+                const event = JSON.parse(jsonMatch[0]);
+                if (event.type === "exec_start" && event.executionId) {
+                  setCurrentExecutionId(event.executionId);
+                  if (!execId) {
+                    setCenterView({
+                      kind: "execution",
+                      executionId: event.executionId,
+                      testId,
+                    });
+                  }
+                }
+                if (event.type === "screenshot" && event.path) {
+                  const parts = event.path.split(".agelum/tests/runs/");
+                  if (parts.length > 1) {
+                    const url = `/api/tests/artifacts/${parts[1]}`;
+                    setExecutionScreenshots((prev) => [...prev, url]);
+                  }
                 }
               }
-              if (event.type === "screenshot" && event.path) {
-                const parts = event.path.split(".agelum/tests/runs/");
-                if (parts.length > 1) {
-                  const url = `/api/tests/artifacts/${parts[1]}`;
-                  setExecutionScreenshots(prev => [...prev, url]);
-                }
-              }
+            } catch {
+              // not JSON
             }
-          } catch {
-            // not JSON
           }
         }
+      } catch (e: any) {
+        setExecutionLogs((prev) => [...prev, `Error: ${e.message}`]);
+      } finally {
+        setIsRunning(false);
+        setRunningTestId(null);
+        // Refresh executions after run
+        fetchExecutions(testId);
       }
-    } catch (e: any) {
-      setExecutionLogs(prev => [...prev, `Error: ${e.message}`]);
-    } finally {
-      setIsRunning(false);
-      setRunningTestId(null);
-      // Refresh executions after run
-      fetchExecutions(testId);
-    }
-  }, [isRunning, fetchExecutions]);
+    },
+    [isRunning, fetchExecutions],
+  );
 
   // Selected test object
   const selectedTest = React.useMemo(() => {
-    return tests.find(t => t.id === selectedTestId) || null;
+    return tests.find((t) => t.id === selectedTestId) || null;
   }, [tests, selectedTestId]);
 
   return {

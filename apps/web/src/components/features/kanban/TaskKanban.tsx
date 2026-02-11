@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   KanbanBoard,
   type KanbanCardType,
@@ -16,13 +11,7 @@ interface Task {
   id: string;
   title: string;
   description: string;
-  state:
-    | "backlog"
-    | "priority"
-    | "fixes"
-    | "pending"
-    | "doing"
-    | "done";
+  state: "backlog" | "priority" | "fixes" | "pending" | "doing" | "done";
   createdAt: string;
   epic?: string;
   assignee?: string;
@@ -65,9 +54,7 @@ const columns: KanbanColumnType[] = [
 interface TaskKanbanProps {
   repo: string;
   onTaskSelect: (task: Task) => void;
-  onCreateTask?: (opts: {
-    state: Task["state"];
-  }) => void;
+  onCreateTask?: (opts: { state: Task["state"] }) => void;
 }
 
 export default function TaskKanban({
@@ -75,31 +62,23 @@ export default function TaskKanban({
   onTaskSelect,
   onCreateTask,
 }: TaskKanbanProps) {
-  const [tasks, setTasks] = useState<
-    Task[]
-  >([]);
-  const [refreshKey, setRefreshKey] =
-    useState(0);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchTasks =
-    useCallback(async () => {
-      const res = await fetch(
-        `/api/tasks?repo=${encodeURIComponent(repo)}`,
-      );
-      const data = await res.json();
-      setTasks(data.tasks || []);
-    }, [repo]);
+  const fetchTasks = useCallback(async () => {
+    const res = await fetch(`/api/tasks?repo=${encodeURIComponent(repo)}`);
+    const data = await res.json();
+    setTasks(data.tasks || []);
+  }, [repo]);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks, refreshKey]);
 
-  const cards = useMemo<
-    KanbanCardType[]
-  >(() => {
+  const cards = useMemo<KanbanCardType[]>(() => {
     // Separate tasks by column to handle 'done' specially
-    const otherTasks = tasks.filter(t => t.state !== 'done');
-    let doneTasks = tasks.filter(t => t.state === 'done');
+    const otherTasks = tasks.filter((t) => t.state !== "done");
+    let doneTasks = tasks.filter((t) => t.state === "done");
 
     // Sort done tasks by timestamp in title (descending)
     // Format: YY_MM_DD-HHMMSS-TaskName
@@ -114,7 +93,7 @@ export default function TaskKanban({
           parseInt(day),
           parseInt(hour),
           parseInt(minute),
-          parseInt(second)
+          parseInt(second),
         );
         return date.getTime();
       }
@@ -122,8 +101,10 @@ export default function TaskKanban({
     };
 
     doneTasks = doneTasks.sort((a, b) => {
-      const dateA = parseDateFromTitle(a.title) || new Date(a.createdAt).getTime();
-      const dateB = parseDateFromTitle(b.title) || new Date(b.createdAt).getTime();
+      const dateA =
+        parseDateFromTitle(a.title) || new Date(a.createdAt).getTime();
+      const dateB =
+        parseDateFromTitle(b.title) || new Date(b.createdAt).getTime();
       return dateB - dateA; // Newest first
     });
 
@@ -136,79 +117,62 @@ export default function TaskKanban({
     // For other columns, we keep existing order (based on index in original list effectively)
     // actually original code used `index` as order which is implicitly the creation/fetch order
     // We should map them to KanbanCardType
-    
+
     return allVisibleTasks.map((task, index) => ({
       id: task.id,
       title: task.title,
       description: [
         task.description,
-        task.epic
-          ? `Epic: ${task.epic}`
-          : null,
-        task.assignee
-          ? `Assignee: ${task.assignee}`
-          : null,
+        task.epic ? `Epic: ${task.epic}` : null,
+        task.assignee ? `Assignee: ${task.assignee}` : null,
       ]
         .filter(Boolean)
         .join("\n"),
       columnId: task.state,
-      order: task.state === 'done' ? index : index, // Order matters most within column
+      order: task.state === "done" ? index : index, // Order matters most within column
     }));
   }, [tasks]);
 
   const handleAddCard = useCallback(
     (columnId: string) => {
       onCreateTask?.({
-        state:
-          columnId as Task["state"],
+        state: columnId as Task["state"],
       });
     },
     [onCreateTask],
   );
 
   const handleCardMove = useCallback(
-    async (
-      cardId: string,
-      fromState: string,
-      toState: string,
-    ) => {
+    async (cardId: string, fromState: string, toState: string) => {
       setTasks((prev) =>
         prev.map((t) =>
           t.id === cardId
             ? {
                 ...t,
-                state:
-                  toState as Task["state"],
+                state: toState as Task["state"],
               }
             : t,
         ),
       );
 
-      const res = await fetch(
-        "/api/tasks",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            repo,
-            action: "move",
-            taskId: cardId,
-            fromState,
-            toState,
-          }),
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          repo,
+          action: "move",
+          taskId: cardId,
+          fromState,
+          toState,
+        }),
+      });
 
       if (!res.ok) {
         setRefreshKey((k) => k + 1);
         const data = await res.json();
-        throw new Error(
-          data.error ||
-            "Failed to move task",
-        );
+        throw new Error(data.error || "Failed to move task");
       }
 
       setRefreshKey((k) => k + 1);
@@ -223,20 +187,12 @@ export default function TaskKanban({
         cards={cards}
         onAddCard={handleAddCard}
         onCardMove={handleCardMove}
-        onCardClick={(
-          card: KanbanCardType,
-        ) => {
-          const task = tasks.find(
-            (t) => t.id === card.id,
-          );
+        onCardClick={(card: KanbanCardType) => {
+          const task = tasks.find((t) => t.id === card.id);
           if (task) onTaskSelect(task);
         }}
-        onCardEdit={(
-          card: KanbanCardType,
-        ) => {
-          const task = tasks.find(
-            (t) => t.id === card.id,
-          );
+        onCardEdit={(card: KanbanCardType) => {
+          const task = tasks.find((t) => t.id === card.id);
           if (task) onTaskSelect(task);
         }}
         key={refreshKey}

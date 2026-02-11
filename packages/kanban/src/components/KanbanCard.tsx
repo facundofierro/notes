@@ -1,22 +1,18 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import {
-  Calendar,
-  AlertCircle,
-  Clock,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import * as React from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Calendar, AlertCircle, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
-import type { KanbanCard as KanbanCardType, KanbanColumnColor } from '@/types';
+} from "@/components/ui/tooltip";
+import type { KanbanCard as KanbanCardType, KanbanColumnColor } from "@/types";
 
 interface KanbanCardProps {
   card: KanbanCardType;
@@ -28,17 +24,17 @@ interface KanbanCardProps {
 }
 
 const priorityConfig = {
-  low: { label: 'Low', color: 'text-muted-foreground' },
-  medium: { label: 'Medium', color: 'text-blue-500' },
-  high: { label: 'High', color: 'text-orange-500' },
-  urgent: { label: 'Urgent', color: 'text-red-500' },
+  low: { label: "Low", color: "text-muted-foreground" },
+  medium: { label: "Medium", color: "text-blue-500" },
+  high: { label: "High", color: "text-orange-500" },
+  urgent: { label: "Urgent", color: "text-red-500" },
 };
 
 function getInitials(name: string): string {
   return name
-    .split(' ')
+    .split(" ")
     .map((n) => n[0])
-    .join('')
+    .join("")
     .toUpperCase()
     .slice(0, 2);
 }
@@ -51,13 +47,13 @@ function formatDate(date: Date): string {
   if (diffDays < 0) {
     return `${Math.abs(diffDays)}d overdue`;
   } else if (diffDays === 0) {
-    return 'Today';
+    return "Today";
   } else if (diffDays === 1) {
-    return 'Tomorrow';
+    return "Tomorrow";
   } else if (diffDays <= 7) {
     return `${diffDays}d`;
   } else {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 }
 
@@ -75,16 +71,16 @@ function parseTaskTitle(title: string) {
       parseInt(day),
       parseInt(hour),
       parseInt(minute),
-      parseInt(second)
+      parseInt(second),
     );
-    
+
     // Format date nicely: Feb 7, 09:21 AM
-    const formattedDate = date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+    const formattedDate = date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
     });
 
     return {
@@ -114,7 +110,7 @@ export function KanbanCard({
   } = useSortable({
     id: card.id,
     data: {
-      type: 'card',
+      type: "card",
       card,
     },
   });
@@ -127,32 +123,33 @@ export function KanbanCard({
 
   const isCurrentlyDragging = isDragging || isSortableDragging;
   const isOverdue = card.dueDate && new Date(card.dueDate) < new Date();
-  
+
   /* Only parse date for 'done' column as requested */
-  const { displayTitle, parsedDate } = (card.columnId === 'done') 
-    ? parseTaskTitle(card.title)
-    : { displayTitle: card.title, parsedDate: null };
+  const { displayTitle, parsedDate } =
+    card.columnId === "done"
+      ? parseTaskTitle(card.title)
+      : { displayTitle: card.title, parsedDate: null };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group relative flex flex-col gap-2.5 rounded-xl p-3.5 transition-all duration-200',
-        'bg-card',
-        'border border-border',
-        'shadow-sm shadow-black/10',
-        'hover:shadow-lg hover:shadow-black/20 hover:border-muted-foreground/60 hover:bg-secondary',
-        isCurrentlyDragging && 'opacity-50 shadow-xl scale-[1.02] ring-2 ring-blue-500/40 border-blue-500/30',
-        isOverlay && 'rotate-2 shadow-2xl scale-105 border-blue-400/50',
-        onClick && 'cursor-pointer',
-        !isCurrentlyDragging && 'cursor-grab active:cursor-grabbing'
+        "group relative flex flex-col gap-2.5 rounded-xl p-3.5 transition-all duration-200",
+        "bg-card",
+        "border border-border",
+        "shadow-sm shadow-black/10",
+        "hover:shadow-lg hover:shadow-black/20 hover:border-muted-foreground/60 hover:bg-secondary",
+        isCurrentlyDragging &&
+          "opacity-50 shadow-xl scale-[1.02] ring-2 ring-blue-500/40 border-blue-500/30",
+        isOverlay && "rotate-2 shadow-2xl scale-105 border-blue-400/50",
+        onClick && "cursor-pointer",
+        !isCurrentlyDragging && "cursor-grab active:cursor-grabbing",
       )}
       onClick={() => onClick?.(card)}
       {...attributes}
       {...listeners}
     >
-
       {/* Labels */}
       {card.labels && card.labels.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -177,7 +174,9 @@ export function KanbanCard({
       )}
 
       {/* Title */}
-      <h4 className="text-[13px] font-medium leading-snug text-foreground">{displayTitle}</h4>
+      <h4 className="text-[13px] font-medium leading-snug text-foreground">
+        {displayTitle}
+      </h4>
 
       {/* Description */}
       {card.description && (
@@ -187,14 +186,21 @@ export function KanbanCard({
       )}
 
       {/* Footer: Priority, Due Date, Assignees */}
-      {(card.priority || card.dueDate || (card.assignees && card.assignees.length > 0)) && (
+      {(card.priority ||
+        card.dueDate ||
+        (card.assignees && card.assignees.length > 0)) && (
         <div className="flex items-center justify-between gap-2 pt-1.5 mt-0.5">
           <div className="flex items-center gap-2.5">
             {/* Priority */}
             {card.priority && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className={cn('flex items-center', priorityConfig[card.priority].color)}>
+                  <div
+                    className={cn(
+                      "flex items-center",
+                      priorityConfig[card.priority].color,
+                    )}
+                  >
                     <AlertCircle className="h-3 w-3" />
                   </div>
                 </TooltipTrigger>
@@ -210,8 +216,10 @@ export function KanbanCard({
                 <TooltipTrigger asChild>
                   <div
                     className={cn(
-                      'flex items-center gap-1 text-[11px]',
-                      isOverdue ? 'text-destructive' : 'text-muted-foreground/70'
+                      "flex items-center gap-1 text-[11px]",
+                      isOverdue
+                        ? "text-destructive"
+                        : "text-muted-foreground/70",
                     )}
                   >
                     <Calendar className="h-3 w-3" />
@@ -233,14 +241,19 @@ export function KanbanCard({
                   <TooltipTrigger asChild>
                     <Avatar className="h-5 w-5 border-2 border-card rounded-full">
                       {assignee.avatar && (
-                        <AvatarImage src={assignee.avatar} alt={assignee.name} />
+                        <AvatarImage
+                          src={assignee.avatar}
+                          alt={assignee.name}
+                        />
                       )}
                       <AvatarFallback className="text-[9px] bg-muted/80">
                         {getInitials(assignee.name)}
                       </AvatarFallback>
                     </Avatar>
                   </TooltipTrigger>
-                  <TooltipContent className="rounded-lg">{assignee.name}</TooltipContent>
+                  <TooltipContent className="rounded-lg">
+                    {assignee.name}
+                  </TooltipContent>
                 </Tooltip>
               ))}
               {card.assignees.length > 3 && (
@@ -256,7 +269,7 @@ export function KanbanCard({
                     {card.assignees
                       .slice(3)
                       .map((a) => a.name)
-                      .join(', ')}
+                      .join(", ")}
                   </TooltipContent>
                 </Tooltip>
               )}

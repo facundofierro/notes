@@ -13,12 +13,18 @@ import { UserSettings } from "@/hooks/use-settings";
 
 interface SettingsDefaultsProps {
   settings: UserSettings;
-  onChange: <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => void;
+  onChange: <K extends keyof UserSettings>(
+    key: K,
+    value: UserSettings[K],
+  ) => void;
 }
 
 type ViewMode = UserSettings["defaultView"];
 
-export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) {
+export function SettingsDefaults({
+  settings,
+  onChange,
+}: SettingsDefaultsProps) {
   const viewModeOptions: { value: ViewMode; label: string }[] = [
     { value: "ideas", label: "Ideas" },
     { value: "docs", label: "Docs" },
@@ -34,7 +40,9 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-white mb-4">Default Configuration</h3>
+        <h3 className="text-lg font-medium text-white mb-4">
+          Default Configuration
+        </h3>
         <p className="text-sm text-muted-foreground">
           Set default settings for projects.
         </p>
@@ -159,7 +167,10 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         </div>
 
         <div className="flex items-center justify-between py-2">
-          <Label htmlFor="wordWrap" className="text-muted-foreground cursor-pointer">
+          <Label
+            htmlFor="wordWrap"
+            className="text-muted-foreground cursor-pointer"
+          >
             Word Wrap
           </Label>
           <Switch
@@ -209,7 +220,10 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
           <Select
             value={settings.defaultWorkflowId || "default"}
             onValueChange={(value) =>
-              onChange("defaultWorkflowId", value === "default" ? undefined : value)
+              onChange(
+                "defaultWorkflowId",
+                value === "default" ? undefined : value,
+              )
             }
           >
             <SelectTrigger
@@ -244,7 +258,10 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
         </div>
 
         <div className="flex items-center justify-between py-2">
-          <Label htmlFor="autoSave" className="text-muted-foreground cursor-pointer">
+          <Label
+            htmlFor="autoSave"
+            className="text-muted-foreground cursor-pointer"
+          >
             Auto Save
           </Label>
           <Switch
@@ -253,15 +270,20 @@ export function SettingsDefaults({ settings, onChange }: SettingsDefaultsProps) 
             onCheckedChange={(checked) => onChange("autoSave", checked)}
           />
         </div>
-        
+
         <div className="flex items-center justify-between py-2">
-          <Label htmlFor="createBranchPerTask" className="text-muted-foreground cursor-pointer">
+          <Label
+            htmlFor="createBranchPerTask"
+            className="text-muted-foreground cursor-pointer"
+          >
             Create Branch per Task (Default)
           </Label>
           <Switch
             id="createBranchPerTask"
             checked={settings.createBranchPerTask}
-            onCheckedChange={(checked) => onChange("createBranchPerTask", checked)}
+            onCheckedChange={(checked) =>
+              onChange("createBranchPerTask", checked)
+            }
           />
         </div>
       </div>

@@ -19,13 +19,16 @@ const DEFAULT_GROUPS = [
 
 export async function GET() {
   try {
-    const existingFolders = fs.readdirSync(TEST_DIR, { withFileTypes: true })
-      .filter(item => item.isDirectory())
-      .map(item => item.name);
+    const existingFolders = fs
+      .readdirSync(TEST_DIR, { withFileTypes: true })
+      .filter((item) => item.isDirectory())
+      .map((item) => item.name);
 
     // Ensure default groups exist (case-insensitive check)
     for (const group of DEFAULT_GROUPS) {
-      const exists = existingFolders.some(f => f.toLowerCase() === group.toLowerCase());
+      const exists = existingFolders.some(
+        (f) => f.toLowerCase() === group.toLowerCase(),
+      );
       if (!exists) {
         const groupPath = path.join(TEST_DIR, group);
         fs.mkdirSync(groupPath, { recursive: true });
@@ -41,7 +44,10 @@ export async function GET() {
     return NextResponse.json(groups);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Failed to list groups" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to list groups" },
+      { status: 500 },
+    );
   }
 }
 
@@ -60,6 +66,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ name });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Failed to create group" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create group" },
+      { status: 500 },
+    );
   }
 }

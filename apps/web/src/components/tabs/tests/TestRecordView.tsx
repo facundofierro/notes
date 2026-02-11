@@ -92,10 +92,10 @@ export function TestRecordView({
         // Left width = e.clientX - containerLeft
         const containerRect = containerRef.current.getBoundingClientRect();
         const mouseX = e.clientX - containerRect.left;
-        
+
         // Right width % = 100 - (mouseX / containerWidth * 100)
-        const newRightWidth = 100 - ((mouseX / containerWidth) * 100);
-        
+        const newRightWidth = 100 - (mouseX / containerWidth) * 100;
+
         // Constrain between 20% and 70%
         const constrainedWidth = Math.min(70, Math.max(20, newRightWidth));
         setRightPanelWidth(constrainedWidth);
@@ -108,7 +108,7 @@ export function TestRecordView({
     if (isResizing) {
       window.addEventListener("mousemove", resize);
       window.addEventListener("mouseup", stopResizing);
-    } 
+    }
     return () => {
       window.removeEventListener("mousemove", resize);
       window.removeEventListener("mouseup", stopResizing);
@@ -354,7 +354,10 @@ export function TestRecordView({
           command: "",
           args: [],
           instruction: recommendation.instruction,
-          description: recommendation.stepDescription || recommendation.instruction || prompt.trim(),
+          description:
+            recommendation.stepDescription ||
+            recommendation.instruction ||
+            prompt.trim(),
         };
         setRecordedSteps((prev) => [...prev, newStep]);
 
@@ -401,9 +404,10 @@ export function TestRecordView({
         setRecordedSteps((prev) => [...prev, newStep]);
 
         // 4. Persist the step
-        const fullCommand = [recommendation.command, ...recommendation.args].join(
-          " ",
-        );
+        const fullCommand = [
+          recommendation.command,
+          ...recommendation.args,
+        ].join(" ");
         await fetch(`/api/tests/${testId}/steps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -431,7 +435,10 @@ export function TestRecordView({
     try {
       const steps = recordedSteps.map((s) => {
         if (s.type === "prompt") {
-          return { action: "prompt", instruction: s.instruction || s.description };
+          return {
+            action: "prompt",
+            instruction: s.instruction || s.description,
+          };
         }
         return { action: "command", command: [s.command, ...s.args].join(" ") };
       });
@@ -491,27 +498,24 @@ export function TestRecordView({
       </div>
 
       {/* Main content */}
-      <div 
-        ref={containerRef}
-        className="flex-1 flex overflow-hidden relative"
-      >
+      <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
         {/* Left: Preview & Snapshot (Resizable) */}
-        <div 
+        <div
           className="flex flex-col border-r border-white/[0.04] overflow-hidden bg-zinc-950/50"
           style={{ flexBasis: `${100 - rightPanelWidth}%` }}
         >
           <Tabs defaultValue="preview" className="flex-1 flex flex-col h-full">
             <div className="px-4 py-2 border-b border-white/[0.04] flex items-center justify-between bg-zinc-950/80">
               <TabsList className="h-7 bg-white/[0.04] p-0.5">
-                <TabsTrigger 
-                  value="preview" 
+                <TabsTrigger
+                  value="preview"
                   className="h-6 text-[10px] px-3 data-[state=active]:bg-zinc-800"
                 >
                   <Eye className="w-3 h-3 mr-1.5" />
                   Preview
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="snapshot" 
+                <TabsTrigger
+                  value="snapshot"
                   className="h-6 text-[10px] px-3 data-[state=active]:bg-zinc-800"
                 >
                   <Code className="w-3 h-3 mr-1.5" />
@@ -527,7 +531,10 @@ export function TestRecordView({
               </TabsList>
             </div>
 
-            <TabsContent value="preview" className="flex-1 relative mt-0 overflow-auto p-4">
+            <TabsContent
+              value="preview"
+              className="flex-1 relative mt-0 overflow-auto p-4"
+            >
               <div className="flex items-center justify-center min-h-full">
                 {isInitializing && !screenshot ? (
                   <div className="flex flex-col items-center gap-3 text-zinc-500">
@@ -549,8 +556,11 @@ export function TestRecordView({
               </div>
             </TabsContent>
 
-            <TabsContent value="snapshot" className="flex-1 relative mt-0 overflow-hidden">
-               <ScrollArea className="h-full">
+            <TabsContent
+              value="snapshot"
+              className="flex-1 relative mt-0 overflow-hidden"
+            >
+              <ScrollArea className="h-full">
                 <pre className="p-4 text-[10px] font-mono text-zinc-400 whitespace-pre-wrap break-words">
                   {snapshot || "No snapshot captured yet."}
                 </pre>
@@ -563,7 +573,7 @@ export function TestRecordView({
         <div
           className={cn(
             "w-1 bg-zinc-900 border-x border-white/[0.02] cursor-col-resize hover:bg-zinc-700 transition-colors z-10 flex items-center justify-center",
-            isResizing && "bg-emerald-500/50 hover:bg-emerald-500/50"
+            isResizing && "bg-emerald-500/50 hover:bg-emerald-500/50",
           )}
           onMouseDown={startResizing}
         >
@@ -571,7 +581,7 @@ export function TestRecordView({
         </div>
 
         {/* Right: Steps & Prompt */}
-        <div 
+        <div
           className="flex flex-col overflow-hidden bg-zinc-900/20"
           style={{ flexBasis: `${rightPanelWidth}%` }}
         >
@@ -606,7 +616,9 @@ export function TestRecordView({
                             variant="outline"
                             className={cn(
                               "text-[9px] px-1 py-0 h-4 bg-white/[0.03] border-white/[0.06] flex-shrink-0",
-                              step.type === "prompt" ? "text-violet-400" : "text-emerald-400",
+                              step.type === "prompt"
+                                ? "text-violet-400"
+                                : "text-emerald-400",
                             )}
                           >
                             {step.type === "prompt" ? "prompt" : step.command}
@@ -626,13 +638,13 @@ export function TestRecordView({
 
           {/* User Input Area (Bottom) */}
           <div className="p-3 border-t border-white/[0.04] bg-zinc-950">
-             {/* Error display */}
+            {/* Error display */}
             {error && (
               <div className="mb-2 px-3 py-2 border border-red-500/20 bg-red-500/5 rounded-md">
                 <p className="text-[11px] text-red-400">{error}</p>
               </div>
             )}
-            
+
             <div className="flex overflow-hidden relative flex-col w-full rounded-xl border bg-white/[0.02] border-white/[0.08] focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
               <textarea
                 ref={promptRef}
@@ -649,21 +661,21 @@ export function TestRecordView({
               />
               <div className="flex justify-between items-center px-3 py-2 border-t border-white/[0.04] bg-white/[0.01]">
                 <div className="flex gap-3 items-center flex-1 mr-2 min-w-0">
-                   <div className="flex items-center gap-2 flex-shrink-0">
-                      <Label
-                        className="text-[10px] text-zinc-500 cursor-pointer"
-                        htmlFor="deterministic-toggle"
-                      >
-                        Deterministic
-                      </Label>
-                      <Switch
-                        id="deterministic-toggle"
-                        checked={deterministic}
-                        onCheckedChange={setDeterministic}
-                        className="scale-75 origin-left"
-                      />
-                    </div>
-                  
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Label
+                      className="text-[10px] text-zinc-500 cursor-pointer"
+                      htmlFor="deterministic-toggle"
+                    >
+                      Deterministic
+                    </Label>
+                    <Switch
+                      id="deterministic-toggle"
+                      checked={deterministic}
+                      onCheckedChange={setDeterministic}
+                      className="scale-75 origin-left"
+                    />
+                  </div>
+
                   <div className="w-[1px] h-4 bg-white/[0.08]" />
 
                   <Select
@@ -686,7 +698,7 @@ export function TestRecordView({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="flex gap-1 items-center">
                   <Button
                     size="sm"

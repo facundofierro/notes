@@ -1,5 +1,5 @@
-import * as React from 'react';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
+import * as React from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 declare const Dialog: typeof DialogPrimitive.Root;
 declare const DialogTrigger: typeof DialogPrimitive.Trigger;
@@ -16,8 +16,12 @@ declare const DialogContent: React.ForwardRefExoticComponent<
     React.RefAttributes<React.ElementRef<typeof DialogPrimitive.Content>>
 >;
 
-declare const DialogHeader: (props: React.HTMLAttributes<HTMLDivElement>) => JSX.Element;
-declare const DialogFooter: (props: React.HTMLAttributes<HTMLDivElement>) => JSX.Element;
+declare const DialogHeader: (
+  props: React.HTMLAttributes<HTMLDivElement>,
+) => JSX.Element;
+declare const DialogFooter: (
+  props: React.HTMLAttributes<HTMLDivElement>,
+) => JSX.Element;
 
 declare const DialogTitle: React.ForwardRefExoticComponent<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title> &
@@ -41,4 +45,3 @@ export {
   DialogTitle,
   DialogDescription,
 };
-

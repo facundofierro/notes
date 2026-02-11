@@ -15,7 +15,9 @@ function resolveTestPath(id: string): string | null {
         const p = path.join(TEST_DIR, entry.group, entry.folder, "test.json");
         if (fs.existsSync(p)) return p;
       }
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
   }
   // Fallback to flat file structure
   const flat = path.join(TEST_DIR, `${id}.json`);
@@ -25,7 +27,7 @@ function resolveTestPath(id: string): string | null {
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -47,7 +49,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -55,7 +57,10 @@ export async function POST(
 
     const step = await request.json();
     if (!step) {
-      return NextResponse.json({ error: "Step data is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Step data is required" },
+        { status: 400 },
+      );
     }
 
     const filePath = resolveTestPath(id);
@@ -82,7 +87,9 @@ export async function POST(
           entry.updatedAt = json.updatedAt;
           fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     return NextResponse.json(step);

@@ -20,69 +20,41 @@ interface Epic {
   path: string;
 }
 
-async function resolveRepoDirs(
-  repo: string,
-): Promise<{
+async function resolveRepoDirs(repo: string): Promise<{
   repoDir: string;
   primaryAgelumDir: string;
   legacyAgelumDir: string;
 }> {
-  const repoDir =
-    await resolveProjectPath(repo);
+  const repoDir = await resolveProjectPath(repo);
 
   if (!repoDir) {
-    throw new Error(
-      `Repository not found: ${repo}`,
-    );
+    throw new Error(`Repository not found: ${repo}`);
   }
 
   return {
     repoDir,
-    primaryAgelumDir: path.join(
-      repoDir,
-      ".agelum",
-    ),
-    legacyAgelumDir: path.join(
-      repoDir,
-      "agelum",
-    ),
+    primaryAgelumDir: path.join(repoDir, ".agelum"),
+    legacyAgelumDir: path.join(repoDir, "agelum"),
   };
 }
 
-async function resolveEpicsRoots(
-  repo: string,
-): Promise<{
+async function resolveEpicsRoots(repo: string): Promise<{
   primaryEpicsRoot: string;
   legacyEpicsRoot: string;
 }> {
-  const {
-    primaryAgelumDir,
-    legacyAgelumDir,
-  } = await resolveRepoDirs(repo);
+  const { primaryAgelumDir, legacyAgelumDir } = await resolveRepoDirs(repo);
   return {
-    primaryEpicsRoot: path.join(
-      primaryAgelumDir,
-      "work",
-      "epics",
-    ),
-    legacyEpicsRoot: path.join(
-      legacyAgelumDir,
-      "epics",
-    ),
+    primaryEpicsRoot: path.join(primaryAgelumDir, "work", "epics"),
+    legacyEpicsRoot: path.join(legacyAgelumDir, "epics"),
   };
 }
 
-function sanitizeFileBase(
-  input: string,
-): string {
+function sanitizeFileBase(input: string): string {
   return (
     input
       .trim()
       .replace(/[\\/]/g, "-")
-      .replace(
-        /[<>:"|?*\u0000-\u001F]/g,
-        "",
-      )
+      .replace(/[<>:"|?*\u0000-\u001F]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
       .replace(/^\.+/, "")
@@ -92,80 +64,41 @@ function sanitizeFileBase(
   );
 }
 
-function ensureEpicStructure(
-  agelumDir: string,
-) {
+function ensureEpicStructure(agelumDir: string) {
   const directories = [
-    path.join(
-      "work",
-      "epics",
-      "backlog",
-    ),
-    path.join(
-      "work",
-      "epics",
-      "fixes",
-    ),
-    path.join(
-      "work",
-      "epics",
-      "pending",
-    ),
+    path.join("work", "epics", "backlog"),
+    path.join("work", "epics", "fixes"),
+    path.join("work", "epics", "pending"),
     path.join("work", "epics", "doing"),
     path.join("work", "epics", "done"),
   ];
 
   for (const dir of directories) {
-    fs.mkdirSync(
-      path.join(agelumDir, dir),
-      { recursive: true },
-    );
+    fs.mkdirSync(path.join(agelumDir, dir), { recursive: true });
   }
 }
 
-function fileNameToId(
-  fileName: string,
-): string {
+function fileNameToId(fileName: string): string {
   return fileName.replace(".md", "");
 }
 
 function parseEpicFile(
   filePath: string,
-  state:
-    | "backlog"
-    | "priority"
-    | "fixes"
-    | "pending"
-    | "doing"
-    | "done",
+  state: "backlog" | "priority" | "fixes" | "pending" | "doing" | "done",
 ): Epic | null {
   try {
-    const content = fs.readFileSync(
-      filePath,
-      "utf-8",
-    );
-    const fileName =
-      path.basename(filePath);
+    const content = fs.readFileSync(filePath, "utf-8");
+    const fileName = path.basename(filePath);
     const stats = fs.statSync(filePath);
 
-    const frontmatterMatch =
-      content.match(
-        /^---\n([\s\S]*?)\n---/,
-      );
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
     let title = fileNameToId(fileName);
     let description = "";
 
     if (frontmatterMatch) {
-      const frontmatter =
-        frontmatterMatch[1];
-      const titleMatch =
-        frontmatter.match(
-          /title:\s*(.+)/,
-        );
-      description =
-        frontmatter.match(
-          /description:\s*(.+)/,
-        )?.[1] || "";
+      const frontmatter = frontmatterMatch[1];
+      const titleMatch = frontmatter.match(/title:\s*(.+)/);
+      description = frontmatter.match(/description:\s*(.+)/)?.[1] || "";
       if (titleMatch) {
         title = titleMatch[1].trim();
       }
@@ -176,8 +109,7 @@ function parseEpicFile(
       title,
       description,
       state,
-      createdAt:
-        stats.mtime.toISOString(),
+      createdAt: stats.mtime.toISOString(),
       path: filePath,
     };
   } catch {
@@ -185,25 +117,15 @@ function parseEpicFile(
   }
 }
 
-async function readEpics(
-  repo: string,
-): Promise<Epic[]> {
-  const { primaryAgelumDir } =
-    await resolveRepoDirs(repo);
+async function readEpics(repo: string): Promise<Epic[]> {
+  const { primaryAgelumDir } = await resolveRepoDirs(repo);
   ensureEpicStructure(primaryAgelumDir);
-  const {
-    primaryEpicsRoot,
-    legacyEpicsRoot,
-  } = await resolveEpicsRoots(repo);
+  const { primaryEpicsRoot, legacyEpicsRoot } = await resolveEpicsRoots(repo);
 
-  const epicsByPath = new Map<
-    string,
-    Epic
-  >();
-  const roots = [
-    primaryEpicsRoot,
-    legacyEpicsRoot,
-  ].filter((p) => fs.existsSync(p));
+  const epicsByPath = new Map<string, Epic>();
+  const roots = [primaryEpicsRoot, legacyEpicsRoot].filter((p) =>
+    fs.existsSync(p),
+  );
   const states = [
     "backlog",
     "priority",
@@ -215,33 +137,21 @@ async function readEpics(
 
   for (const epicsRoot of roots) {
     for (const state of states) {
-      const stateDir = path.join(
-        epicsRoot,
-        state,
-      );
-      if (!fs.existsSync(stateDir))
-        continue;
-      const files =
-        fs.readdirSync(stateDir);
+      const stateDir = path.join(epicsRoot, state);
+      if (!fs.existsSync(stateDir)) continue;
+      const files = fs.readdirSync(stateDir);
       for (const file of files) {
-        if (!file.endsWith(".md"))
-          continue;
+        if (!file.endsWith(".md")) continue;
         const epic = parseEpicFile(
           path.join(stateDir, file),
           state === "priority" ? "fixes" : state,
         );
-        if (epic)
-          epicsByPath.set(
-            epic.path,
-            epic,
-          );
+        if (epic) epicsByPath.set(epic.path, epic);
       }
     }
   }
 
-  return Array.from(
-    epicsByPath.values(),
-  );
+  return Array.from(epicsByPath.values());
 }
 
 async function createEpic(
@@ -252,11 +162,9 @@ async function createEpic(
     state?: string;
   },
 ): Promise<Epic> {
-  const { primaryAgelumDir } =
-    await resolveRepoDirs(repo);
+  const { primaryAgelumDir } = await resolveRepoDirs(repo);
   ensureEpicStructure(primaryAgelumDir);
-  const { primaryEpicsRoot } =
-    await resolveEpicsRoots(repo);
+  const { primaryEpicsRoot } = await resolveEpicsRoots(repo);
   const state =
     (data.state as
       | "backlog"
@@ -269,20 +177,13 @@ async function createEpic(
   const prefix = getTimestampPrefix();
   const safeTitle = sanitizeFileBase(data.title || "untitled");
   const id = `${prefix}-${safeTitle}`;
-  const stateDir = path.join(
-    primaryEpicsRoot,
-    state,
-  );
+  const stateDir = path.join(primaryEpicsRoot, state);
   fs.mkdirSync(stateDir, {
     recursive: true,
   });
 
-  const filePath = path.join(
-    stateDir,
-    `${id}.md`,
-  );
-  const createdAt =
-    new Date().toISOString();
+  const filePath = path.join(stateDir, `${id}.md`);
+  const createdAt = new Date().toISOString();
 
   const frontmatter = `---
 title: ${data.title}
@@ -306,27 +207,14 @@ state: ${state}
   };
 }
 
-function findEpicFile(
-  baseDir: string,
-  epicId: string,
-): string | null {
-  if (!fs.existsSync(baseDir))
-    return null;
+function findEpicFile(baseDir: string, epicId: string): string | null {
+  if (!fs.existsSync(baseDir)) return null;
 
-  const items = fs.readdirSync(
-    baseDir,
-    { withFileTypes: true },
-  );
+  const items = fs.readdirSync(baseDir, { withFileTypes: true });
 
   for (const item of items) {
-    if (
-      item.isFile() &&
-      item.name === `${epicId}.md`
-    ) {
-      return path.join(
-        baseDir,
-        item.name,
-      );
+    if (item.isFile() && item.name === `${epicId}.md`) {
+      return path.join(baseDir, item.name);
     }
   }
 
@@ -339,27 +227,18 @@ async function moveEpic(
   fromState: string,
   toState: string,
 ): Promise<void> {
-  const { primaryAgelumDir } =
-    await resolveRepoDirs(repo);
+  const { primaryAgelumDir } = await resolveRepoDirs(repo);
   ensureEpicStructure(primaryAgelumDir);
-  const {
-    primaryEpicsRoot,
-    legacyEpicsRoot,
-  } = await resolveEpicsRoots(repo);
+  const { primaryEpicsRoot, legacyEpicsRoot } = await resolveEpicsRoots(repo);
 
-  const roots = [
-    primaryEpicsRoot,
-    legacyEpicsRoot,
-  ].filter((p) => fs.existsSync(p));
+  const roots = [primaryEpicsRoot, legacyEpicsRoot].filter((p) =>
+    fs.existsSync(p),
+  );
 
   let fromPath: string | null = null;
-  let epicsRootForMove: string | null =
-    null;
+  let epicsRootForMove: string | null = null;
   for (const root of roots) {
-    const candidate = findEpicFile(
-      path.join(root, fromState),
-      epicId,
-    );
+    const candidate = findEpicFile(path.join(root, fromState), epicId);
     if (candidate) {
       fromPath = candidate;
       epicsRootForMove = root;
@@ -368,20 +247,13 @@ async function moveEpic(
   }
 
   if (!fromPath) {
-    throw new Error(
-      `Epic file not found: ${epicId}`,
-    );
+    throw new Error(`Epic file not found: ${epicId}`);
   }
   if (!epicsRootForMove) {
-    throw new Error(
-      "Epic root not found",
-    );
+    throw new Error("Epic root not found");
   }
 
-  const toStateDir = path.join(
-    epicsRootForMove,
-    toState,
-  );
+  const toStateDir = path.join(epicsRootForMove, toState);
   fs.mkdirSync(toStateDir, {
     recursive: true,
   });
@@ -394,77 +266,40 @@ async function moveEpic(
     }
   }
 
-  const toPath = path.join(
-    toStateDir,
-    targetFileName,
-  );
+  const toPath = path.join(toStateDir, targetFileName);
 
   fs.renameSync(fromPath, toPath);
 }
 
-function updateMarkdownTitle(
-  content: string,
-  newTitle: string,
-): string {
-  const frontmatterMatch =
-    content.match(
-      /^---\n[\s\S]*?\n---\n?/,
-    );
-  const startIndex = frontmatterMatch
-    ? frontmatterMatch[0].length
-    : 0;
-  const body =
-    content.slice(startIndex);
+function updateMarkdownTitle(content: string, newTitle: string): string {
+  const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n?/);
+  const startIndex = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const body = content.slice(startIndex);
 
-  const headingMatch = body.match(
-    /^\s*#\s+(.+)\s*$/m,
-  );
+  const headingMatch = body.match(/^\s*#\s+(.+)\s*$/m);
   if (!headingMatch) {
-    const prefix = content.slice(
-      0,
-      startIndex,
-    );
+    const prefix = content.slice(0, startIndex);
     const rest = body.trimStart();
-    const separator =
-      prefix && !prefix.endsWith("\n")
-        ? "\n"
-        : "";
+    const separator = prefix && !prefix.endsWith("\n") ? "\n" : "";
     return `${prefix}${separator}\n# ${newTitle}\n\n${rest}`;
   }
 
   const headingLine = headingMatch[0];
-  const updatedBody = body.replace(
-    headingLine,
-    `# ${newTitle}`,
-  );
+  const updatedBody = body.replace(headingLine, `# ${newTitle}`);
   return `${content.slice(0, startIndex)}${updatedBody}`;
 }
 
-function resolveUniqueFilePath(
-  dir: string,
-  baseName: string,
-): string {
-  const normalizedDir =
-    path.resolve(dir);
+function resolveUniqueFilePath(dir: string, baseName: string): string {
+  const normalizedDir = path.resolve(dir);
   let candidateBase = baseName;
   let suffix = 2;
 
-  while (
-    fs.existsSync(
-      path.join(
-        normalizedDir,
-        `${candidateBase}.md`,
-      ),
-    )
-  ) {
+  while (fs.existsSync(path.join(normalizedDir, `${candidateBase}.md`))) {
     candidateBase = `${baseName}-${suffix}`;
     suffix += 1;
   }
 
-  return path.join(
-    normalizedDir,
-    `${candidateBase}.md`,
-  );
+  return path.join(normalizedDir, `${candidateBase}.md`);
 }
 
 function renameEpic(
@@ -475,44 +310,25 @@ function renameEpic(
   path: string;
   content: string;
 } {
-  const resolvedFilePath =
-    path.resolve(filePath);
+  const resolvedFilePath = path.resolve(filePath);
 
-  if (
-    !fs.existsSync(resolvedFilePath)
-  ) {
-    throw new Error(
-      "Epic file not found",
-    );
+  if (!fs.existsSync(resolvedFilePath)) {
+    throw new Error("Epic file not found");
   }
 
-  const content = fs.readFileSync(
-    resolvedFilePath,
-    "utf-8",
-  );
-  const updatedMarkdown =
-    updateMarkdownTitle(
-      content,
-      newTitle,
-    );
+  const content = fs.readFileSync(resolvedFilePath, "utf-8");
+  const updatedMarkdown = updateMarkdownTitle(content, newTitle);
 
   // Also update frontmatter title if present
-  const frontmatterMatch =
-    updatedMarkdown.match(
-      /^---\n([\s\S]*?)\n---/,
-    );
+  const frontmatterMatch = updatedMarkdown.match(/^---\n([\s\S]*?)\n---/);
   let finalContent = updatedMarkdown;
   if (frontmatterMatch) {
-    const frontmatter =
-      frontmatterMatch[1];
-    if (
-      frontmatter.includes("title:")
-    ) {
-      const updatedFrontmatter =
-        frontmatter.replace(
-          /title:\s*.*/,
-          `title: ${newTitle}`,
-        );
+    const frontmatter = frontmatterMatch[1];
+    if (frontmatter.includes("title:")) {
+      const updatedFrontmatter = frontmatter.replace(
+        /title:\s*.*/,
+        `title: ${newTitle}`,
+      );
       finalContent = `---\n${updatedFrontmatter}\n---${updatedMarkdown.slice(frontmatterMatch[0].length)}`;
     } else {
       const updatedFrontmatter = `title: ${newTitle}\n${frontmatter}`;
@@ -520,45 +336,25 @@ function renameEpic(
     }
   }
 
-  const dir = path.dirname(
-    resolvedFilePath,
-  );
-  const safeTitle =
-    sanitizeFileBase(newTitle);
+  const dir = path.dirname(resolvedFilePath);
+  const safeTitle = sanitizeFileBase(newTitle);
 
-  const currentFileName = path.basename(
-    resolvedFilePath,
-    ".md",
-  );
+  const currentFileName = path.basename(resolvedFilePath, ".md");
   let targetPath = resolvedFilePath;
 
   const targetPathCandidate = path.join(
     dir,
-    safeTitle.toLowerCase().endsWith(".md")
-      ? safeTitle
-      : `${safeTitle}.md`,
+    safeTitle.toLowerCase().endsWith(".md") ? safeTitle : `${safeTitle}.md`,
   );
-  if (
-    resolvedFilePath !==
-    targetPathCandidate
-  ) {
-    targetPath = resolveUniqueFilePath(
-      dir,
-      safeTitle,
-    );
+  if (resolvedFilePath !== targetPathCandidate) {
+    targetPath = resolveUniqueFilePath(dir, safeTitle);
   }
 
   if (resolvedFilePath !== targetPath) {
-    fs.renameSync(
-      resolvedFilePath,
-      targetPath,
-    );
+    fs.renameSync(resolvedFilePath, targetPath);
   }
 
-  fs.writeFileSync(
-    targetPath,
-    finalContent,
-  );
+  fs.writeFileSync(targetPath, finalContent);
 
   return {
     path: targetPath,
@@ -566,12 +362,8 @@ function renameEpic(
   };
 }
 
-export async function GET(
-  request: Request,
-) {
-  const { searchParams } = new URL(
-    request.url,
-  );
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const repo = searchParams.get("repo");
 
   if (!repo) {
@@ -585,28 +377,15 @@ export async function GET(
     return NextResponse.json({ epics });
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { epics: [] },
-      { status: 500 },
-    );
+    return NextResponse.json({ epics: [] }, { status: 500 });
   }
 }
 
-export async function POST(
-  request: Request,
-) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let {
-      repo,
-      action,
-      epicId,
-      fromState,
-      toState,
-      data,
-      agentMode,
-      agent,
-    } = body;
+    let { repo, action, epicId, fromState, toState, data, agentMode, agent } =
+      body;
 
     // Redirect legacy 'priority' to 'fixes'
     if (toState === "priority") toState = "fixes";
@@ -615,52 +394,37 @@ export async function POST(
     if (!repo) {
       return NextResponse.json(
         {
-          error:
-            "Repository is required",
+          error: "Repository is required",
         },
         { status: 400 },
       );
     }
 
-    if (
-      action === "rename" &&
-      body.path &&
-      body.newTitle
-    ) {
-      const result = renameEpic(
-        repo,
-        body.path,
-        body.newTitle,
-      );
+    if (action === "rename" && body.path && body.newTitle) {
+      const result = renameEpic(repo, body.path, body.newTitle);
       return NextResponse.json(result);
     }
 
     if (action === "create") {
       if (agentMode && agent) {
         try {
-          const agentResult =
-            await executeAgentCommand(
-              agent.tool,
-              agent.prompt,
-              agent.model,
-            );
+          const agentResult = await executeAgentCommand(
+            agent.tool,
+            agent.prompt,
+            agent.model,
+          );
 
           if (!agentResult.success) {
             return NextResponse.json(
               {
-                error:
-                  agentResult.error ||
-                  "Agent execution failed",
-                agentOutput:
-                  agentResult,
+                error: agentResult.error || "Agent execution failed",
+                agentOutput: agentResult,
               },
               { status: 500 },
             );
           }
 
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000),
-          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
           const state =
             (data?.state as
@@ -670,19 +434,11 @@ export async function POST(
               | "pending"
               | "doing"
               | "done") || "backlog";
-          const { primaryAgelumDir } =
-            await resolveRepoDirs(repo);
-          ensureEpicStructure(
-            primaryAgelumDir,
-          );
-          const {
-            primaryEpicsRoot,
-            legacyEpicsRoot,
-          } = await resolveEpicsRoots(repo);
-          const roots = [
-            primaryEpicsRoot,
-            legacyEpicsRoot,
-          ].filter((p) =>
+          const { primaryAgelumDir } = await resolveRepoDirs(repo);
+          ensureEpicStructure(primaryAgelumDir);
+          const { primaryEpicsRoot, legacyEpicsRoot } =
+            await resolveEpicsRoots(repo);
+          const roots = [primaryEpicsRoot, legacyEpicsRoot].filter((p) =>
             fs.existsSync(p),
           );
 
@@ -691,75 +447,44 @@ export async function POST(
             mtime: Date;
           } | null = null;
           for (const root of roots) {
-            const stateDir = path.join(
-              root,
-              state,
-            );
-            if (
-              !fs.existsSync(stateDir)
-            )
-              continue;
+            const stateDir = path.join(root, state);
+            if (!fs.existsSync(stateDir)) continue;
             const files = fs
               .readdirSync(stateDir)
-              .filter((f) =>
-                f.endsWith(".md"),
-              )
+              .filter((f) => f.endsWith(".md"))
               .map((f) => {
-                const p = path.join(
-                  stateDir,
-                  f,
-                );
+                const p = path.join(stateDir, f);
                 return {
                   path: p,
-                  mtime:
-                    fs.statSync(p)
-                      .mtime,
+                  mtime: fs.statSync(p).mtime,
                 };
               });
             for (const f of files) {
-              if (
-                !latest ||
-                f.mtime.getTime() >
-                  latest.mtime.getTime()
-              ) {
+              if (!latest || f.mtime.getTime() > latest.mtime.getTime()) {
                 latest = f;
               }
             }
           }
 
           if (latest) {
-            const epic = parseEpicFile(
-              latest.path,
-              state,
-            );
+            const epic = parseEpicFile(latest.path, state);
             if (epic) {
               return NextResponse.json({
                 epic,
-                agentOutput:
-                  agentResult,
+                agentOutput: agentResult,
               });
             }
           }
 
-          const epic = await createEpic(
-            repo,
-            data || {},
-          );
+          const epic = await createEpic(repo, data || {});
           return NextResponse.json({
             epic,
             agentOutput: agentResult,
-            warning:
-              "Epic was created directly after agent execution",
+            warning: "Epic was created directly after agent execution",
           });
         } catch (error) {
-          console.error(
-            "Agent execution error:",
-            error,
-          );
-          const epic = await createEpic(
-            repo,
-            data || {},
-          );
+          console.error("Agent execution error:", error);
+          const epic = await createEpic(repo, data || {});
           return NextResponse.json({
             epic,
             error:
@@ -769,49 +494,25 @@ export async function POST(
           });
         }
       } else {
-        const epic = await createEpic(
-          repo,
-          data || {},
-        );
+        const epic = await createEpic(repo, data || {});
         return NextResponse.json({
           epic,
         });
       }
     }
 
-    if (
-      action === "move" &&
-      epicId &&
-      fromState &&
-      toState
-    ) {
-      await moveEpic(
-        repo,
-        epicId,
-        fromState,
-        toState,
-      );
+    if (action === "move" && epicId && fromState && toState) {
+      await moveEpic(repo, epicId, fromState, toState);
       return NextResponse.json({
         success: true,
       });
     }
 
-    return NextResponse.json(
-      { error: "Invalid action" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
-    console.error(
-      "Epic API error:",
-      error,
-    );
+    console.error("Epic API error:", error);
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to process epic";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-    );
+      error instanceof Error ? error.message : "Failed to process epic";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

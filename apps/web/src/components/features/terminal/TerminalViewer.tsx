@@ -20,14 +20,10 @@ export function TerminalViewer({
   onResize,
   autoFocus,
 }: TerminalViewerProps) {
-  const containerRef =
-    React.useRef<HTMLDivElement>(null);
-  const terminalRef =
-    React.useRef<Terminal | null>(null);
-  const fitAddonRef =
-    React.useRef<FitAddon | null>(null);
-  const writtenLengthRef =
-    React.useRef(0);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const terminalRef = React.useRef<Terminal | null>(null);
+  const fitAddonRef = React.useRef<FitAddon | null>(null);
+  const writtenLengthRef = React.useRef(0);
   const onInputRef = React.useRef(onInput);
   const onResizeRef = React.useRef(onResize);
 
@@ -49,23 +45,17 @@ export function TerminalViewer({
 
   // Initialize terminal
   React.useEffect(() => {
-    if (
-      !containerRef.current ||
-      terminalRef.current
-    )
-      return;
+    if (!containerRef.current || terminalRef.current) return;
 
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily:
-        'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 12,
       theme: {
         background: "#09090b", // Zinc 950
         foreground: "#f8fafc", // text-foreground
         cursor: "#94a3b8",
-        selectionBackground:
-          "rgba(255, 255, 255, 0.2)",
+        selectionBackground: "rgba(255, 255, 255, 0.2)",
       },
       convertEol: true, // Treat \n as \r\n
       disableStdin: false, // Allow input
@@ -106,14 +96,20 @@ export function TerminalViewer({
           const rows = Math.floor(container.clientHeight / charHeight);
 
           // Only resize if our calculation differs from fit's calculation
-          if (cols !== terminalRef.current.cols || rows !== terminalRef.current.rows) {
+          if (
+            cols !== terminalRef.current.cols ||
+            rows !== terminalRef.current.rows
+          ) {
             terminalRef.current.resize(cols, rows);
           }
         }
 
         terminalRef.current.scrollToBottom();
         if (onResizeRef.current) {
-          onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+          onResizeRef.current(
+            terminalRef.current.cols,
+            terminalRef.current.rows,
+          );
         }
       }
     };
@@ -139,27 +135,27 @@ export function TerminalViewer({
           const rows = Math.floor(container.clientHeight / charHeight);
 
           // Only resize if our calculation differs from fit's calculation
-          if (cols !== terminalRef.current.cols || rows !== terminalRef.current.rows) {
+          if (
+            cols !== terminalRef.current.cols ||
+            rows !== terminalRef.current.rows
+          ) {
             terminalRef.current.resize(cols, rows);
           }
         }
 
         terminalRef.current.scrollToBottom();
         if (onResizeRef.current) {
-          onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+          onResizeRef.current(
+            terminalRef.current.cols,
+            terminalRef.current.rows,
+          );
         }
       }
     };
-    window.addEventListener(
-      "resize",
-      handleResize,
-    );
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener(
-        "resize",
-        handleResize,
-      );
+      window.removeEventListener("resize", handleResize);
       term.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -173,63 +169,59 @@ export function TerminalViewer({
     if (!term) return;
 
     // If output was cleared or reset (length smaller than what we wrote), reset terminal
-    if (
-      output.length <
-      writtenLengthRef.current
-    ) {
+    if (output.length < writtenLengthRef.current) {
       term.reset();
       writtenLengthRef.current = 0;
     }
 
     // Write only the new part
-    const newContent = output.slice(
-      writtenLengthRef.current,
-    );
+    const newContent = output.slice(writtenLengthRef.current);
     if (newContent) {
       term.write(newContent, () => {
         term.scrollToBottom();
       });
-      writtenLengthRef.current =
-        output.length;
+      writtenLengthRef.current = output.length;
     }
   }, [output]);
 
   // Handle container resize (e.g. when sidebar expands)
   React.useEffect(() => {
-    const observer = new ResizeObserver(
-      () => {
-        if (fitAddonRef.current && terminalRef.current && containerRef.current) {
-          fitAddonRef.current.fit();
+    const observer = new ResizeObserver(() => {
+      if (fitAddonRef.current && terminalRef.current && containerRef.current) {
+        fitAddonRef.current.fit();
 
-          // Manual dimension calculation with buffer to maximize space usage
-          const container = containerRef.current;
-          const core = (terminalRef.current as any)._core;
-          const renderService = core?._renderService;
-          const charWidth = renderService?.dimensions?.actualCellWidth;
-          const charHeight = renderService?.dimensions?.actualCellHeight;
+        // Manual dimension calculation with buffer to maximize space usage
+        const container = containerRef.current;
+        const core = (terminalRef.current as any)._core;
+        const renderService = core?._renderService;
+        const charWidth = renderService?.dimensions?.actualCellWidth;
+        const charHeight = renderService?.dimensions?.actualCellHeight;
 
-          if (charWidth && charHeight) {
-            const cols = Math.floor(container.clientWidth / charWidth);
-            const rows = Math.floor(container.clientHeight / charHeight);
+        if (charWidth && charHeight) {
+          const cols = Math.floor(container.clientWidth / charWidth);
+          const rows = Math.floor(container.clientHeight / charHeight);
 
-            // Only resize if our calculation differs from fit's calculation
-            if (cols !== terminalRef.current.cols || rows !== terminalRef.current.rows) {
-              terminalRef.current.resize(cols, rows);
-            }
-          }
-
-          terminalRef.current.scrollToBottom();
-          if (onResizeRef.current) {
-            onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+          // Only resize if our calculation differs from fit's calculation
+          if (
+            cols !== terminalRef.current.cols ||
+            rows !== terminalRef.current.rows
+          ) {
+            terminalRef.current.resize(cols, rows);
           }
         }
-      },
-    );
+
+        terminalRef.current.scrollToBottom();
+        if (onResizeRef.current) {
+          onResizeRef.current(
+            terminalRef.current.cols,
+            terminalRef.current.rows,
+          );
+        }
+      }
+    });
 
     if (containerRef.current) {
-      observer.observe(
-        containerRef.current,
-      );
+      observer.observe(containerRef.current);
     }
 
     return () => observer.disconnect();

@@ -15,7 +15,7 @@ function resolveTestPath(id: string): string | null {
         const p = path.join(TEST_DIR, entry.group, entry.folder, "test.json");
         if (fs.existsSync(p)) return p;
       }
-    } catch { }
+    } catch {}
   }
   const flat = path.join(TEST_DIR, `${id}.json`);
   if (fs.existsSync(flat)) return flat;
@@ -24,7 +24,7 @@ function resolveTestPath(id: string): string | null {
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -32,16 +32,16 @@ export async function POST(
 
     const testPath = resolveTestPath(id);
     if (!testPath || !fs.existsSync(testPath)) {
-        return NextResponse.json({ error: "Test not found" }, { status: 404 });
+      return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
     let testName = id;
     if (fs.existsSync(INDEX_FILE)) {
-        try {
-            const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
-            const entry = index.find((t: any) => t.id === id);
-            if (entry) testName = entry.name || testName;
-        } catch {}
+      try {
+        const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
+        const entry = index.find((t: any) => t.id === id);
+        if (entry) testName = entry.name || testName;
+      } catch {}
     }
 
     // Create execution directory
@@ -64,18 +64,19 @@ export async function POST(
     const stream = new ReadableStream({
       start(controller) {
         // Emit execution metadata as first line
-        const meta = JSON.stringify({ type: "exec_start", executionId: execId, testId: id, startedAt });
+        const meta = JSON.stringify({
+          type: "exec_start",
+          executionId: execId,
+          testId: id,
+          startedAt,
+        });
         controller.enqueue(encoder.encode(meta + "\n"));
 
-        const child = spawn(
-          "npx",
-          ["tsx", runnerPath, testPath],
-          {
-            cwd,
-            env: { ...process.env, PATH: process.env.PATH },
-            stdio: ["ignore", "pipe", "pipe"],
-          },
-        );
+        const child = spawn("npx", ["tsx", runnerPath, testPath], {
+          cwd,
+          env: { ...process.env, PATH: process.env.PATH },
+          stdio: ["ignore", "pipe", "pipe"],
+        });
 
         const processChunk = (chunk: Buffer) => {
           const text = chunk.toString();
@@ -105,10 +106,13 @@ export async function POST(
 
         child.on("close", (code) => {
           const completedAt = new Date().toISOString();
-          const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+          const duration =
+            new Date(completedAt).getTime() - new Date(startedAt).getTime();
           const status = code === 0 ? "passed" : "failed";
 
-          controller.enqueue(encoder.encode(`\nProcess exited with code ${code}\n`));
+          controller.enqueue(
+            encoder.encode(`\nProcess exited with code ${code}\n`),
+          );
 
           // Persist execution result
           const result = {
@@ -131,14 +135,19 @@ export async function POST(
           try {
             fs.writeFileSync(
               path.join(execDir, "result.json"),
-              JSON.stringify(result, null, 2)
+              JSON.stringify(result, null, 2),
             );
           } catch (e) {
             console.error("Failed to persist execution result:", e);
           }
 
           // Emit completion event
-          const completionEvent = JSON.stringify({ type: "exec_complete", executionId: execId, status, duration });
+          const completionEvent = JSON.stringify({
+            type: "exec_complete",
+            executionId: execId,
+            status,
+            duration,
+          });
           controller.enqueue(encoder.encode(completionEvent + "\n"));
 
           controller.close();
@@ -146,7 +155,8 @@ export async function POST(
 
         child.on("error", (err) => {
           const completedAt = new Date().toISOString();
-          const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+          const duration =
+            new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
           controller.enqueue(encoder.encode(`Error: ${err.message}\n`));
 
@@ -171,7 +181,7 @@ export async function POST(
           try {
             fs.writeFileSync(
               path.join(execDir, "result.json"),
-              JSON.stringify(result, null, 2)
+              JSON.stringify(result, null, 2),
             );
           } catch (e) {
             console.error("Failed to persist execution result:", e);
@@ -183,12 +193,11 @@ export async function POST(
     });
 
     return new Response(stream, {
-        headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "X-Execution-Id": execId,
-        }
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Execution-Id": execId,
+      },
     });
-
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

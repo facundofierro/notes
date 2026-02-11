@@ -14,6 +14,7 @@ This document describes the implementation of element selection in the browser p
 When running inside Electron, the browser preview is rendered as a `WebContentsView` managed by the main process (`apps/electron/src/main.js`). The renderer communicates with it via IPC channels exposed through `window.electronAPI.browserView`.
 
 **Element Picker Flow:**
+
 1. User clicks "Pick Element" in BrowserRightPanel
 2. `electronBrowserView.executeJs()` injects a one-shot click listener into the WebContentsView
 3. Cursor changes to crosshair in the previewed page
@@ -23,12 +24,14 @@ When running inside Electron, the browser preview is rendered as a `WebContentsV
 7. User presses ESC → the promise resolves with `null`, cancelling the picker
 
 **Style Modification Flow:**
+
 1. User edits a property (color, padding, etc.) in the Properties tab
 2. `applyStyleChange()` calls `electronBrowserView.executeJs()` to apply the style change to the selected element via its CSS selector
 3. The script returns the previous and updated values for change tracking
 4. CSS tab edits similarly use `executeJs()` to set `element.style.cssText`
 
 **Key Benefits:**
+
 - Works on any origin (no CORS restrictions)
 - Full computed style access for all elements
 - Native screenshot via `webContents.capturePage()`
@@ -37,6 +40,7 @@ When running inside Electron, the browser preview is rendered as a `WebContentsV
 ### Browser Fallback Path (iframe)
 
 #### iframe-element-picker.ts
+
 Library providing utilities for serializing elements and communicating between parent and iframe windows.
 
 - `serializeElement()`: Converts DOM elements to serializable objects
@@ -44,16 +48,19 @@ Library providing utilities for serializing elements and communicating between p
 - Element selector generation with intelligent prioritization (data attributes > IDs > classes > tag selectors)
 
 #### IframeCaptureInjector.tsx
+
 React component that injects capture and element picker scripts into iframes (only used when `!isElectron`).
 
 #### BrowserRightPanel.tsx — Iframe Mode
 
 **Mode 1: Direct DOM Access (Same-origin iframes)**
+
 - Accesses iframe's contentDocument directly
 - Provides real-time hover overlay
 - Updates element properties immediately
 
 **Mode 2: PostMessage API (Cross-origin iframes)**
+
 - Uses postMessage for communication
 - Falls back when direct access fails
 - Limited to element info (no live overlay)
@@ -61,6 +68,7 @@ React component that injects capture and element picker scripts into iframes (on
 ## Element Selection Flow
 
 ### Electron Flow
+
 ```
 User clicks "Pick Element"
 → executeJs() injects click listener in WebContentsView
@@ -72,8 +80,9 @@ User clicks "Pick Element"
 ```
 
 ### Same-Origin iframe Flow (non-Electron)
+
 ```
-User clicks "Pick Element" 
+User clicks "Pick Element"
 → toggleElementPicker() activated
 → tryGetIframeDocument() succeeds
 → Mouse move listeners track element
@@ -84,6 +93,7 @@ User clicks "Pick Element"
 ```
 
 ### Cross-Origin iframe Flow (non-Electron)
+
 ```
 User clicks "Pick Element"
 → toggleElementPicker() activated
@@ -141,10 +151,12 @@ Elements are identified using this priority:
 ## Limitations
 
 ### Electron Path
+
 - No live hover overlay (single click-to-select)
 - Element reference is selector-based (re-queried on each style change)
 
 ### iframe Fallback
+
 - Cross-origin styling not possible (browser security)
 - Live overlay only for same-origin
 - Element references lost for cross-origin selections

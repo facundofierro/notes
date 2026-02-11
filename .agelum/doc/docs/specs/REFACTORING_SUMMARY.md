@@ -9,9 +9,11 @@ I've successfully extracted the state and business logic from the massive `apps/
 ### Hooks (in `apps/web/src/hooks/`)
 
 #### 1. `useHomeState.ts` (222 lines)
+
 Contains all React state declarations for the Home component. Exports a single hook that returns all state variables and their setters organized cleanly.
 
 **Key state managed:**
+
 - repositories, selectedRepo, currentPath, fileTree
 - selectedFile, basePath, viewMode
 - test-related: testViewMode, testOutput, isTestRunning, testsSetupStatus
@@ -22,27 +24,35 @@ Contains all React state declarations for the Home component. Exports a single h
 - And 40+ other state variables
 
 #### 2. `usePromptBuilder.ts` (176 lines)
+
 Extracts the complex prompt building logic into a reusable hook. Determines the operation type (modify_test, modify_document, create_tasks_from_epic, work_on_task, or start) based on file path and view mode.
 
 **Exported function:**
+
 - `buildToolPrompt(options)` - Constructs prompts with context for different operations
 
 #### 3. `useAppLifecycle.ts` (173 lines)
+
 Manages app start/stop/restart operations and communication with the backend.
 
 **Exported functions:**
+
 - `handleStartApp()` - Start dev server with logging
 - `handleStopApp()` - Gracefully stop the app
 - `handleRestartApp()` - Restart the dev server
 
 #### 4. `useTestsManager.ts` (72 lines)
+
 Handles test execution and result processing.
 
 **Exported functions:**
+
 - `handleRunTest(path)` - Execute test and stream results
 
 #### 5. `useHomeCallbacks.ts` (505 lines)
+
 The largest hook, containing all event handlers and callbacks for:
+
 - Repository management (`fetchRepositories`, `handleSettingsSave`)
 - File operations (`loadFileTree`, `handleFileSelect`, `handleFileUpload`)
 - Item selection (`handleTaskSelect`, `handleEpicSelect`, `handleIdeaSelect`)
@@ -57,19 +67,22 @@ Also manages refs: `terminalAbortControllerRef`, `recognitionRef`, `fileInputRef
 ## Integration Instructions
 
 ### Step 1: Update imports in page.tsx
+
 ```typescript
 import { useHomeState } from "@/hooks/useHomeState";
 import { useHomeCallbacks } from "@/hooks/useHomeCallbacks";
 ```
 
 ### Step 2: Replace state declarations
+
 Remove all individual `useState` calls and replace with:
+
 ```typescript
 export default function Home() {
   const homeState = useHomeState();
   const appLogsAbortControllerRef = React.useRef<AbortController | null>(null);
   // ... other refs ...
-  
+
   const callbacks = useHomeCallbacks({
     ...homeState,
     appLogsAbortControllerRef,
@@ -81,11 +94,14 @@ export default function Home() {
 ```
 
 ### Step 3: Use the hooks throughout the component
+
 Replace direct state and callback usage with:
+
 - State: `homeState.stateName` and `homeState.setStateName()`
 - Callbacks: `callbacks.handlerName()`
 
 ### Step 4: Benefits
+
 - **Reduced complexity**: Main Home component becomes ~500-800 lines instead of 4080+
 - **Improved testability**: Each hook can be tested independently
 - **Better reusability**: Hooks can be shared across components

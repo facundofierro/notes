@@ -1,7 +1,4 @@
-import {
-  exec,
-  spawn,
-} from "child_process";
+import { exec, spawn } from "child_process";
 import { promisify } from "util";
 import path from "path";
 
@@ -149,7 +146,7 @@ export type AgentToolName = keyof typeof AGENT_TOOLS;
 export function getExtendedPath(): string {
   const home = process.env.HOME || "";
   const cwd = process.cwd();
-  
+
   const commonPaths = [
     `${home}/.local/bin`,
     "/opt/homebrew/bin",
@@ -164,7 +161,15 @@ export function getExtendedPath(): string {
   const monorepoPaths = [
     path.join(cwd, "node_modules/.bin"),
     path.join(cwd, "..", "..", "node_modules/.bin"),
-    path.join(cwd, "..", "..", "packages", "test-engine", "node_modules", ".bin"),
+    path.join(
+      cwd,
+      "..",
+      "..",
+      "packages",
+      "test-engine",
+      "node_modules",
+      ".bin",
+    ),
   ];
 
   const currentPath = process.env.PATH || "";
@@ -179,9 +184,7 @@ export function getExtendedPath(): string {
   return uniquePaths.join(":");
 }
 
-export async function isCommandAvailable(
-  command: string,
-): Promise<boolean> {
+export async function isCommandAvailable(command: string): Promise<boolean> {
   try {
     await execAsync(`which ${command}`, {
       env: {
@@ -195,9 +198,7 @@ export async function isCommandAvailable(
   }
 }
 
-export async function resolveCommandPath(
-  command: string,
-): Promise<string> {
+export async function resolveCommandPath(command: string): Promise<string> {
   try {
     const { stdout } = await execAsync(`which ${command}`, {
       env: {
@@ -221,26 +222,15 @@ export async function getModelsForTool(
   }
 
   try {
-    const { stdout } = await execAsync(
-      tool.listModelsCommand,
-      {
-        timeout: 5000,
-      },
-    );
+    const { stdout } = await execAsync(tool.listModelsCommand, {
+      timeout: 5000,
+    });
     return stdout
       .split("\n")
       .map((line) => line.trim())
-      .filter(
-        (line) =>
-          line &&
-          !line.startsWith("#") &&
-          line.length > 0,
-      );
+      .filter((line) => line && !line.startsWith("#") && line.length > 0);
   } catch (error) {
-    console.error(
-      `Failed to list models for ${toolName}:`,
-      error,
-    );
+    console.error(`Failed to list models for ${toolName}:`, error);
     return [];
   }
 }
@@ -264,7 +254,8 @@ export function buildAgentCommand(
       args.push("--dangerously-skip-permissions");
     }
     // Append permission text to prompt
-    prompt += "\n\n[SYSTEM] You have permission to read/write files and execute commands.";
+    prompt +=
+      "\n\n[SYSTEM] You have permission to read/write files and execute commands.";
   }
 
   if (model && tool.modelFlag) {
@@ -294,10 +285,7 @@ export async function executeAgentCommand(
 }> {
   const tool = AGENT_TOOLS[toolName];
 
-  const isAvailable =
-    await isCommandAvailable(
-      tool.command,
-    );
+  const isAvailable = await isCommandAvailable(tool.command);
   if (!isAvailable) {
     return {
       success: false,
@@ -306,36 +294,28 @@ export async function executeAgentCommand(
     };
   }
 
-  const { command, args } =
-    buildAgentCommand(
-      toolName,
-      prompt,
-      model,
-      allowModify
-    );
+  const { command, args } = buildAgentCommand(
+    toolName,
+    prompt,
+    model,
+    allowModify,
+  );
 
-  const resolvedCommand =
-    await resolveCommandPath(command);
+  const resolvedCommand = await resolveCommandPath(command);
 
   return new Promise((resolve) => {
     const outputChunks: string[] = [];
     const errorChunks: string[] = [];
 
-    const child = spawn(
-      resolvedCommand,
-      args,
-      {
-        env: {
-          ...process.env,
-          PATH: getExtendedPath(),
-        },
+    const child = spawn(resolvedCommand, args, {
+      env: {
+        ...process.env,
+        PATH: getExtendedPath(),
       },
-    );
+    });
 
     child.stdout.on("data", (data) => {
-      outputChunks.push(
-        data.toString(),
-      );
+      outputChunks.push(data.toString());
     });
 
     child.stderr.on("data", (data) => {
@@ -343,19 +323,14 @@ export async function executeAgentCommand(
     });
 
     child.on("close", (code) => {
-      const output =
-        outputChunks.join("");
-      const error =
-        errorChunks.join("");
+      const output = outputChunks.join("");
+      const error = errorChunks.join("");
 
       resolve({
         success: code === 0,
         output,
         error:
-          code !== 0
-            ? error ||
-              `Process exited with code ${code}`
-            : undefined,
+          code !== 0 ? error || `Process exited with code ${code}` : undefined,
       });
     });
 
@@ -373,8 +348,7 @@ export async function executeAgentCommand(
         resolve({
           success: false,
           output: outputChunks.join(""),
-          error:
-            "Command execution timed out after 5 minutes",
+          error: "Command execution timed out after 5 minutes",
         });
       },
       5 * 60 * 1000,

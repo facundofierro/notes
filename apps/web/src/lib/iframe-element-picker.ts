@@ -26,7 +26,7 @@ export function serializeElement(element: Element): SerializedElement {
   const tagName = element.tagName.toLowerCase();
   const textContent = element.textContent || "";
   const textSnippet = textContent.slice(0, 50).trim().replace(/\s+/g, " ");
-  
+
   return {
     selector,
     tagName,
@@ -63,7 +63,7 @@ function getElementSelector(element: Element): string {
   if (!parent) return tag;
 
   const siblings = Array.from(parent.children).filter(
-    (child) => child.tagName === element.tagName
+    (child) => child.tagName === element.tagName,
   );
   if (siblings.length <= 1) return tag;
 
@@ -110,7 +110,7 @@ export function setupIframeElementPicker() {
             id: data.id,
             element: serialized,
           },
-          "*"
+          "*",
         );
       }
 
@@ -133,7 +133,7 @@ export function setupIframeElementPicker() {
               type: "agelum:pick-cancel",
               id: data.id,
             },
-            "*"
+            "*",
           );
         }
       }
@@ -149,7 +149,9 @@ export function setupIframeElementPicker() {
 /**
  * Serializes element for sending via postMessage
  */
-export function serializeElementForPost(element: Element | null): SerializedElement | null {
+export function serializeElementForPost(
+  element: Element | null,
+): SerializedElement | null {
   if (!element) return null;
   return serializeElement(element);
 }

@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { StringDecoder } from "string_decoder";
-import { registerProcess, appendOutput, getOutputBuffer, isProcessAlive, getProcessStatus, cleanupSession } from "@/lib/agent-store";
+import {
+  registerProcess,
+  appendOutput,
+  getOutputBuffer,
+  isProcessAlive,
+  getProcessStatus,
+  cleanupSession,
+} from "@/lib/agent-store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -95,8 +102,7 @@ export async function POST(request: Request) {
         const decoder = new StringDecoder("utf8");
 
         const usePty =
-          process.platform === "darwin" ||
-          process.platform === "linux";
+          process.platform === "darwin" || process.platform === "linux";
 
         let spawnCommand = "zsh";
         let spawnArgs = ["-i", "-l"];
@@ -123,11 +129,7 @@ export async function POST(request: Request) {
             FORCE_COLOR: "1",
             TERM: "xterm-256color",
           },
-          stdio: [
-            "pipe",
-            "pipe",
-            "pipe",
-          ],
+          stdio: ["pipe", "pipe", "pipe"],
         });
 
         registerProcess(processId, child, "Interactive Terminal");
@@ -185,7 +187,7 @@ export async function POST(request: Request) {
       {
         error: "Failed to start terminal",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -199,7 +201,7 @@ export async function PUT(request: Request) {
     if (!process || !process.stdin) {
       return NextResponse.json(
         { error: "Terminal not found or closed" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -208,7 +210,7 @@ export async function PUT(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to send input" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -222,9 +224,7 @@ export async function DELETE(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to kill process" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
-

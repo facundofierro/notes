@@ -43,13 +43,7 @@ export interface Epic {
   id: string;
   title: string;
   description: string;
-  state:
-    | "backlog"
-    | "priority"
-    | "fixes"
-    | "pending"
-    | "doing"
-    | "done";
+  state: "backlog" | "priority" | "fixes" | "pending" | "doing" | "done";
   createdAt: string;
   path?: string;
 }
@@ -58,12 +52,7 @@ export interface Idea {
   id: string;
   title: string;
   description: string;
-  state:
-    | "thinking"
-    | "important"
-    | "priority"
-    | "planned"
-    | "done";
+  state: "thinking" | "important" | "priority" | "planned" | "done";
   createdAt: string;
   path?: string;
 }

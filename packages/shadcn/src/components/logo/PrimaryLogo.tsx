@@ -1,27 +1,30 @@
-import React from 'react'
+import React from "react";
 
 interface PrimaryLogoProps {
-  className?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
-  variant?: 'default' | 'white'
+  className?: string;
+  size?: "sm" | "md" | "lg" | "xl";
+  variant?: "default" | "white";
 }
 
 const sizeClasses = {
-  sm: 'text-2xl',
-  md: 'text-4xl',
-  lg: 'text-6xl',
-  xl: 'text-8xl',
-}
+  sm: "text-2xl",
+  md: "text-4xl",
+  lg: "text-6xl",
+  xl: "text-8xl",
+};
 
 export const PrimaryLogo: React.FC<PrimaryLogoProps> = ({
-  className = '',
-  size = 'md',
-  variant = 'default',
+  className = "",
+  size = "md",
+  variant = "default",
 }) => {
   const colorStyle =
-    variant === 'white'
-      ? { color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }
-      : { color: 'oklch(0.572 0.1207 315.544)', fontFamily: 'system-ui, -apple-system, sans-serif' }
+    variant === "white"
+      ? { color: "white", fontFamily: "system-ui, -apple-system, sans-serif" }
+      : {
+          color: "oklch(0.572 0.1207 315.544)",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        };
 
   return (
     <span
@@ -30,5 +33,5 @@ export const PrimaryLogo: React.FC<PrimaryLogoProps> = ({
     >
       Agelum
     </span>
-  )
-}
+  );
+};

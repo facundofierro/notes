@@ -86,10 +86,13 @@ export function ScreenshotViewer({
 
     if (selectedTool === "arrow") {
       const distance = Math.sqrt(
-        Math.pow(currentX - startPos.x, 2) + Math.pow(currentY - startPos.y, 2)
+        Math.pow(currentX - startPos.x, 2) + Math.pow(currentY - startPos.y, 2),
       );
       if (distance > 10) {
-        const maxId = annotations.length > 0 ? Math.max(...annotations.map(a => a.id)) : 0;
+        const maxId =
+          annotations.length > 0
+            ? Math.max(...annotations.map((a) => a.id))
+            : 0;
         const newAnnotation: Annotation = {
           id: maxId + 1,
           type: selectedTool,
@@ -109,7 +112,10 @@ export function ScreenshotViewer({
       const y = Math.min(startPos.y, currentY);
 
       if (width > 5 && height > 5) {
-        const maxId = annotations.length > 0 ? Math.max(...annotations.map(a => a.id)) : 0;
+        const maxId =
+          annotations.length > 0
+            ? Math.max(...annotations.map((a) => a.id))
+            : 0;
         const newAnnotation: Annotation = {
           id: maxId + 1,
           type: selectedTool,
@@ -144,7 +150,7 @@ export function ScreenshotViewer({
       {/* Header */}
       <div className="grid grid-cols-3 items-center px-4 py-2 bg-secondary/50 border-b border-border">
         <h3 className="text-sm font-medium text-foreground">Screenshot</h3>
-        
+
         <div className="flex justify-center gap-2">
           <button
             onClick={() => onToolSelect("modify")}
@@ -223,7 +229,11 @@ export function ScreenshotViewer({
           >
             {/* Existing annotations */}
             {annotations.map((ann) => {
-              if (ann.type === "arrow" && ann.endX !== undefined && ann.endY !== undefined) {
+              if (
+                ann.type === "arrow" &&
+                ann.endX !== undefined &&
+                ann.endY !== undefined
+              ) {
                 return (
                   <g key={ann.id}>
                     <line
@@ -243,7 +253,10 @@ export function ScreenshotViewer({
                 );
               } else if (ann.type === "modify" || ann.type === "remove") {
                 const color = ann.type === "remove" ? "#dc2626" : "#f59e0b";
-                const fillColor = ann.type === "remove" ? "rgba(220, 38, 38, 0.15)" : "rgba(245, 158, 11, 0.15)";
+                const fillColor =
+                  ann.type === "remove"
+                    ? "rgba(220, 38, 38, 0.15)"
+                    : "rgba(245, 158, 11, 0.15)";
                 return (
                   <g key={ann.id}>
                     <rect
@@ -274,25 +287,35 @@ export function ScreenshotViewer({
                   strokeDasharray="5,5"
                 />
                 <polygon
-                  points={renderArrowhead(startPos.x, startPos.y, currentPos.x, currentPos.y)}
+                  points={renderArrowhead(
+                    startPos.x,
+                    startPos.y,
+                    currentPos.x,
+                    currentPos.y,
+                  )}
                   fill="#3b82f6"
                   opacity="0.7"
                 />
               </g>
             )}
 
-            {isDrawing && (selectedTool === "modify" || selectedTool === "remove") && (
-              <rect
-                x={Math.min(startPos.x, currentPos.x)}
-                y={Math.min(startPos.y, currentPos.y)}
-                width={Math.abs(currentPos.x - startPos.x)}
-                height={Math.abs(currentPos.y - startPos.y)}
-                stroke={selectedTool === "remove" ? "#dc2626" : "#f59e0b"}
-                strokeWidth="2"
-                fill={selectedTool === "remove" ? "rgba(220, 38, 38, 0.15)" : "rgba(245, 158, 11, 0.15)"}
-                strokeDasharray="5,5"
-              />
-            )}
+            {isDrawing &&
+              (selectedTool === "modify" || selectedTool === "remove") && (
+                <rect
+                  x={Math.min(startPos.x, currentPos.x)}
+                  y={Math.min(startPos.y, currentPos.y)}
+                  width={Math.abs(currentPos.x - startPos.x)}
+                  height={Math.abs(currentPos.y - startPos.y)}
+                  stroke={selectedTool === "remove" ? "#dc2626" : "#f59e0b"}
+                  strokeWidth="2"
+                  fill={
+                    selectedTool === "remove"
+                      ? "rgba(220, 38, 38, 0.15)"
+                      : "rgba(245, 158, 11, 0.15)"
+                  }
+                  strokeDasharray="5,5"
+                />
+              )}
           </svg>
 
           {/* Annotation badges */}

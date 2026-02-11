@@ -21,8 +21,14 @@ if (!g._processInputHandlers) {
 }
 
 export const processStore = g._processStore as Map<string, AppProcess>;
-export const processOutputBuffers = g._processOutputBuffers as Map<number, string>;
-export const processInputHandlers = g._processInputHandlers as Map<number, (data: string) => void>;
+export const processOutputBuffers = g._processOutputBuffers as Map<
+  number,
+  string
+>;
+export const processInputHandlers = g._processInputHandlers as Map<
+  number,
+  (data: string) => void
+>;
 
 // Clean up process data
 export function cleanupProcess(repo: string, pid: number) {

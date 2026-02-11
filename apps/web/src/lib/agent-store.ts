@@ -4,7 +4,10 @@ import { ChildProcess } from "child_process";
 const globalStore = globalThis as unknown as {
   activeProcesses?: Map<string, ChildProcess>;
   agentOutputBuffers?: Map<string, string>;
-  agentProcessMeta?: Map<string, { toolName: string; startedAt: number; exited: boolean }>;
+  agentProcessMeta?: Map<
+    string,
+    { toolName: string; startedAt: number; exited: boolean }
+  >;
 };
 
 if (!globalStore.activeProcesses) {
@@ -56,7 +59,14 @@ export function isProcessAlive(id: string): boolean {
   return activeProcesses.has(id);
 }
 
-export function getProcessStatus(id: string): { alive: boolean; exited: boolean; toolName: string; hasOutput: boolean } | null {
+export function getProcessStatus(
+  id: string,
+): {
+  alive: boolean;
+  exited: boolean;
+  toolName: string;
+  hasOutput: boolean;
+} | null {
   const meta = agentProcessMeta.get(id);
   if (!meta) return null;
   return {
@@ -67,17 +77,12 @@ export function getProcessStatus(id: string): { alive: boolean; exited: boolean;
   };
 }
 
-export function getProcess(
-  id: string,
-): ChildProcess | undefined {
+export function getProcess(id: string): ChildProcess | undefined {
   return activeProcesses.get(id);
 }
 
-export function killProcess(
-  id: string,
-) {
-  const proc =
-    activeProcesses.get(id);
+export function killProcess(id: string) {
+  const proc = activeProcesses.get(id);
   if (proc) {
     proc.kill();
     activeProcesses.delete(id);

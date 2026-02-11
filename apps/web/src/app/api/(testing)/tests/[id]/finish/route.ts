@@ -7,18 +7,27 @@ const INDEX_FILE = path.join(TEST_DIR, "index.json");
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { executionId, status, logs, screenshots, startedAt, completedAt } = body;
+    const { executionId, status, logs, screenshots, startedAt, completedAt } =
+      body;
 
     if (!executionId) {
-      return NextResponse.json({ error: "Execution ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Execution ID is required" },
+        { status: 400 },
+      );
     }
 
-    const execDir = path.join(process.cwd(), ".agelum/tests/runs", id, executionId);
+    const execDir = path.join(
+      process.cwd(),
+      ".agelum/tests/runs",
+      id,
+      executionId,
+    );
     if (!fs.existsSync(execDir)) {
       fs.mkdirSync(execDir, { recursive: true });
     }
@@ -47,7 +56,8 @@ export async function POST(
       logs: logs || [],
       screenshotCount: (screenshots || []).length,
       screenshots: (screenshots || []).map((p: string) => {
-        if (p.startsWith("http") || p.startsWith("/api/tests/artifacts/")) return p;
+        if (p.startsWith("http") || p.startsWith("/api/tests/artifacts/"))
+          return p;
         const parts = p.split(".agelum/tests/runs/");
         return parts.length > 1 ? `/api/tests/artifacts/${parts[1]}` : p;
       }),
@@ -55,7 +65,7 @@ export async function POST(
 
     fs.writeFileSync(
       path.join(execDir, "result.json"),
-      JSON.stringify(result, null, 2)
+      JSON.stringify(result, null, 2),
     );
 
     return NextResponse.json({ success: true, result });

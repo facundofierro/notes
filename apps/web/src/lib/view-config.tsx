@@ -14,10 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-export const VIEW_MODE_CONFIG: Record<
-  string,
-  { label: string; icon: any }
-> = {
+export const VIEW_MODE_CONFIG: Record<string, { label: string; icon: any }> = {
   ideas: {
     label: "Ideas",
     icon: Lightbulb,

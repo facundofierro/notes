@@ -9,14 +9,20 @@ interface BrowserPageProps {
   iframeRef?: React.RefObject<HTMLIFrameElement>;
 }
 
-export function BrowserPage({ url, isActive, onUrlChange, isElectron, iframeRef }: BrowserPageProps) {
+export function BrowserPage({
+  url,
+  isActive,
+  onUrlChange,
+  isElectron,
+  iframeRef,
+}: BrowserPageProps) {
   // const iframeRef = React.useRef<HTMLIFrameElement>(null); // Removed internal ref
   const [currentSrc, setCurrentSrc] = React.useState(url);
 
   // Update src when url prop changes, but only if it's meaningful?
   // Actually, we want to allow internal navigation without resetting src constantly.
   // But if the user types a new URL in the bar, we want to navigate.
-  
+
   React.useEffect(() => {
     if (url && url !== currentSrc) {
       setCurrentSrc(url);
@@ -27,11 +33,13 @@ export function BrowserPage({ url, isActive, onUrlChange, isElectron, iframeRef 
   // The actual view is external.
   if (isElectron) {
     return (
-      <div className={isActive ? "flex-1 flex flex-col w-full h-full" : "hidden"}>
-         {/* Placeholder for Electron BrowserView */}
-         <div className="flex-1 bg-zinc-900 flex items-center justify-center text-muted-foreground/50">
-            {isActive ? "Browser Active" : "Background Tab"}
-         </div>
+      <div
+        className={isActive ? "flex-1 flex flex-col w-full h-full" : "hidden"}
+      >
+        {/* Placeholder for Electron BrowserView */}
+        <div className="flex-1 bg-zinc-900 flex items-center justify-center text-muted-foreground/50">
+          {isActive ? "Browser Active" : "Background Tab"}
+        </div>
       </div>
     );
   }
@@ -47,7 +55,7 @@ export function BrowserPage({ url, isActive, onUrlChange, isElectron, iframeRef 
           allow="camera; microphone; display-capture"
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
           onLoad={(e) => {
-             // Optional: try to sync URL if possible (cross-origin restrictions apply)
+            // Optional: try to sync URL if possible (cross-origin restrictions apply)
           }}
         />
       ) : (

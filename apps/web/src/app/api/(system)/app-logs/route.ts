@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { processOutputBuffers, processInputHandlers } from "@/lib/process-store";
+import {
+  processOutputBuffers,
+  processInputHandlers,
+} from "@/lib/process-store";
 
 const execAsync = promisify(exec);
 
 // Track which clients are reading which PIDs and their last read position
-const clientReadPositions = new Map<string, { pid: number; position: number }>();
+const clientReadPositions = new Map<
+  string,
+  { pid: number; position: number }
+>();
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -21,13 +27,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid pid" }, { status: 400 });
   }
 
-  console.log(`[LogStream] Client connected for PID: ${pid}. Buffers: ${processOutputBuffers.size}, Handlers: ${processInputHandlers.size}`);
-  
+  console.log(
+    `[LogStream] Client connected for PID: ${pid}. Buffers: ${processOutputBuffers.size}, Handlers: ${processInputHandlers.size}`,
+  );
+
   const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  
+
   // Create a readable stream for streaming logs
   const encoder = new TextEncoder();
-  
+
   const stream = new ReadableStream({
     async start(controller) {
       let cancelled = false;
@@ -44,9 +52,10 @@ export async function GET(request: NextRequest) {
           controller.close();
           return;
         }
-        const msg = JSON.stringify({
-          output: `Error: Process ${pid} not found (or exited without output)\n`,
-        }) + "\n";
+        const msg =
+          JSON.stringify({
+            output: `Error: Process ${pid} not found (or exited without output)\n`,
+          }) + "\n";
         controller.enqueue(encoder.encode(msg));
         controller.close();
         return;
@@ -55,22 +64,21 @@ export async function GET(request: NextRequest) {
       // Poll for new output from the buffer
       const pollInterval = setInterval(async () => {
         if (cancelled) return;
-        
+
         try {
           // Check if process is still alive
           process.kill(pid, 0);
-          
+
           // Read from shared output buffer
           const buffer = processOutputBuffers.get(pid);
           if (buffer && buffer.length > position) {
             const newContent = buffer.slice(position);
             position = buffer.length;
-            
+
             // Send the new content
             const msg = JSON.stringify({ output: newContent }) + "\n";
             controller.enqueue(encoder.encode(msg));
           }
-          
         } catch (error) {
           // Process died
           clearInterval(pollInterval);
@@ -81,9 +89,10 @@ export async function GET(request: NextRequest) {
             const msg = JSON.stringify({ output: newContent }) + "\n";
             controller.enqueue(encoder.encode(msg));
           }
-          const msg = JSON.stringify({ 
-            output: "\n[Process exited]\n" 
-          }) + "\n";
+          const msg =
+            JSON.stringify({
+              output: "\n[Process exited]\n",
+            }) + "\n";
           controller.enqueue(encoder.encode(msg));
           controller.close();
         }
@@ -103,7 +112,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     },
   });
 }
@@ -114,8 +123,8 @@ export async function POST(request: NextRequest) {
 
   if (!pid || typeof input !== "string") {
     return NextResponse.json(
-      { error: "Missing pid or input" }, 
-      { status: 400 }
+      { error: "Missing pid or input" },
+      { status: 400 },
     );
   }
 
@@ -128,12 +137,12 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       return NextResponse.json(
         { error: `Failed to write to input: ${error.message}` },
-        { status: 500 }
+        { status: 500 },
       );
     }
   }
   return NextResponse.json(
     { error: "Process input not available" },
-    { status: 404 }
+    { status: 404 },
   );
 }

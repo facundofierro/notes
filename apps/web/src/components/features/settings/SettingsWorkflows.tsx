@@ -1,20 +1,7 @@
 import * as React from "react";
-import {
-  Button,
-  Input,
-  Label,
-} from "@agelum/shadcn";
-import {
-  UserSettings,
-  WorkflowConfig,
-} from "@/hooks/use-settings";
-import {
-  Plus,
-  Trash2,
-  X,
-  Edit2,
-  GripVertical,
-} from "lucide-react";
+import { Button, Input, Label } from "@agelum/shadcn";
+import { UserSettings, WorkflowConfig } from "@/hooks/use-settings";
+import { Plus, Trash2, X, Edit2, GripVertical } from "lucide-react";
 import { VIEW_MODE_CONFIG } from "@/lib/view-config";
 import {
   DndContext,
@@ -40,10 +27,7 @@ import {
 
 interface SettingsWorkflowsProps {
   settings: UserSettings;
-  onChange: (
-    key: keyof UserSettings,
-    value: any,
-  ) => void;
+  onChange: (key: keyof UserSettings, value: any) => void;
   activeWorkflowId?: string;
   onSelectWorkflow?: (id: string) => void;
 }
@@ -54,17 +38,10 @@ interface SortableItemProps {
   onRemove: (id: string) => void;
 }
 
-function SortableItem({
-  id,
-  type,
-  onRemove,
-}: SortableItemProps) {
-  const config = VIEW_MODE_CONFIG[
-    type
-  ] || { label: type, icon: X };
+function SortableItem({ id, type, onRemove }: SortableItemProps) {
+  const config = VIEW_MODE_CONFIG[type] || { label: type, icon: X };
   const Icon = config.icon;
-  const isSeparator =
-    type === "separator";
+  const isSeparator = type === "separator";
 
   const {
     attributes,
@@ -76,8 +53,7 @@ function SortableItem({
   } = useSortable({ id });
 
   const style = {
-    transform:
-      CSS.Transform.toString(transform),
+    transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
   };
@@ -103,13 +79,7 @@ function SortableItem({
         <Icon
           className={`w-4 h-4 ${isSeparator ? "text-gray-500" : "text-gray-400"}`}
         />
-        <span
-          className={
-            isSeparator
-              ? "text-gray-500 italic"
-              : ""
-          }
-        >
+        <span className={isSeparator ? "text-gray-500 italic" : ""}>
           {config.label}
         </span>
       </div>
@@ -129,18 +99,10 @@ export function SettingsWorkflows({
   activeWorkflowId: propActiveId,
   onSelectWorkflow,
 }: SettingsWorkflowsProps) {
-  const [viewMode, setViewMode] =
-    React.useState<"list" | "edit">(
-      "list",
-    );
-  const [editingId, setEditingId] =
-    React.useState<string | null>(null);
-  const [newName, setNewName] =
-    React.useState("");
-  const [
-    selectedItems,
-    setSelectedItems,
-  ] = React.useState<
+  const [viewMode, setViewMode] = React.useState<"list" | "edit">("list");
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [newName, setNewName] = React.useState("");
+  const [selectedItems, setSelectedItems] = React.useState<
     { id: string; type: string }[]
   >([]);
 
@@ -151,25 +113,21 @@ export function SettingsWorkflows({
       },
     }),
     useSensor(KeyboardSensor, {
-      coordinateGetter:
-        sortableKeyboardCoordinates,
+      coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
-  const availableItems = Object.keys(
-    VIEW_MODE_CONFIG,
-  ).filter((k) => k !== "separator");
+  const availableItems = Object.keys(VIEW_MODE_CONFIG).filter(
+    (k) => k !== "separator",
+  );
 
   const handleAddOrUpdate = () => {
     if (!newName) return;
 
-    const itemsToSave =
-      selectedItems.map((i) => i.type);
+    const itemsToSave = selectedItems.map((i) => i.type);
 
     if (editingId && editingId !== "default") {
-      const updatedWorkflows = (
-        settings.workflows || []
-      ).map((w) =>
+      const updatedWorkflows = (settings.workflows || []).map((w) =>
         w.id === editingId
           ? {
               ...w,
@@ -178,29 +136,20 @@ export function SettingsWorkflows({
             }
           : w,
       );
-      onChange(
-        "workflows",
-        updatedWorkflows,
-      );
+      onChange("workflows", updatedWorkflows);
     } else {
-      const newWorkflow: WorkflowConfig =
-        {
-          id: crypto.randomUUID(),
-          name: newName,
-          items: itemsToSave,
-        };
-      onChange("workflows", [
-        ...(settings.workflows || []),
-        newWorkflow,
-      ]);
+      const newWorkflow: WorkflowConfig = {
+        id: crypto.randomUUID(),
+        name: newName,
+        items: itemsToSave,
+      };
+      onChange("workflows", [...(settings.workflows || []), newWorkflow]);
     }
 
     handleCancelEdit();
   };
 
-  const handleEdit = (
-    workflow: WorkflowConfig,
-  ) => {
+  const handleEdit = (workflow: WorkflowConfig) => {
     setEditingId(workflow.id);
     setNewName(workflow.name);
     setSelectedItems(
@@ -226,42 +175,27 @@ export function SettingsWorkflows({
     setViewMode("edit");
   };
 
-  const handleDelete = (
-    id: string,
-    e: React.MouseEvent,
-  ) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onChange(
       "workflows",
-      (settings.workflows || []).filter(
-        (w) => w.id !== id,
-      ),
+      (settings.workflows || []).filter((w) => w.id !== id),
     );
     if (editingId === id) {
       handleCancelEdit();
     }
   };
 
-  const handleSelectWorkflow = (
-    id: string,
-  ) => {
+  const handleSelectWorkflow = (id: string) => {
     if (onSelectWorkflow) {
       onSelectWorkflow(id);
     } else {
-      onChange(
-        "defaultWorkflowId",
-        id === "default" ? undefined : id,
-      );
+      onChange("defaultWorkflowId", id === "default" ? undefined : id);
     }
   };
 
   const addItem = (type: string) => {
-    if (
-      type === "separator" ||
-      !selectedItems.some(
-        (i) => i.type === type,
-      )
-    ) {
+    if (type === "separator" || !selectedItems.some((i) => i.type === type)) {
       setSelectedItems([
         ...selectedItems,
         {
@@ -273,44 +207,24 @@ export function SettingsWorkflows({
   };
 
   const removeItem = (id: string) => {
-    setSelectedItems(
-      selectedItems.filter(
-        (i) => i.id !== id,
-      ),
-    );
+    setSelectedItems(selectedItems.filter((i) => i.id !== id));
   };
 
-  const handleDragEnd = (
-    event: DragEndEvent,
-  ) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
       setSelectedItems((items) => {
-        const oldIndex =
-          items.findIndex(
-            (i) => i.id === active.id,
-          );
-        const newIndex =
-          items.findIndex(
-            (i) => i.id === over.id,
-          );
-        return arrayMove(
-          items,
-          oldIndex,
-          newIndex,
-        );
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
       });
     }
   };
 
-  const itemsNotInBar =
-    availableItems.filter(
-      (type) =>
-        !selectedItems.some(
-          (i) => i.type === type,
-        ),
-    );
+  const itemsNotInBar = availableItems.filter(
+    (type) => !selectedItems.some((i) => i.type === type),
+  );
 
   const WorkflowPreview = ({
     items,
@@ -334,12 +248,10 @@ export function SettingsWorkflows({
               />
             );
           }
-          const config =
-            VIEW_MODE_CONFIG[mode];
+          const config = VIEW_MODE_CONFIG[mode];
           if (!config) return null;
           const Icon = config.icon;
-          const isItemActive =
-            isActive && currentDefaultView === mode;
+          const isItemActive = isActive && currentDefaultView === mode;
           return (
             <div
               key={`${mode}-${index}`}
@@ -374,13 +286,10 @@ export function SettingsWorkflows({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-medium text-white">
-              {editingId
-                ? "Edit Workflow"
-                : "New Workflow"}
+              {editingId ? "Edit Workflow" : "New Workflow"}
             </h3>
             <p className="text-sm text-gray-400">
-              Configure your top bar
-              items and layout.
+              Configure your top bar items and layout.
             </p>
           </div>
         </div>
@@ -403,16 +312,10 @@ export function SettingsWorkflows({
         {/* Editor Section */}
         <div className="grid gap-6 p-6 rounded-xl border border-border bg-secondary/30">
           <div className="space-y-2">
-            <Label className="text-gray-200">
-              Workflow Name
-            </Label>
+            <Label className="text-gray-200">Workflow Name</Label>
             <Input
               value={newName}
-              onChange={(e) =>
-                setNewName(
-                  e.target.value,
-                )
-              }
+              onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Frontend Development, Review Mode..."
               className="text-gray-100 bg-background border-border focus:ring-amber-600/50"
             />
@@ -422,52 +325,32 @@ export function SettingsWorkflows({
             {/* Left Column: Active Items */}
             <div className="space-y-3">
               <Label className="text-gray-400 text-xs font-semibold">
-                ITEMS IN BAR (LEFT TO
-                RIGHT)
+                ITEMS IN BAR (LEFT TO RIGHT)
               </Label>
               <div className="h-[250px] overflow-y-auto p-2 bg-background rounded-lg border border-border space-y-1">
                 <DndContext
                   sensors={sensors}
-                  collisionDetection={
-                    closestCenter
-                  }
-                  onDragEnd={
-                    handleDragEnd
-                  }
-                  modifiers={[
-                    restrictToVerticalAxis,
-                    restrictToWindowEdges,
-                  ]}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                  modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
                 >
                   <SortableContext
-                    items={selectedItems.map(
-                      (i) => i.id,
-                    )}
-                    strategy={
-                      verticalListSortingStrategy
-                    }
+                    items={selectedItems.map((i) => i.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    {selectedItems.map(
-                      (item) => (
-                        <SortableItem
-                          key={item.id}
-                          id={item.id}
-                          type={
-                            item.type
-                          }
-                          onRemove={
-                            removeItem
-                          }
-                        />
-                      ),
-                    )}
+                    {selectedItems.map((item) => (
+                      <SortableItem
+                        key={item.id}
+                        id={item.id}
+                        type={item.type}
+                        onRemove={removeItem}
+                      />
+                    ))}
                   </SortableContext>
                 </DndContext>
-                {selectedItems.length ===
-                  0 && (
+                {selectedItems.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full text-gray-600 text-xs italic">
-                    Click items on the
-                    right to add
+                    Click items on the right to add
                   </div>
                 )}
               </div>
@@ -481,48 +364,34 @@ export function SettingsWorkflows({
               <div className="h-[250px] overflow-y-auto p-2 bg-background rounded-lg border border-border space-y-1">
                 {/* Special Separator Item */}
                 <button
-                  onClick={() =>
-                    addItem("separator")
-                  }
+                  onClick={() => addItem("separator")}
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-white bg-transparent hover:bg-secondary/50 rounded-md border border-transparent hover:border-border transition-all group"
                 >
                   <div className="flex items-center gap-2">
                     <VIEW_MODE_CONFIG.separator.icon className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
-                    {
-                      VIEW_MODE_CONFIG
-                        .separator.label
-                    }
+                    {VIEW_MODE_CONFIG.separator.label}
                   </div>
                   <Plus className="w-3 h-3 text-gray-600 group-hover:text-amber-400" />
                 </button>
 
-                {itemsNotInBar.map(
-                  (type) => {
-                    const config =
-                      VIEW_MODE_CONFIG[
-                        type
-                      ];
-                    const Icon =
-                      config.icon;
-                    return (
-                      <button
-                        key={type}
-                        onClick={() =>
-                          addItem(type)
-                        }
-                        className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-white bg-transparent hover:bg-secondary/50 rounded-md border border-transparent hover:border-border transition-all group"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
-                          {config.label}
-                        </div>
-                        <Plus className="w-3 h-3 text-gray-600 group-hover:text-amber-400" />
-                      </button>
-                    );
-                  },
-                )}
-                {itemsNotInBar.length ===
-                  0 && (
+                {itemsNotInBar.map((type) => {
+                  const config = VIEW_MODE_CONFIG[type];
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => addItem(type)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-white bg-transparent hover:bg-secondary/50 rounded-md border border-transparent hover:border-border transition-all group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
+                        {config.label}
+                      </div>
+                      <Plus className="w-3 h-3 text-gray-600 group-hover:text-amber-400" />
+                    </button>
+                  );
+                })}
+                {itemsNotInBar.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-8 text-gray-600 text-xs italic">
                     All items added
                   </div>
@@ -540,19 +409,11 @@ export function SettingsWorkflows({
               Cancel
             </Button>
             <Button
-              onClick={
-                handleAddOrUpdate
-              }
-              disabled={
-                !newName ||
-                selectedItems.length ===
-                  0
-              }
+              onClick={handleAddOrUpdate}
+              disabled={!newName || selectedItems.length === 0}
               className="flex-[2] text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20"
             >
-              {editingId
-                ? "Update Workflow"
-                : "Add Workflow"}
+              {editingId ? "Update Workflow" : "Add Workflow"}
             </Button>
           </div>
         </div>
@@ -582,21 +443,15 @@ export function SettingsWorkflows({
   ];
 
   const activeWorkflowId =
-    propActiveId ||
-    settings.defaultWorkflowId ||
-    "default";
+    propActiveId || settings.defaultWorkflowId || "default";
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-white">
-            Workflows
-          </h3>
+          <h3 className="text-lg font-medium text-white">Workflows</h3>
           <p className="text-sm text-gray-400">
-            Select or create your
-            preferred top bar
-            configuration.
+            Select or create your preferred top bar configuration.
           </p>
         </div>
         <Button
@@ -609,94 +464,79 @@ export function SettingsWorkflows({
       </div>
 
       <div className="grid gap-4">
-        {allWorkflows.map(
-          (workflow) => {
-            const isActive =
-              activeWorkflowId ===
-              workflow.id;
-            return (
-              <div
-                key={workflow.id}
-                onClick={() =>
-                  handleSelectWorkflow(
-                    workflow.id,
-                  )
-                }
-                className={`group relative flex flex-col gap-4 p-6 bg-secondary/30 rounded-2xl border transition-all cursor-pointer ${
-                  isActive
-                    ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20"
-                    : "border-border hover:border-gray-700 hover:bg-secondary/50"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-2 h-2 rounded-full transition-colors ${isActive ? "bg-amber-500 animate-pulse" : "bg-gray-700"}`}
-                    />
-                    <span className="font-semibold text-gray-100">
-                      {workflow.name}
+        {allWorkflows.map((workflow) => {
+          const isActive = activeWorkflowId === workflow.id;
+          return (
+            <div
+              key={workflow.id}
+              onClick={() => handleSelectWorkflow(workflow.id)}
+              className={`group relative flex flex-col gap-4 p-6 bg-secondary/30 rounded-2xl border transition-all cursor-pointer ${
+                isActive
+                  ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20"
+                  : "border-border hover:border-gray-700 hover:bg-secondary/50"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-2 h-2 rounded-full transition-colors ${isActive ? "bg-amber-500 animate-pulse" : "bg-gray-700"}`}
+                  />
+                  <span className="font-semibold text-gray-100">
+                    {workflow.name}
+                  </span>
+                  {workflow.id === "default" && (
+                    <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">
+                      System
                     </span>
-                    {workflow.id ===
-                      "default" && (
-                      <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">
-                        System
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(workflow);
+                    }}
+                    className="h-8 w-8 text-gray-400 hover:text-white hover:bg-secondary"
+                    title="Edit Workflow"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                  {workflow.id !== "default" && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(workflow);
-                      }}
-                      className="h-8 w-8 text-gray-400 hover:text-white hover:bg-secondary"
-                      title="Edit Workflow"
+                      onClick={(e) => handleDelete(workflow.id, e)}
+                      className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-secondary"
+                      title="Delete Workflow"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                    {workflow.id !==
-                      "default" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) =>
-                          handleDelete(
-                            workflow.id,
-                            e,
-                          )
-                        }
-                        className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-secondary"
-                        title="Delete Workflow"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
+                  )}
                 </div>
-
-                <div className="flex justify-start">
-                  <WorkflowPreview
-                    items={workflow.items}
-                    isActive={isActive}
-                    currentDefaultView={settings.defaultView}
-                    onItemClick={(mode) => {
-                      handleSelectWorkflow(workflow.id);
-                      onChange("defaultView", mode);
-                    }}
-                  />
-                </div>
-
-                {isActive && (
-                  <div className="absolute -top-2 -right-2 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
-                    ACTIVE
-                  </div>
-                )}
               </div>
-            );
-          },
-        )}
+
+              <div className="flex justify-start">
+                <WorkflowPreview
+                  items={workflow.items}
+                  isActive={isActive}
+                  currentDefaultView={settings.defaultView}
+                  onItemClick={(mode) => {
+                    handleSelectWorkflow(workflow.id);
+                    onChange("defaultView", mode);
+                  }}
+                />
+              </div>
+
+              {isActive && (
+                <div className="absolute -top-2 -right-2 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                  ACTIVE
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,16 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { 
-  Play, 
-  Square, 
-  ScrollText, 
-  MoreVertical, 
-  RotateCw, 
-  Download, 
-  Hammer, 
-  Settings, 
-  LogIn 
+import {
+  Play,
+  Square,
+  ScrollText,
+  MoreVertical,
+  RotateCw,
+  Download,
+  Hammer,
+  Settings,
+  LogIn,
 } from "lucide-react";
 import { AgelumNotesLogo } from "@agelum/shadcn";
 import { ProjectSelector } from "@/components/shared/ProjectSelector";
@@ -31,14 +31,15 @@ export function Header() {
     handleBuildApp,
     setSettingsTab,
     setIsSettingsOpen,
-    settings
+    settings,
   } = store;
 
   // Defer persisted viewMode until after hydration to avoid SSR mismatch
   const [hasMounted, setHasMounted] = React.useState(false);
-  
+
   // Terminal activity animation state
-  const { viewMode, isAppRunning, isAppManaged, lastTerminalActivity } = store.getProjectState();
+  const { viewMode, isAppRunning, isAppManaged, lastTerminalActivity } =
+    store.getProjectState();
   const [isTerminalReceiving, setIsTerminalReceiving] = React.useState(false);
 
   React.useEffect(() => setHasMounted(true), []);
@@ -83,7 +84,7 @@ export function Header() {
 
   const handleInstallDeps = React.useCallback(async () => {
     if (!selectedRepo) return;
-    
+
     // Switch to logs view
     store.setProjectState(() => ({
       viewMode: "logs",
@@ -118,27 +119,35 @@ export function Header() {
         <AgelumNotesLogo size="sm" />
         <div className="flex gap-1 items-center">
           {visibleItems.map((mode, index) => {
-            if (mode === "separator") return <div key={`sep-${index}`} className="w-px h-6 bg-border mx-1" />;
+            if (mode === "separator")
+              return (
+                <div key={`sep-${index}`} className="w-px h-6 bg-border mx-1" />
+              );
             const config = VIEW_MODE_CONFIG[mode];
             if (!config) return null;
             const Icon = config.icon;
-            
-            const isTerminalAndReceiving = mode === "logs" && isTerminalReceiving && effectiveViewMode !== "logs";
-            
+
+            const isTerminalAndReceiving =
+              mode === "logs" &&
+              isTerminalReceiving &&
+              effectiveViewMode !== "logs";
+
             return (
               <button
                 key={`${mode}-${index}`}
                 onClick={() => setViewMode(mode as ViewMode)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${ 
-                  effectiveViewMode === mode 
-                    ? "text-amber-500 bg-amber-500/10" 
-                    : isTerminalAndReceiving 
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
+                  effectiveViewMode === mode
+                    ? "text-amber-500 bg-amber-500/10"
+                    : isTerminalAndReceiving
                       ? "text-amber-400/80 bg-amber-500/5 transition-all duration-300" // Subtle highlight for activity
-                      : "text-muted-foreground hover:bg-accent" 
+                      : "text-muted-foreground hover:bg-accent"
                 }`}
               >
                 <div className="relative">
-                  <Icon className={`w-4 h-4 ${isTerminalAndReceiving ? "animate-pulse" : ""}`} />
+                  <Icon
+                    className={`w-4 h-4 ${isTerminalAndReceiving ? "animate-pulse" : ""}`}
+                  />
                   {isTerminalAndReceiving && (
                     <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
                   )}
@@ -161,76 +170,97 @@ export function Header() {
           <div className="mx-1.5 w-px h-4 bg-border" />
           <div className="flex items-center gap-0.5">
             {!isAppRunning ? (
-              <button 
-                onClick={handleStartApp} 
-                className="p-1.5 rounded-full text-green-400 hover:bg-green-400/10 transition-colors" 
+              <button
+                onClick={handleStartApp}
+                className="p-1.5 rounded-full text-green-400 hover:bg-green-400/10 transition-colors"
                 title="Start App"
               >
                 <Play className="w-4 h-4 fill-current" />
               </button>
             ) : (
-              <button 
-                onClick={handleStopApp} 
-                className="p-1.5 rounded-full text-red-400 hover:bg-red-400/10 transition-colors" 
+              <button
+                onClick={handleStopApp}
+                className="p-1.5 rounded-full text-red-400 hover:bg-red-400/10 transition-colors"
                 title="Stop App"
               >
                 <Square className="w-4 h-4" />
               </button>
             )}
             <div className="relative">
-              <button 
-                onClick={() => setIsAppActionsMenuOpen(!isAppActionsMenuOpen)} 
-                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors" 
+              <button
+                onClick={() => setIsAppActionsMenuOpen(!isAppActionsMenuOpen)}
+                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-accent transition-colors"
                 title="More Actions"
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
               {isAppActionsMenuOpen && (
-                <div 
-                  className="absolute top-full right-0 mt-1 py-1 bg-secondary border border-border rounded-lg shadow-lg min-w-[160px] z-50" 
+                <div
+                  className="absolute top-full right-0 mt-1 py-1 bg-secondary border border-border rounded-lg shadow-lg min-w-[160px] z-50"
                   onMouseLeave={() => setIsAppActionsMenuOpen(false)}
                 >
                   {isAppRunning && (
-                    <button 
-                      onClick={() => { handleRestartApp(); setIsAppActionsMenuOpen(false); }} 
+                    <button
+                      onClick={() => {
+                        handleRestartApp();
+                        setIsAppActionsMenuOpen(false);
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
                     >
-                      <RotateCw className="w-4 h-4" />Restart
+                      <RotateCw className="w-4 h-4" />
+                      Restart
                     </button>
                   )}
-                  <button 
-                    onClick={() => { handleInstallDeps(); setIsAppActionsMenuOpen(false); }} 
+                  <button
+                    onClick={() => {
+                      handleInstallDeps();
+                      setIsAppActionsMenuOpen(false);
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
                   >
-                    <Download className="w-4 h-4" />Install
+                    <Download className="w-4 h-4" />
+                    Install
                   </button>
-                  <button 
-                    onClick={() => { handleBuildApp(); setIsAppActionsMenuOpen(false); }} 
+                  <button
+                    onClick={() => {
+                      handleBuildApp();
+                      setIsAppActionsMenuOpen(false);
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
                   >
-                    <Hammer className="w-4 h-4" />Build
+                    <Hammer className="w-4 h-4" />
+                    Build
                   </button>
                   <div className="my-1 mx-2 h-px bg-border" />
-                  <button 
-                    onClick={() => { setSettingsTab("project-config"); setIsSettingsOpen(true); setIsAppActionsMenuOpen(false); }} 
+                  <button
+                    onClick={() => {
+                      setSettingsTab("project-config");
+                      setIsSettingsOpen(true);
+                      setIsAppActionsMenuOpen(false);
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
                   >
-                    <Settings className="w-4 h-4" />Settings
+                    <Settings className="w-4 h-4" />
+                    Settings
                   </button>
                 </div>
               )}
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => { setSettingsTab("defaults"); setIsSettingsOpen(true); }} 
-          className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-white hover:bg-accent" 
+        <button
+          onClick={() => {
+            setSettingsTab("defaults");
+            setIsSettingsOpen(true);
+          }}
+          className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-white hover:bg-accent"
           title="General Settings"
         >
           <Settings className="w-5 h-5" />
         </button>
         <button className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-white hover:bg-accent rounded-lg text-sm transition-colors">
-          <LogIn className="w-4 h-4" />Login
+          <LogIn className="w-4 h-4" />
+          Login
         </button>
       </div>
     </div>

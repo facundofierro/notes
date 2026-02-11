@@ -1,9 +1,9 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'Kanban Board Demo',
-  description: 'A beautiful Kanban board component demo',
+  title: "Kanban Board Demo",
+  description: "A beautiful Kanban board component demo",
 };
 
 export default function RootLayout({

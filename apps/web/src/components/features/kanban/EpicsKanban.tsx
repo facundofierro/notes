@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   KanbanBoard,
   type KanbanCardType,
@@ -15,13 +11,7 @@ interface Epic {
   id: string;
   title: string;
   description: string;
-  state:
-    | "backlog"
-    | "priority"
-    | "fixes"
-    | "pending"
-    | "doing"
-    | "done";
+  state: "backlog" | "priority" | "fixes" | "pending" | "doing" | "done";
   createdAt: string;
   path: string;
 }
@@ -62,9 +52,7 @@ const columns: KanbanColumnType[] = [
 interface EpicsKanbanProps {
   repo: string;
   onEpicSelect: (epic: Epic) => void;
-  onCreateEpic?: (opts: {
-    state: Epic["state"];
-  }) => void;
+  onCreateEpic?: (opts: { state: Epic["state"] }) => void;
 }
 
 export default function EpicsKanban({
@@ -72,89 +60,67 @@ export default function EpicsKanban({
   onEpicSelect,
   onCreateEpic,
 }: EpicsKanbanProps) {
-  const [epics, setEpics] = useState<
-    Epic[]
-  >([]);
-  const [refreshKey, setRefreshKey] =
-    useState(0);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchEpics =
-    useCallback(async () => {
-      const res = await fetch(
-        `/api/epics?repo=${encodeURIComponent(repo)}`,
-      );
-      const data = await res.json();
-      setEpics(data.epics || []);
-    }, [repo]);
+  const fetchEpics = useCallback(async () => {
+    const res = await fetch(`/api/epics?repo=${encodeURIComponent(repo)}`);
+    const data = await res.json();
+    setEpics(data.epics || []);
+  }, [repo]);
 
   useEffect(() => {
     fetchEpics();
   }, [fetchEpics, refreshKey]);
 
-  const cards =
-    epics.map<KanbanCardType>(
-      (epic, index) => ({
-        id: epic.id,
-        title: epic.title,
-        description: epic.description,
-        columnId: epic.state,
-        order: index,
-      }),
-    );
+  const cards = epics.map<KanbanCardType>((epic, index) => ({
+    id: epic.id,
+    title: epic.title,
+    description: epic.description,
+    columnId: epic.state,
+    order: index,
+  }));
 
   const handleAddCard = useCallback(
     (columnId: string) => {
       onCreateEpic?.({
-        state:
-          columnId as Epic["state"],
+        state: columnId as Epic["state"],
       });
     },
     [onCreateEpic],
   );
 
   const handleCardMove = useCallback(
-    async (
-      cardId: string,
-      fromState: string,
-      toState: string,
-    ) => {
+    async (cardId: string, fromState: string, toState: string) => {
       setEpics((prev) =>
         prev.map((e) =>
           e.id === cardId
             ? {
                 ...e,
-                state:
-                  toState as Epic["state"],
+                state: toState as Epic["state"],
               }
             : e,
         ),
       );
 
-      const res = await fetch(
-        "/api/epics",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            repo,
-            action: "move",
-            epicId: cardId,
-            fromState,
-            toState,
-          }),
+      const res = await fetch("/api/epics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          repo,
+          action: "move",
+          epicId: cardId,
+          fromState,
+          toState,
+        }),
+      });
 
       if (!res.ok) {
         setRefreshKey((k) => k + 1);
         const data = await res.json();
-        throw new Error(
-          data.error ||
-            "Failed to move epic",
-        );
+        throw new Error(data.error || "Failed to move epic");
       }
 
       setRefreshKey((k) => k + 1);
@@ -169,20 +135,12 @@ export default function EpicsKanban({
         cards={cards}
         onAddCard={handleAddCard}
         onCardMove={handleCardMove}
-        onCardClick={(
-          card: KanbanCardType,
-        ) => {
-          const epic = epics.find(
-            (e) => e.id === card.id,
-          );
+        onCardClick={(card: KanbanCardType) => {
+          const epic = epics.find((e) => e.id === card.id);
           if (epic) onEpicSelect(epic);
         }}
-        onCardEdit={(
-          card: KanbanCardType,
-        ) => {
-          const epic = epics.find(
-            (e) => e.id === card.id,
-          );
+        onCardEdit={(card: KanbanCardType) => {
+          const epic = epics.find((e) => e.id === card.id);
           if (epic) onEpicSelect(epic);
         }}
         key={refreshKey}

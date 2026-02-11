@@ -42,7 +42,9 @@ export async function readAgentHistory(): Promise<AgentHistorySession[]> {
   }
 }
 
-export async function appendAgentHistory(session: AgentHistorySession): Promise<void> {
+export async function appendAgentHistory(
+  session: AgentHistorySession,
+): Promise<void> {
   try {
     ensureSettingsDir();
     const sessions = await readAgentHistory();
@@ -50,11 +52,11 @@ export async function appendAgentHistory(session: AgentHistorySession): Promise<
     const newSessions = [session, ...sessions];
     // Keep only last 100 sessions to prevent file from growing too large
     const trimmedSessions = newSessions.slice(0, 100);
-    
+
     fs.writeFileSync(
       getHistoryFile(),
       JSON.stringify(trimmedSessions, null, 2),
-      { mode: 0o600 }
+      { mode: 0o600 },
     );
   } catch (error) {
     console.error("Error saving agent history:", error);

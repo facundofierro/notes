@@ -10,7 +10,12 @@ interface DiffViewProps {
   className?: string;
 }
 
-export function DiffView({ original, modified, language = "plaintext", className }: DiffViewProps) {
+export function DiffView({
+  original,
+  modified,
+  language = "plaintext",
+  className,
+}: DiffViewProps) {
   return (
     <div className={`h-full w-full ${className}`}>
       <DiffEditor
@@ -25,7 +30,7 @@ export function DiffView({ original, modified, language = "plaintext", className
           automaticLayout: true,
           wordWrap: "on",
         }}
-        theme="vs-dark" 
+        theme="vs-dark"
       />
     </div>
   );

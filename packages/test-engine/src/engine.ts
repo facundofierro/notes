@@ -1,6 +1,11 @@
 import { BrowserManager } from "agent-browser/dist/browser.js";
 import { executeCommand } from "agent-browser/dist/actions.js";
-import { LLMConfig, generateStructuredObject, CoreMessage, z } from "@agelum/llm-provider";
+import {
+  LLMConfig,
+  generateStructuredObject,
+  CoreMessage,
+  z,
+} from "@agelum/llm-provider";
 import { TestStep, TestScenario } from "./types";
 
 export class TestEngine {
@@ -14,9 +19,9 @@ export class TestEngine {
 
   private screenshotDir?: string;
 
-  async start(options: { headless?: boolean, screenshotDir?: string } = {}) {
+  async start(options: { headless?: boolean; screenshotDir?: string } = {}) {
     this.screenshotDir = options.screenshotDir;
-    
+
     await this.browser.launch({
       action: "launch",
       id: "launch",
@@ -45,18 +50,18 @@ export class TestEngine {
     // VerifyVisible handled above
     const s = step as any;
     if (s.action === "verifyVisible") {
-       await this.handleVerifyVisible(s.selector);
-       return;
+      await this.handleVerifyVisible(s.selector);
+      return;
     }
-    
+
     if (s.action === "screenshot") {
-        await this.handleScreenshot(s.name);
-        return;
+      await this.handleScreenshot(s.name);
+      return;
     }
 
     // Map step to agent-browser command
     const command = this.mapStepToCommand(step);
-    
+
     // executeCommand expects { action: string, ... } and id.
     if (!command.id) command.id = Math.random().toString(36).substring(7);
 
@@ -71,18 +76,18 @@ export class TestEngine {
 
   private mapStepToCommand(step: any): any {
     const base = { ...step };
-    
+
     switch (step.action) {
       case "setViewport":
         return { ...base, action: "viewport" };
-      
+
       case "verifyVisible":
-        return { 
-           action: "isvisible", 
-           selector: step.selector,
-           id: step.id 
+        return {
+          action: "isvisible",
+          selector: step.selector,
+          id: step.id,
         };
-        
+
       case "wait":
         if (step.type === "element") {
           return { action: "wait", selector: String(step.value) };
@@ -92,49 +97,54 @@ export class TestEngine {
           return { action: "waitforurl", url: String(step.value) };
         }
         return { action: "wait", timeout: 1000 }; // fallback
-        
+
       default:
         return base;
     }
   }
 
   private async handleVerifyVisible(selector: string) {
-     const result = await executeCommand({
-         action: "isvisible",
-         selector,
-         id: "verify-" + Date.now()
-     } as any, this.browser);
+    const result = await executeCommand(
+      {
+        action: "isvisible",
+        selector,
+        id: "verify-" + Date.now(),
+      } as any,
+      this.browser,
+    );
 
-     if (!result.success) throw new Error(`Verify failed: ${result.error}`);
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-     if (!(result.data as any)?.visible) {
-         throw new Error(`Element ${selector} is not visible`);
-     }
+    if (!result.success) throw new Error(`Verify failed: ${result.error}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(result.data as any)?.visible) {
+      throw new Error(`Element ${selector} is not visible`);
+    }
   }
 
   private async handleScreenshot(name?: string) {
-      if (!this.screenshotDir) return;
-      
-      const fileName = `${Date.now()}-${(name || "screenshot").replace(/[^a-z0-9]/gi, '_')}.png`;
-      // We assume path module is available or we construct path manually if running in browser env (which this is not supposed to be).
-      // Since this runs in node, we need path, but we didn't import it.
-      // Let's rely on basic string concat for now or fix imports if I can.
-      // Assuming screenshotDir is absolute or relative to CWD.
-      const filePath = `${this.screenshotDir}/${fileName}`;
-      
-      try {
-          // Use browser page if available
-          // @ts-ignore
-          if (this.browser.page) {
-              // @ts-ignore
-              await this.browser.page.screenshot({ path: filePath });
-              console.log(JSON.stringify({ type: "screenshot", path: filePath })); // Structured log event
-          } else {
-              console.warn("Screenshot skipped: No page instance found on browser manager.");
-          }
-      } catch (e: any) {
-          console.error(`Screenshot failed: ${e.message}`);
+    if (!this.screenshotDir) return;
+
+    const fileName = `${Date.now()}-${(name || "screenshot").replace(/[^a-z0-9]/gi, "_")}.png`;
+    // We assume path module is available or we construct path manually if running in browser env (which this is not supposed to be).
+    // Since this runs in node, we need path, but we didn't import it.
+    // Let's rely on basic string concat for now or fix imports if I can.
+    // Assuming screenshotDir is absolute or relative to CWD.
+    const filePath = `${this.screenshotDir}/${fileName}`;
+
+    try {
+      // Use browser page if available
+      // @ts-ignore
+      if (this.browser.page) {
+        // @ts-ignore
+        await this.browser.page.screenshot({ path: filePath });
+        console.log(JSON.stringify({ type: "screenshot", path: filePath })); // Structured log event
+      } else {
+        console.warn(
+          "Screenshot skipped: No page instance found on browser manager.",
+        );
       }
+    } catch (e: any) {
+      console.error(`Screenshot failed: ${e.message}`);
+    }
   }
 
   private async handleAIPrompt(instruction: string) {
@@ -157,12 +167,12 @@ The action must be one of the following schemas (similar to Playwright/Agent Bro
 { "action": "done" } (if the instruction is complete)
 
 Prioritize using the simplified "refs" (e.g. @12, @e1) from the tree.
-`
+`,
       },
       {
         role: "user",
-        content: `Current Page Tree:\n${tree}\n\nInstruction: ${instruction}`
-      }
+        content: `Current Page Tree:\n${tree}\n\nInstruction: ${instruction}`,
+      },
     ];
 
     // 3. Loop until done (simplification: just one step for now? Or loop?)
@@ -171,47 +181,59 @@ Prioritize using the simplified "refs" (e.g. @12, @e1) from the tree.
     let done = false;
     let iterations = 0;
     while (!done && iterations < 5) {
-        // We might need to refresh snapshot if state changed
-        if (iterations > 0) {
-            const newSnap = await this.browser.getSnapshot();
-            messages.push({ role: "user", content: `New State:\n${newSnap.tree}` });
-        }
+      // We might need to refresh snapshot if state changed
+      if (iterations > 0) {
+        const newSnap = await this.browser.getSnapshot();
+        messages.push({ role: "user", content: `New State:\n${newSnap.tree}` });
+      }
 
-        const response = await generateStructuredObject(
-            this.llmConfig,
-            messages,
-            // We define a loose schema for the output action
-            // In a real app we'd define all allowed actions strictly.
-             // This is just a placeholder schema
-             // We'll trust the LLM outputs a valid action structure we can try to execute or map.
-             // Since zod schemas are strict, let's use a "passthrough" or just object.
-             // But generateObject requires a specific Zod schema.
-             // Let's define a "NextAction" schema.
-             // For now, I'll use 'z.any()' to allow flexibility and refine later.
-             z.any()
-        );
-        
-        const action = (response.object as any).step || (response.object as any); // Handle if it returns { step: ... } or just ...
-        
-        console.log("AI decided:", action);
+      const response = await generateStructuredObject(
+        this.llmConfig,
+        messages,
+        // We define a loose schema for the output action
+        // In a real app we'd define all allowed actions strictly.
+        // This is just a placeholder schema
+        // We'll trust the LLM outputs a valid action structure we can try to execute or map.
+        // Since zod schemas are strict, let's use a "passthrough" or just object.
+        // But generateObject requires a specific Zod schema.
+        // Let's define a "NextAction" schema.
+        // For now, I'll use 'z.any()' to allow flexibility and refine later.
+        z.any(),
+      );
 
-        if (action.action === "done") {
-            done = true;
-            break;
-        }
+      const action = (response.object as any).step || (response.object as any); // Handle if it returns { step: ... } or just ...
 
-        // Execute LLM generated action
-        // We map it to TestStep or directly to executeCommand
-        try {
-            await this.runStep(action);
-            messages.push({ role: "assistant", content: JSON.stringify({ step: action }) });
-            messages.push({ role: "user", content: "Action executed successfully." });
-        } catch (e: any) {
-            messages.push({ role: "assistant", content: JSON.stringify({ step: action }) });
-            messages.push({ role: "user", content: `Action failed: ${e.message}. Try something else.` });
-        }
-        
-        iterations++;
+      console.log("AI decided:", action);
+
+      if (action.action === "done") {
+        done = true;
+        break;
+      }
+
+      // Execute LLM generated action
+      // We map it to TestStep or directly to executeCommand
+      try {
+        await this.runStep(action);
+        messages.push({
+          role: "assistant",
+          content: JSON.stringify({ step: action }),
+        });
+        messages.push({
+          role: "user",
+          content: "Action executed successfully.",
+        });
+      } catch (e: any) {
+        messages.push({
+          role: "assistant",
+          content: JSON.stringify({ step: action }),
+        });
+        messages.push({
+          role: "user",
+          content: `Action failed: ${e.message}. Try something else.`,
+        });
+      }
+
+      iterations++;
     }
   }
 }

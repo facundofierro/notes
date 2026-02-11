@@ -37,13 +37,13 @@ export function DirectoryPicker({
   const fetchDirectory = React.useCallback(async (path?: string) => {
     setLoading(true);
     try {
-      const url = path 
-        ? `/api/system/files?path=${encodeURIComponent(path)}` 
+      const url = path
+        ? `/api/system/files?path=${encodeURIComponent(path)}`
         : `/api/system/files`;
-      
+
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch");
-      
+
       const data = await res.json();
       setCurrentPath(data.path);
       setItems(data.items);
@@ -83,7 +83,7 @@ export function DirectoryPicker({
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
           )}
-          
+
           <ScrollArea className="h-full p-2">
             <div className="grid grid-cols-1 gap-1">
               {parentPath && (
@@ -95,7 +95,7 @@ export function DirectoryPicker({
                   <span>..</span>
                 </button>
               )}
-              
+
               {items.map((item) => (
                 <button
                   key={item.path}
@@ -118,15 +118,14 @@ export function DirectoryPicker({
 
         <DialogFooter className="p-4 border-t border-border flex justify-between items-center bg-secondary/20">
           <div className="text-xs text-muted-foreground mr-auto">
-             Selected: <span className="font-mono text-foreground">{currentPath}</span>
+            Selected:{" "}
+            <span className="font-mono text-foreground">{currentPath}</span>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSelect}>
-              Select Folder
-            </Button>
+            <Button onClick={handleSelect}>Select Folder</Button>
           </div>
         </DialogFooter>
       </DialogContent>

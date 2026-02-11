@@ -14,9 +14,7 @@ interface FileNode {
 function buildFileTree(
   dir: string,
   basePath: string,
-  allowedFileExtensions: string[] = [
-    ".md",
-  ],
+  allowedFileExtensions: string[] = [".md"],
 ): FileNode | null {
   if (!fs.existsSync(dir)) return null;
 
@@ -30,29 +28,17 @@ function buildFileTree(
   });
   const children = entries
     .filter((entry: any) => {
-      if (entry.name.startsWith("."))
-        return false;
-      if (entry.isDirectory())
-        return true;
+      if (entry.name.startsWith(".")) return false;
+      if (entry.isDirectory()) return true;
       return (
         entry.isFile() &&
-        allowedFileExtensions.some(
-          (ext) =>
-            entry.name.endsWith(ext),
-        )
+        allowedFileExtensions.some((ext) => entry.name.endsWith(ext))
       );
     })
     .map((entry: any) => {
-      const fullPath = path.join(
-        dir,
-        entry.name,
-      );
+      const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        return buildFileTree(
-          fullPath,
-          basePath,
-          allowedFileExtensions,
-        )!;
+        return buildFileTree(fullPath, basePath, allowedFileExtensions)!;
       } else {
         return {
           name: entry.name,
@@ -63,13 +49,8 @@ function buildFileTree(
     })
     .filter(Boolean)
     .sort((a: any, b: any) => {
-      if (a.type === b.type)
-        return a.name.localeCompare(
-          b.name,
-        );
-      return a.type === "directory"
-        ? -1
-        : 1;
+      if (a.type === b.type) return a.name.localeCompare(b.name);
+      return a.type === "directory" ? -1 : 1;
     });
 
   return {
@@ -80,15 +61,6 @@ function buildFileTree(
   };
 }
 
-const srcDir = path.join(
-  process.cwd(),
-  "agelum-test/tests",
-);
-const tree = buildFileTree(srcDir, "", [
-  ".ts",
-  ".tsx",
-  ".md",
-]);
-console.log(
-  JSON.stringify(tree, null, 2),
-);
+const srcDir = path.join(process.cwd(), "agelum-test/tests");
+const tree = buildFileTree(srcDir, "", [".ts", ".tsx", ".md"]);
+console.log(JSON.stringify(tree, null, 2));

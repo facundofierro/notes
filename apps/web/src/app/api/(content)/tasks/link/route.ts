@@ -20,14 +20,17 @@ export async function POST(request: Request) {
     if (!taskPath) {
       return NextResponse.json(
         { error: "taskPath is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!planPath && !testsPath && !summaryPath) {
       return NextResponse.json(
-        { error: "At least one of planPath, testsPath, or summaryPath is required" },
-        { status: 400 }
+        {
+          error:
+            "At least one of planPath, testsPath, or summaryPath is required",
+        },
+        { status: 400 },
       );
     }
 
@@ -35,36 +38,38 @@ export async function POST(request: Request) {
     if (!fs.existsSync(taskPath)) {
       return NextResponse.json(
         { error: `Task file not found: ${taskPath}` },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     let content = fs.readFileSync(taskPath, "utf-8");
 
     // Check if frontmatter exists - robust regex for different line endings
-    const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/);
+    const frontmatterMatch = content.match(
+      /^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/,
+    );
 
     if (frontmatterMatch) {
       // Frontmatter exists, update it
       const frontmatterContent = frontmatterMatch[1];
       const lines = frontmatterContent.split(/\r?\n/);
       // We'll rebuild lines to ensure we don't duplicate
-      
+
       const updateOrAdd = (key: string, value: string) => {
-         const index = lines.findIndex(l => l.trim().startsWith(`${key}:`));
-         const newLine = `${key}: ${value}`;
-         if (index !== -1) {
-           lines[index] = newLine;
-         } else {
-           lines.push(newLine);
-         }
+        const index = lines.findIndex((l) => l.trim().startsWith(`${key}:`));
+        const newLine = `${key}: ${value}`;
+        if (index !== -1) {
+          lines[index] = newLine;
+        } else {
+          lines.push(newLine);
+        }
       };
 
-      if (planPath !== undefined) updateOrAdd('plan', planPath);
-      if (testsPath !== undefined) updateOrAdd('tests', testsPath);
-      if (summaryPath !== undefined) updateOrAdd('summary', summaryPath);
-      
-      const newFrontmatterContent = lines.join('\n'); // Standardize to \n internally
+      if (planPath !== undefined) updateOrAdd("plan", planPath);
+      if (testsPath !== undefined) updateOrAdd("tests", testsPath);
+      if (summaryPath !== undefined) updateOrAdd("summary", summaryPath);
+
+      const newFrontmatterContent = lines.join("\n"); // Standardize to \n internally
       const newFrontmatterBlock = `---\n${newFrontmatterContent}\n---${frontmatterMatch[2]}`;
       content = content.replace(frontmatterMatch[0], newFrontmatterBlock);
     } else {
@@ -73,8 +78,8 @@ export async function POST(request: Request) {
       if (planPath) frontmatterFields.push(`plan: ${planPath}`);
       if (testsPath) frontmatterFields.push(`tests: ${testsPath}`);
       if (summaryPath) frontmatterFields.push(`summary: ${summaryPath}`);
-      
-      const newFrontmatter = `---\n${frontmatterFields.join('\n')}\n---\n`;
+
+      const newFrontmatter = `---\n${frontmatterFields.join("\n")}\n---\n`;
       content = newFrontmatter + content;
     }
 
@@ -97,7 +102,7 @@ export async function POST(request: Request) {
         error: "Failed to update task file",
         details: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -19,16 +19,16 @@ export async function GET(request: Request) {
     }
 
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    
+
     const items = entries
-      .filter(entry => {
+      .filter((entry) => {
         if (!showHidden && entry.name.startsWith(".")) return false;
         return entry.isDirectory(); // Only list directories for project selection
       })
-      .map(entry => ({
+      .map((entry) => ({
         name: entry.name,
         path: path.join(dirPath, entry.name),
-        type: "directory"
+        type: "directory",
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -37,10 +37,13 @@ export async function GET(request: Request) {
     return NextResponse.json({
       path: dirPath,
       parent: parent !== dirPath ? parent : null,
-      items
+      items,
     });
   } catch (error) {
     console.error("Error listing directory:", error);
-    return NextResponse.json({ error: "Failed to list directory" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to list directory" },
+      { status: 500 },
+    );
   }
 }

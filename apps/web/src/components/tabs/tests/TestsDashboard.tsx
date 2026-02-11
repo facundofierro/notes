@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { cn, ScrollArea, Button } from "@agelum/shadcn";
-import { Play, Plus, FileJson, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import {
+  Play,
+  Plus,
+  FileJson,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Loader2,
+} from "lucide-react";
 import { ExecutionHistory } from "./ExecutionHistory";
 import { TestStepVisualizer } from "./TestStepVisualizer";
 import type { TestScenario, TestExecutionSummary } from "./types";
@@ -54,9 +62,27 @@ export function TestsDashboard({
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Stats Row */}
         <div className="flex items-center gap-3 p-5 border-b border-white/[0.04]">
-          <StatCard label="Total Tests" value={stats.total} icon={FileJson} color="text-zinc-300" bg="bg-white/[0.03]" />
-          <StatCard label="Passed" value={stats.passed} icon={CheckCircle2} color="text-emerald-400" bg="bg-emerald-500/10" />
-          <StatCard label="Failed" value={stats.failed} icon={XCircle} color="text-red-400" bg="bg-red-500/10" />
+          <StatCard
+            label="Total Tests"
+            value={stats.total}
+            icon={FileJson}
+            color="text-zinc-300"
+            bg="bg-white/[0.03]"
+          />
+          <StatCard
+            label="Passed"
+            value={stats.passed}
+            icon={CheckCircle2}
+            color="text-emerald-400"
+            bg="bg-emerald-500/10"
+          />
+          <StatCard
+            label="Failed"
+            value={stats.failed}
+            icon={XCircle}
+            color="text-red-400"
+            bg="bg-red-500/10"
+          />
         </div>
 
         {/* Test Cards Grid */}
@@ -72,7 +98,9 @@ export function TestsDashboard({
                   <FileJson className="w-6 h-6 text-zinc-600" />
                 </div>
                 <p className="text-sm text-zinc-400 mb-1">No tests yet</p>
-                <p className="text-xs text-zinc-600 mb-4">Create a test scenario to start testing.</p>
+                <p className="text-xs text-zinc-600 mb-4">
+                  Create a test scenario to start testing.
+                </p>
                 <Button
                   onClick={onCreateTest}
                   size="sm"
@@ -119,7 +147,9 @@ export function TestsDashboard({
         </div>
 
         <div className="px-4 pt-3 pb-1">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Recent Executions</h3>
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Recent Executions
+          </h3>
         </div>
 
         <ExecutionHistory
@@ -151,11 +181,18 @@ function StatCard({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-[14px] bg-white/[0.02] border border-white/[0.04] flex-1 min-w-0">
-      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", bg)}>
+      <div
+        className={cn(
+          "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0",
+          bg,
+        )}
+      >
         <Icon className={cn("w-4 h-4", color)} />
       </div>
       <div className="min-w-0">
-        <div className={cn("text-lg font-bold leading-none", color)}>{value}</div>
+        <div className={cn("text-lg font-bold leading-none", color)}>
+          {value}
+        </div>
         <div className="text-[10px] text-zinc-500 mt-0.5">{label}</div>
       </div>
     </div>
@@ -187,17 +224,17 @@ function TestCard({
         "hover:bg-white/[0.05] transition-all duration-300 group",
         "shadow-[0_0_30px_rgba(255,255,255,0.02)]",
         "hover:shadow-[0_0_30px_rgba(255,255,255,0.05)]",
-        statusColor
+        statusColor,
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <FileJson className="w-4 h-4 text-emerald-500/70 flex-shrink-0" />
-          <span className="text-sm font-medium text-zinc-200 truncate">{test.name}</span>
+          <span className="text-sm font-medium text-zinc-200 truncate">
+            {test.name}
+          </span>
         </div>
-        {lastExecution && (
-          <StatusDot status={lastExecution.status} />
-        )}
+        {lastExecution && <StatusDot status={lastExecution.status} />}
       </div>
 
       <div className="flex items-center gap-3 text-[10px] text-zinc-600">
@@ -207,7 +244,9 @@ function TestCard({
       </div>
 
       {test.description && (
-        <p className="text-[11px] text-zinc-500 line-clamp-2">{test.description}</p>
+        <p className="text-[11px] text-zinc-500 line-clamp-2">
+          {test.description}
+        </p>
       )}
     </button>
   );
@@ -221,6 +260,11 @@ function StatusDot({ status }: { status: string }) {
     running: "bg-blue-500 animate-pulse",
   };
   return (
-    <div className={cn("w-2 h-2 rounded-full flex-shrink-0", colors[status] || "bg-zinc-600")} />
+    <div
+      className={cn(
+        "w-2 h-2 rounded-full flex-shrink-0",
+        colors[status] || "bg-zinc-600",
+      )}
+    />
   );
 }

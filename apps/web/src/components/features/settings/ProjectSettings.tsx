@@ -1,9 +1,5 @@
 import * as React from "react";
-import {
-  Input,
-  Label,
-  Switch,
-} from "@agelum/shadcn";
+import { Input, Label, Switch } from "@agelum/shadcn";
 import { UserSettings, ProjectConfig } from "@/hooks/use-settings";
 
 interface ProjectSettingsProps {
@@ -31,12 +27,15 @@ export function ProjectSettings({
 
   const updateProject = (updates: Partial<ProjectConfig>) => {
     const updatedProjects = (settings.projects || []).map((p) =>
-      p.name === projectName ? { ...p, ...updates } : p
+      p.name === projectName ? { ...p, ...updates } : p,
     );
     onChange("projects", updatedProjects);
   };
 
-  const updateCommand = (cmd: keyof Required<ProjectConfig>["commands"], value: string) => {
+  const updateCommand = (
+    cmd: keyof Required<ProjectConfig>["commands"],
+    value: string,
+  ) => {
     updateProject({
       commands: {
         ...(project.commands || {}),
@@ -82,8 +81,10 @@ export function ProjectSettings({
         {view === "commands" && (
           <div className="grid gap-6 p-6 rounded-xl border border-border bg-secondary/30">
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-white/90 uppercase tracking-wider">Commands</h4>
-              
+              <h4 className="text-sm font-semibold text-white/90 uppercase tracking-wider">
+                Commands
+              </h4>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label className="text-gray-300 text-xs">Build Command</Label>
@@ -104,7 +105,9 @@ export function ProjectSettings({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label className="text-gray-300 text-xs">Run/Test Command</Label>
+                  <Label className="text-gray-300 text-xs">
+                    Run/Test Command
+                  </Label>
                   <Input
                     value={project.commands?.run || ""}
                     onChange={(e) => updateCommand("run", e.target.value)}
@@ -124,7 +127,9 @@ export function ProjectSettings({
                 <div className="grid gap-2 text-amber-500/90">
                   <Label className="text-amber-500/80 text-xs flex items-center gap-2">
                     Stop Command
-                    <span className="text-[9px] uppercase tracking-tighter bg-amber-500/10 px-1 rounded border border-amber-500/20">Optional</span>
+                    <span className="text-[9px] uppercase tracking-tighter bg-amber-500/10 px-1 rounded border border-amber-500/20">
+                      Optional
+                    </span>
                   </Label>
                   <Input
                     value={project.commands?.stop || ""}
@@ -142,8 +147,10 @@ export function ProjectSettings({
         {view === "preview" && (
           <div className="grid gap-6 p-6 rounded-xl border border-border bg-secondary/30">
             <div className="space-y-6">
-              <h4 className="text-sm font-semibold text-white/90 uppercase tracking-wider">Preview & Execution</h4>
-              
+              <h4 className="text-sm font-semibold text-white/90 uppercase tracking-wider">
+                Preview & Execution
+              </h4>
+
               <div className="grid gap-2">
                 <Label className="text-gray-200">Browser Preview URL</Label>
                 <Input
@@ -161,12 +168,15 @@ export function ProjectSettings({
                 <div className="space-y-0.5">
                   <Label className="text-gray-200">Auto-run on Startup</Label>
                   <p className="text-xs text-gray-400">
-                    Automatically start the dev server when opening this project.
+                    Automatically start the dev server when opening this
+                    project.
                   </p>
                 </div>
                 <Switch
                   checked={project.autoRun || false}
-                  onCheckedChange={(checked) => updateProject({ autoRun: checked })}
+                  onCheckedChange={(checked) =>
+                    updateProject({ autoRun: checked })
+                  }
                 />
               </div>
             </div>

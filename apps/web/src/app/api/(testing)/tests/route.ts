@@ -20,7 +20,10 @@ export async function GET() {
     }
     return NextResponse.json([]);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to list tests" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to list tests" },
+      { status: 500 },
+    );
   }
 }
 
@@ -29,9 +32,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const name = body.name || "Untitled Test";
     const group = body.group || "EXPERIMENTAL";
-    const folderName = body.folder || name.replace(/[^a-zA-Z0-9]/g, ""); 
+    const folderName = body.folder || name.replace(/[^a-zA-Z0-9]/g, "");
     const id = body.id || `test-${Date.now()}`;
-    
+
     let index: any[] = [];
     if (fs.existsSync(INDEX_FILE)) {
       index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf-8"));
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
         folder: folderName,
         description: body.description || "",
         stepsCount,
-        updatedAt: scenario.updatedAt
+        updatedAt: scenario.updatedAt,
       };
     } else {
       index.push({
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
         folder: folderName,
         description: body.description || "",
         stepsCount,
-        updatedAt: scenario.updatedAt
+        updatedAt: scenario.updatedAt,
       });
     }
     fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
@@ -85,7 +88,9 @@ export async function POST(request: Request) {
     return NextResponse.json(scenario);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Failed to create test" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create test" },
+      { status: 500 },
+    );
   }
 }
-

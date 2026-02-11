@@ -38,7 +38,7 @@ export function AITab() {
   // Merge active and history sessions
   const mergedSessions = React.useMemo(() => {
     const active = Object.values(store.projectStates).flatMap(
-      (p) => p.terminalSessions || []
+      (p) => p.terminalSessions || [],
     );
     const history = historySessions || [];
 
@@ -51,16 +51,18 @@ export function AITab() {
     return Array.from(map.values());
   }, [store.projectStates, historySessions]);
 
-  const { 
+  const {
     viewMode,
     selectedFile,
     workDocIsDraft,
     testViewMode,
     testOutput,
-    isTestRunning
+    isTestRunning,
   } = store.getProjectState();
 
-  const [selectedSessionId, setSelectedSessionId] = React.useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = React.useState<
+    string | null
+  >(null);
 
   // Get last 20 sessions sorted by time, with active sessions first
   const sortedSessions = React.useMemo(() => {
@@ -78,18 +80,22 @@ export function AITab() {
 
   // Extract project name from context key (format: "ai-tab-projectName" or similar)
   const getProjectFromSession = (session: TerminalSessionInfo) => {
-    return session.projectName || session.contextKey.split('-').pop() || 'Unknown';
+    return (
+      session.projectName || session.contextKey.split("-").pop() || "Unknown"
+    );
   };
 
   // Truncate prompt to show beginning
   const truncatePrompt = (prompt: string | undefined, maxLength = 60) => {
     if (!prompt) return "Interactive terminal session";
-    return prompt.length > maxLength ? prompt.substring(0, maxLength) + "..." : prompt;
+    return prompt.length > maxLength
+      ? prompt.substring(0, maxLength) + "..."
+      : prompt;
   };
 
   const selectedSession = React.useMemo(
     () => sortedSessions.find((s) => s.processId === selectedSessionId),
-    [sortedSessions, selectedSessionId]
+    [sortedSessions, selectedSessionId],
   );
 
   return (
@@ -97,8 +103,12 @@ export function AITab() {
       {/* Left Sidebar - Unified History */}
       <div className="w-[320px] border-r border-border flex flex-col bg-secondary/30">
         <div className="p-4 border-b border-border">
-          <h2 className="font-semibold text-sm mb-1 text-foreground">AI Sessions</h2>
-          <p className="text-[10px] text-muted-foreground">All projects • Last 20 sessions</p>
+          <h2 className="font-semibold text-sm mb-1 text-foreground">
+            AI Sessions
+          </h2>
+          <p className="text-[10px] text-muted-foreground">
+            All projects • Last 20 sessions
+          </p>
         </div>
         <div className="flex-1 overflow-auto">
           {sortedSessions.length === 0 ? (
@@ -110,7 +120,7 @@ export function AITab() {
               {sortedSessions.map((session) => {
                 const projectName = getProjectFromSession(session);
                 const isSelected = selectedSessionId === session.processId;
-                
+
                 return (
                   <button
                     key={session.processId}
@@ -123,11 +133,12 @@ export function AITab() {
                     }}
                     className={`
                       flex flex-col gap-1.5 p-3 rounded-lg text-left transition-all
-                      ${isSelected 
-                        ? 'bg-blue-900/20 border border-blue-600/50' 
-                        : 'bg-secondary/50 border border-border hover:bg-secondary hover:border-border'
+                      ${
+                        isSelected
+                          ? "bg-blue-900/20 border border-blue-600/50"
+                          : "bg-secondary/50 border border-border hover:bg-secondary hover:border-border"
                       }
-                      ${session.isRunning ? 'ring-1 ring-green-500/50' : ''}
+                      ${session.isRunning ? "ring-1 ring-green-500/50" : ""}
                     `}
                   >
                     {/* Header: Project + Status */}
@@ -142,20 +153,22 @@ export function AITab() {
                       </div>
                       <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
                     </div>
-                    
+
                     {/* Tool Name */}
                     <div className="text-[10px] text-muted-foreground font-medium">
                       {session.toolName}
                     </div>
-                    
+
                     {/* Prompt Preview */}
                     <div className="text-xs text-foreground/80 line-clamp-2 leading-tight">
                       {truncatePrompt(session.prompt)}
                     </div>
-                    
+
                     {/* Time */}
                     <div className="text-[10px] text-muted-foreground">
-                      {formatDistanceToNow(session.startedAt, { addSuffix: true })}
+                      {formatDistanceToNow(session.startedAt, {
+                        addSuffix: true,
+                      })}
                     </div>
                   </button>
                 );
@@ -173,7 +186,9 @@ export function AITab() {
           <AIRightSidebar
             selectedRepo={selectedRepo}
             basePath={store.basePath}
-            projectPath={repositories.find((r) => r.name === selectedRepo)?.path}
+            projectPath={
+              repositories.find((r) => r.name === selectedRepo)?.path
+            }
             agentTools={agentTools}
             viewMode="ai"
             file={selectedFile}

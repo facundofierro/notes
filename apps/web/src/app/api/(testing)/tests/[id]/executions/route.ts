@@ -6,7 +6,7 @@ const RUNS_DIR = path.join(process.cwd(), ".agelum/tests/runs");
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -37,7 +37,7 @@ export async function GET(
     // Sort by startedAt descending (most recent first)
     executions.sort(
       (a, b) =>
-        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
     );
 
     return NextResponse.json(executions);

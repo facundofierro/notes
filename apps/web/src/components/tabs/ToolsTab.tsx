@@ -13,15 +13,10 @@ interface FileNode {
 
 export function ToolsTab() {
   const store = useHomeStore();
-  const { 
-    selectedRepo, 
-    basePath, 
-    setSelectedFile,
-    handleFileSelect
-  } = store;
+  const { selectedRepo, basePath, setSelectedFile, handleFileSelect } = store;
 
   const { selectedFile, currentPath } = store.getProjectState();
-  
+
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
 
   const loadFileTree = React.useCallback(() => {

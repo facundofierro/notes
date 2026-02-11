@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import * as React from 'react';
+import * as React from "react";
 import {
   DndContext,
   DragOverlay,
@@ -11,18 +11,18 @@ import {
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
-} from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button, TooltipProvider } from '@agelum/shadcn';
-import { KanbanColumn } from './KanbanColumn';
-import { KanbanCardOverlay } from './KanbanCard';
+} from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
+import { Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button, TooltipProvider } from "@agelum/shadcn";
+import { KanbanColumn } from "./KanbanColumn";
+import { KanbanCardOverlay } from "./KanbanCard";
 import type {
   KanbanBoardProps,
   KanbanCard as KanbanCardType,
   KanbanColumn as KanbanColumnType,
-} from '@/types';
+} from "@/types";
 
 export function KanbanBoard({
   columns,
@@ -36,7 +36,9 @@ export function KanbanBoard({
   renderCard,
   className,
 }: KanbanBoardProps) {
-  const [activeCard, setActiveCard] = React.useState<KanbanCardType | null>(null);
+  const [activeCard, setActiveCard] = React.useState<KanbanCardType | null>(
+    null,
+  );
   const [localCards, setLocalCards] = React.useState(cards);
   const dragSourceColumnIdRef = React.useRef<string | null>(null);
 
@@ -50,7 +52,7 @@ export function KanbanBoard({
       activationConstraint: {
         distance: 8,
       },
-    })
+    }),
   );
 
   const getCardsByColumnId = React.useCallback(
@@ -59,7 +61,7 @@ export function KanbanBoard({
         .filter((card) => card.columnId === columnId)
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     },
-    [localCards]
+    [localCards],
   );
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -90,8 +92,8 @@ export function KanbanBoard({
     if (targetColumnId && activeCard.columnId !== targetColumnId) {
       setLocalCards((cards) =>
         cards.map((card) =>
-          card.id === activeId ? { ...card, columnId: targetColumnId } : card
-        )
+          card.id === activeId ? { ...card, columnId: targetColumnId } : card,
+        ),
       );
     }
   };
@@ -113,7 +115,8 @@ export function KanbanBoard({
     // Get the target column
     const overColumn = columns.find((c) => c.id === overId);
     const overCard = localCards.find((c) => c.id === overId);
-    const targetColumnId = overColumn?.id || overCard?.columnId || activeCard.columnId;
+    const targetColumnId =
+      overColumn?.id || overCard?.columnId || activeCard.columnId;
     const sourceColumnId = dragSourceColumnIdRef.current || activeCard.columnId;
     dragSourceColumnIdRef.current = null;
 
@@ -131,7 +134,9 @@ export function KanbanBoard({
       if (oldIndex !== newIndex) {
         const reorderedCards = arrayMove(columnCards, oldIndex, newIndex);
         setLocalCards((cards) => {
-          const otherCards = cards.filter((c) => c.columnId !== activeCard.columnId);
+          const otherCards = cards.filter(
+            (c) => c.columnId !== activeCard.columnId,
+          );
           return [...otherCards, ...reorderedCards];
         });
       }
@@ -147,12 +152,7 @@ export function KanbanBoard({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div
-          className={cn(
-            'flex h-full gap-3 p-4 bg-transparent',
-            className
-          )}
-        >
+        <div className={cn("flex h-full gap-3 p-4 bg-transparent", className)}>
           {columns.map((column) => (
             <KanbanColumn
               key={column.id}
@@ -180,7 +180,7 @@ export function KanbanBoard({
           )}
         </div>
 
-        <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
+        <DragOverlay dropAnimation={{ duration: 200, easing: "ease-out" }}>
           {activeCard && <KanbanCardOverlay card={activeCard} />}
         </DragOverlay>
       </DndContext>
@@ -188,5 +188,5 @@ export function KanbanBoard({
   );
 }
 
-export { KanbanColumn } from './KanbanColumn';
-export { KanbanCard, KanbanCardOverlay } from './KanbanCard';
+export { KanbanColumn } from "./KanbanColumn";
+export { KanbanCard, KanbanCardOverlay } from "./KanbanCard";

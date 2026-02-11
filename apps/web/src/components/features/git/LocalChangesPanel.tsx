@@ -1,24 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { 
-  Sparkles, 
-  GitCommit, 
-  RefreshCw, 
-  ArrowUp, 
+import {
+  Sparkles,
+  GitCommit,
+  RefreshCw,
+  ArrowUp,
   ArrowDown,
   Check,
   Plus,
   Minus,
-  GitBranch
+  GitBranch,
 } from "lucide-react";
-import { 
-  GitFile, 
-  ChangeGroup, 
-  FileItem, 
+import {
+  GitFile,
+  ChangeGroup,
+  FileItem,
   FileGroupList,
-  groupFilesByFolder, 
-  truncatePath 
+  groupFilesByFolder,
+  truncatePath,
 } from "./GitSharedComponents";
 
 interface GitCommit {
@@ -48,7 +48,13 @@ interface LocalChangesPanelProps {
   className?: string;
 }
 
-export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selectedFile, className }: LocalChangesPanelProps) {
+export function LocalChangesPanel({
+  repoPath,
+  projectName,
+  onSelectFile,
+  selectedFile,
+  className,
+}: LocalChangesPanelProps) {
   const [status, setStatus] = React.useState<GitStatus | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [commitMessage, setCommitMessage] = React.useState("");
@@ -105,7 +111,11 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
     setLoading(true);
     await fetch("/api/git", {
       method: "POST",
-      body: JSON.stringify({ action: "commit", repoPath, message: commitMessage }),
+      body: JSON.stringify({
+        action: "commit",
+        repoPath,
+        message: commitMessage,
+      }),
     });
     setCommitMessage("");
     setLoading(false);
@@ -131,22 +141,29 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
   };
 
   const handlePush = async () => {
-     setLoading(true);
-     await fetch("/api/git", { method: "POST", body: JSON.stringify({ action: "push", repoPath }) });
-     setLoading(false);
-     fetchStatus();
+    setLoading(true);
+    await fetch("/api/git", {
+      method: "POST",
+      body: JSON.stringify({ action: "push", repoPath }),
+    });
+    setLoading(false);
+    fetchStatus();
   };
 
   const handlePull = async () => {
-     setLoading(true);
-     await fetch("/api/git", { method: "POST", body: JSON.stringify({ action: "pull", repoPath }) });
-     setLoading(false);
-     fetchStatus();
+    setLoading(true);
+    await fetch("/api/git", {
+      method: "POST",
+      body: JSON.stringify({ action: "pull", repoPath }),
+    });
+    setLoading(false);
+    fetchStatus();
   };
 
-  const stagedFiles = status?.files.filter(f => f.status === "staged") || [];
-  const unstagedFiles = status?.files.filter(f => f.status !== "staged") || [];
-  
+  const stagedFiles = status?.files.filter((f) => f.status === "staged") || [];
+  const unstagedFiles =
+    status?.files.filter((f) => f.status !== "staged") || [];
+
   // const groupedStaged = groupFilesByFolder(stagedFiles);
   // const groupedUnstaged = groupFilesByFolder(unstagedFiles);
 
@@ -154,178 +171,196 @@ export function LocalChangesPanel({ repoPath, projectName, onSelectFile, selecte
   const hasUnstaged = unstagedFiles.length > 0;
 
   return (
-    <div className={`flex flex-col h-full bg-secondary/5 border-r border-border min-w-0 ${className}`}>
-        
+    <div
+      className={`flex flex-col h-full bg-secondary/5 border-r border-border min-w-0 ${className}`}
+    >
       {/* 1. Header: Branch & Actions */}
       <div className="p-3 border-b border-border bg-background/50 flex items-center justify-between gap-2">
-         {/* Left: Branch Info */}
-         <div className="flex items-center gap-2 min-w-0 flex-1">
-            <BranchSwitcher 
-                currentBranch={status?.branch || "..."} 
-                repoPath={repoPath}
-                onBranchChanged={fetchStatus}
-            >
-                <div className="flex items-center gap-1.5 cursor-pointer hover:bg-secondary/50 px-2 py-1 rounded-lg transition-all group/branch">
-                    <GitBranch className="w-3.5 h-3.5 text-muted-foreground group-hover/branch:text-primary transition-colors" />
-                    <span className="text-sm font-bold truncate text-foreground">{status?.branch || "..."}</span>
-                </div>
-            </BranchSwitcher>
-         </div>
+        {/* Left: Branch Info */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <BranchSwitcher
+            currentBranch={status?.branch || "..."}
+            repoPath={repoPath}
+            onBranchChanged={fetchStatus}
+          >
+            <div className="flex items-center gap-1.5 cursor-pointer hover:bg-secondary/50 px-2 py-1 rounded-lg transition-all group/branch">
+              <GitBranch className="w-3.5 h-3.5 text-muted-foreground group-hover/branch:text-primary transition-colors" />
+              <span className="text-sm font-bold truncate text-foreground">
+                {status?.branch || "..."}
+              </span>
+            </div>
+          </BranchSwitcher>
+        </div>
 
-         {/* Right: Actions Row (Refresh, Pull, Push) */}
-         <div className="flex items-center gap-1 flex-shrink-0 ml-2 border-l border-border pl-1.5">
-            <button 
-                onClick={fetchStatus} 
-                disabled={refreshing} 
-                className={`p-1.5 hover:bg-secondary rounded-full ${refreshing ? "animate-spin" : ""} text-muted-foreground hover:text-foreground transition-colors`}
-                title="Refresh Status"
-            >
-                <RefreshCw className="w-3.5 h-3.5" />
-            </button>
+        {/* Right: Actions Row (Refresh, Pull, Push) */}
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2 border-l border-border pl-1.5">
+          <button
+            onClick={fetchStatus}
+            disabled={refreshing}
+            className={`p-1.5 hover:bg-secondary rounded-full ${refreshing ? "animate-spin" : ""} text-muted-foreground hover:text-foreground transition-colors`}
+            title="Refresh Status"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
 
-            <button 
-               onClick={handlePull}
-               disabled={loading}
-               className="flex items-center gap-1 px-1.5 py-1 hover:bg-secondary/80 rounded text-[10px] font-semibold transition-colors text-muted-foreground hover:text-foreground"
-               title="Pull Changes"
-            >
-               <ArrowDown className="w-3.5 h-3.5" />
-               <span>{status?.behind || 0}</span>
-            </button>
-            <button 
-               onClick={handlePush}
-               disabled={loading}
-               className="flex items-center gap-1 px-1.5 py-1 hover:bg-secondary/80 rounded text-[10px] font-semibold transition-colors text-muted-foreground hover:text-foreground"
-               title="Push Changes"
-            >
-               <ArrowUp className="w-3.5 h-3.5" />
-               <span>{status?.ahead || 0}</span>
-            </button>
-         </div>
+          <button
+            onClick={handlePull}
+            disabled={loading}
+            className="flex items-center gap-1 px-1.5 py-1 hover:bg-secondary/80 rounded text-[10px] font-semibold transition-colors text-muted-foreground hover:text-foreground"
+            title="Pull Changes"
+          >
+            <ArrowDown className="w-3.5 h-3.5" />
+            <span>{status?.behind || 0}</span>
+          </button>
+          <button
+            onClick={handlePush}
+            disabled={loading}
+            className="flex items-center gap-1 px-1.5 py-1 hover:bg-secondary/80 rounded text-[10px] font-semibold transition-colors text-muted-foreground hover:text-foreground"
+            title="Push Changes"
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+            <span>{status?.ahead || 0}</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Commit Section */}
       <div className="p-3 border-b border-border flex flex-col gap-3 bg-secondary/5">
-         <textarea 
-            value={commitMessage}
-            onChange={e => setCommitMessage(e.target.value)}
-            placeholder="Commit message..."
-            className="w-full h-20 bg-background border border-border rounded-xl p-3 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all shadow-sm"
-         />
-         
-         <div className="flex gap-2">
-             <button 
-               onClick={handleCommit}
-               disabled={!hasStaged || !commitMessage || loading}
-               className="flex-1 bg-primary text-primary-foreground text-xs py-2 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
-             >
-               <GitCommit className="w-3.5 h-3.5" />
-               Commit
-             </button>
+        <textarea
+          value={commitMessage}
+          onChange={(e) => setCommitMessage(e.target.value)}
+          placeholder="Commit message..."
+          className="w-full h-20 bg-background border border-border rounded-xl p-3 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all shadow-sm"
+        />
 
-             {hasUnstaged && (
-               <button 
-                 onClick={handleStageAll}
-                 disabled={loading}
-                 className="px-4 bg-background text-foreground border border-border text-xs py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50 shadow-sm transition-all whitespace-nowrap"
-                 title="Stage All"
-               >
-                 Stage all
-               </button>
-             )}
+        <div className="flex gap-2">
+          <button
+            onClick={handleCommit}
+            disabled={!hasStaged || !commitMessage || loading}
+            className="flex-1 bg-primary text-primary-foreground text-xs py-2 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+          >
+            <GitCommit className="w-3.5 h-3.5" />
+            Commit
+          </button>
 
-             <button 
-               onClick={handleGenerateMessage}
-               disabled={generating}
-               className="px-3 bg-background border border-border text-primary hover:bg-primary/5 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
-               title="Generate with AI"
-             >
-                <Sparkles className="w-4 h-4" />
-             </button>
-         </div>
+          {hasUnstaged && (
+            <button
+              onClick={handleStageAll}
+              disabled={loading}
+              className="px-4 bg-background text-foreground border border-border text-xs py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50 shadow-sm transition-all whitespace-nowrap"
+              title="Stage All"
+            >
+              Stage all
+            </button>
+          )}
+
+          <button
+            onClick={handleGenerateMessage}
+            disabled={generating}
+            className="px-3 bg-background border border-border text-primary hover:bg-primary/5 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
+            title="Generate with AI"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* 3. Main List (Scrollable) */}
       <div className="flex-1 overflow-y-auto p-0 min-w-0">
-        
         {/* STAGED FILES GROUP */}
-        <ChangeGroup title={`Staged Changes (${stagedFiles.length})`} count={stagedFiles.length} color="bg-green-500">
-           {stagedFiles.length === 0 ? (
-               <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No staged changes</div>
-           ) : (
-              <FileGroupList 
-                files={stagedFiles}
-                selectedFile={selectedFile}
-                onSelect={onSelectFile}
-                onAction={handleUnstage}
-                actionIcon={Minus}
-                actionTitle="Unstage"
-                dotClass="hidden"
-                actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
-              />
-           )}
+        <ChangeGroup
+          title={`Staged Changes (${stagedFiles.length})`}
+          count={stagedFiles.length}
+          color="bg-green-500"
+        >
+          {stagedFiles.length === 0 ? (
+            <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">
+              No staged changes
+            </div>
+          ) : (
+            <FileGroupList
+              files={stagedFiles}
+              selectedFile={selectedFile}
+              onSelect={onSelectFile}
+              onAction={handleUnstage}
+              actionIcon={Minus}
+              actionTitle="Unstage"
+              dotClass="hidden"
+              actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
+            />
+          )}
         </ChangeGroup>
 
         {/* UNSTAGED FILES GROUP */}
-        <ChangeGroup title={`Changes (${unstagedFiles.length})`} count={unstagedFiles.length} color="bg-amber-500">
-            {unstagedFiles.length === 0 ? (
-               <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">No changes</div>
-            ) : (
-              <FileGroupList 
-                files={unstagedFiles}
-                selectedFile={selectedFile}
-                onSelect={onSelectFile}
-                onAction={handleStage}
-                actionIcon={Plus}
-                actionTitle="Stage"
-                dotClass="hidden"
-                actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
-              />
-            )}
+        <ChangeGroup
+          title={`Changes (${unstagedFiles.length})`}
+          count={unstagedFiles.length}
+          color="bg-amber-500"
+        >
+          {unstagedFiles.length === 0 ? (
+            <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">
+              No changes
+            </div>
+          ) : (
+            <FileGroupList
+              files={unstagedFiles}
+              selectedFile={selectedFile}
+              onSelect={onSelectFile}
+              onAction={handleStage}
+              actionIcon={Plus}
+              actionTitle="Stage"
+              dotClass="hidden"
+              actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
+            />
+          )}
         </ChangeGroup>
 
         {/* LOCAL COMMITS GROUPS */}
         {status?.localCommits && status.localCommits.length > 0 && (
-             <>
-                {status.localCommits.map(commit => (
-                    <ChangeGroup 
-                        key={commit.hash} 
-                        title={`${commit.message.split("\n")[0]} (${commit.files ? commit.files.length : 0})`} 
-                        count={commit.files ? commit.files.length : 0} 
-                        color="bg-purple-500"
-                        defaultOpen={false}
-                        uppercase={false}
-                    >
-                        <div className="px-3 w-full max-w-full min-w-0">
-                           {/* Commit Details Header */}
-                           <div className="mb-2 px-2 text-[10px] text-muted-foreground flex items-center gap-2">
-                                <div className="flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded-full">
-                                    <GitCommit className="w-3 h-3" />
-                                    <span className="font-mono">{commit.hash.substring(0, 7)}</span>
-                                </div>
-                                <span>{commit.date}</span>
-                                <span className="truncate max-w-[100px]">{commit.author}</span>
-                           </div>
+          <>
+            {status.localCommits.map((commit) => (
+              <ChangeGroup
+                key={commit.hash}
+                title={`${commit.message.split("\n")[0]} (${commit.files ? commit.files.length : 0})`}
+                count={commit.files ? commit.files.length : 0}
+                color="bg-purple-500"
+                defaultOpen={false}
+                uppercase={false}
+              >
+                <div className="px-3 w-full max-w-full min-w-0">
+                  {/* Commit Details Header */}
+                  <div className="mb-2 px-2 text-[10px] text-muted-foreground flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded-full">
+                      <GitCommit className="w-3 h-3" />
+                      <span className="font-mono">
+                        {commit.hash.substring(0, 7)}
+                      </span>
+                    </div>
+                    <span>{commit.date}</span>
+                    <span className="truncate max-w-[100px]">
+                      {commit.author}
+                    </span>
+                  </div>
 
-                            {commit.files && (
-                                <FileGroupList 
-                                    files={commit.files.map(file => ({...file, commitHash: commit.hash}))}
-                                    selectedFile={selectedFile}
-                                    onSelect={onSelectFile}
-                                    actionIcon={Check}
-                                    actionTitle="Committed"
-                                    dotClass="bg-purple-500"
-                                    actionButtonClass="hidden"
-                                />
-                            )}
-                        </div>
-                    </ChangeGroup>
-                ))}
-            </>
+                  {commit.files && (
+                    <FileGroupList
+                      files={commit.files.map((file) => ({
+                        ...file,
+                        commitHash: commit.hash,
+                      }))}
+                      selectedFile={selectedFile}
+                      onSelect={onSelectFile}
+                      actionIcon={Check}
+                      actionTitle="Committed"
+                      dotClass="bg-purple-500"
+                      actionButtonClass="hidden"
+                    />
+                  )}
+                </div>
+              </ChangeGroup>
+            ))}
+          </>
         )}
-
-
-
       </div>
     </div>
   );

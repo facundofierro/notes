@@ -1,4 +1,3 @@
-
 export interface TestStep {
   action: string;
   [key: string]: any;

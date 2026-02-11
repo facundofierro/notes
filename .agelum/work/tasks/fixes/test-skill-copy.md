@@ -2,6 +2,7 @@
 created: 2026-02-10T21:46:19.504Z
 state: fixes
 ---
+
 # Fix: Skill Auto-Copy to All Opened Projects
 
 ## Context

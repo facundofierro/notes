@@ -17,6 +17,7 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 ## Architecture Overview
 
 **Current flow:**
+
 - `ProjectSelector.tsx` manages a local `open` state for the popover.
 - When `open` becomes true, it calls `window.electronAPI.browserView.hide()` (no tabIndex → defaults to 0, only hiding the first tab).
 - It also tries to capture a screenshot before hiding (for tab 0 only) and passes it up via `onBrowserScreenshot` callback to `Header.tsx`, which stores it in project state as `tempBrowserScreenshot`.
@@ -24,6 +25,7 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 - When `open` becomes false, it calls `browserView.show()` (again, only tab 0).
 
 **Desired flow:**
+
 - A global `isGlobalOverlayOpen` boolean lives in the Zustand store.
 - `ProjectSelector.tsx` sets this flag instead of calling Electron APIs directly.
 - `BrowserTab.tsx` reacts to `isGlobalOverlayOpen` and hides **all** native views when it's true, showing them again only when it's false **and** the active view mode is `"browser"`.
@@ -36,21 +38,25 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 ### File: `apps/web/src/store/useHomeStore.ts`
 
 1. **Add `isGlobalOverlayOpen` to `HomeState` interface** (line ~163, in the global state section):
+
    ```ts
    isGlobalOverlayOpen: boolean;
    ```
 
 2. **Add `setGlobalOverlayOpen` action to `HomeState` interface** (line ~187, in the Actions section):
+
    ```ts
    setGlobalOverlayOpen: (open: boolean) => void;
    ```
 
 3. **Initialize `isGlobalOverlayOpen: false`** in the store implementation (line ~323, alongside other initial values):
+
    ```ts
    isGlobalOverlayOpen: false,
    ```
 
 4. **Implement `setGlobalOverlayOpen`** in the store implementation (line ~365, alongside other setters):
+
    ```ts
    setGlobalOverlayOpen: (isGlobalOverlayOpen) => set({ isGlobalOverlayOpen }),
    ```
@@ -81,7 +87,7 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
    - Add at the top: `import { useHomeStore } from "@/store/useHomeStore";`
    - Inside the component, subscribe to the setter:
      ```ts
-     const setGlobalOverlayOpen = useHomeStore(s => s.setGlobalOverlayOpen);
+     const setGlobalOverlayOpen = useHomeStore((s) => s.setGlobalOverlayOpen);
      ```
 
 5. **Replace the Electron browser view hide/show `useEffect`** (lines 265–297) with a simpler effect that just updates the global overlay state:
@@ -112,8 +118,9 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 ### File: `apps/web/src/components/tabs/BrowserTab.tsx`
 
 1. **Subscribe to `isGlobalOverlayOpen` from the store** (near line 11, alongside existing selectors):
+
    ```ts
-   const isGlobalOverlayOpen = useHomeStore(s => s.isGlobalOverlayOpen);
+   const isGlobalOverlayOpen = useHomeStore((s) => s.isGlobalOverlayOpen);
    ```
 
 2. **Remove `tempBrowserScreenshot` from the destructured `projectState`** (line 34):
@@ -126,7 +133,8 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
      ```
    - To:
      ```ts
-     const isBrowserVisible = isSelected && viewMode === "browser" && !isGlobalOverlayOpen;
+     const isBrowserVisible =
+       isSelected && viewMode === "browser" && !isGlobalOverlayOpen;
      ```
 
 4. **The existing `useEffect` on line 288 already handles visibility correctly** — it shows the active tab view when `isBrowserVisible` is true and hides it in the cleanup function. By adding `!isGlobalOverlayOpen` to `isBrowserVisible`, this effect will:
@@ -137,15 +145,17 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 5. **Remove the `tempBrowserScreenshot` overlay rendering** (lines 640–648):
    - Delete the entire block:
      ```tsx
-     {tempBrowserScreenshot && (
-       <div className="absolute inset-0 z-10 bg-zinc-900">
-         <img
-           src={tempBrowserScreenshot}
-           alt="Browser preview"
-           className="w-full h-full object-contain"
-         />
-       </div>
-     )}
+     {
+       tempBrowserScreenshot && (
+         <div className="absolute inset-0 z-10 bg-zinc-900">
+           <img
+             src={tempBrowserScreenshot}
+             alt="Browser preview"
+             className="w-full h-full object-contain"
+           />
+         </div>
+       );
+     }
      ```
 
 ---
@@ -155,6 +165,7 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 ### File: `apps/electron/src/main.js`
 
 1. **Add a `browser-view:hide-all` IPC handler** in `setupIpcHandlers()` (after the existing `hide` handler around line 223):
+
    ```js
    ipcMain.on("browser-view:hide-all", (event) => {
      const win = BrowserWindow.fromWebContents(event.sender);
@@ -198,14 +209,14 @@ When the Agelum Electron app displays its native `WebContentsView` browser panel
 
 ## Summary of Changes by File
 
-| File | Changes |
-|------|---------|
-| `useHomeStore.ts` | Add `isGlobalOverlayOpen` + `setGlobalOverlayOpen`; remove `tempBrowserScreenshot` from `ProjectState` |
-| `ProjectSelector.tsx` | Remove direct Electron API calls, screenshot props; use `setGlobalOverlayOpen(open)` instead |
-| `Header.tsx` | Remove `handleBrowserScreenshot` callback and related props passed to `ProjectSelector` |
-| `BrowserTab.tsx` | Add `isGlobalOverlayOpen` to `isBrowserVisible` check; remove `tempBrowserScreenshot` overlay |
-| `main.js` | (Optional) Add `hide-all` and `show-all` IPC handlers |
-| `preload.js` | (Optional) Expose `hideAll()` and `showAll()` methods |
+| File                  | Changes                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| `useHomeStore.ts`     | Add `isGlobalOverlayOpen` + `setGlobalOverlayOpen`; remove `tempBrowserScreenshot` from `ProjectState` |
+| `ProjectSelector.tsx` | Remove direct Electron API calls, screenshot props; use `setGlobalOverlayOpen(open)` instead           |
+| `Header.tsx`          | Remove `handleBrowserScreenshot` callback and related props passed to `ProjectSelector`                |
+| `BrowserTab.tsx`      | Add `isGlobalOverlayOpen` to `isBrowserVisible` check; remove `tempBrowserScreenshot` overlay          |
+| `main.js`             | (Optional) Add `hide-all` and `show-all` IPC handlers                                                  |
+| `preload.js`          | (Optional) Expose `hideAll()` and `showAll()` methods                                                  |
 
 ## Execution Order
 

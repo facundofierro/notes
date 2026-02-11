@@ -6,7 +6,13 @@ import path from "path";
 import { readSettings, ProjectConfig } from "@/lib/settings";
 import net from "node:net";
 import { Agent } from "undici";
-import { processStore, processOutputBuffers, processInputHandlers, cleanupProcess, cleanupProcessBuffer } from "@/lib/process-store";
+import {
+  processStore,
+  processOutputBuffers,
+  processInputHandlers,
+  cleanupProcess,
+  cleanupProcessBuffer,
+} from "@/lib/process-store";
 import { spawn, ChildProcess } from "node:child_process";
 
 const execAsync = promisify(exec);
@@ -79,8 +85,7 @@ async function checkUrlAlive(url: string, strict = false): Promise<boolean> {
   if (strict) return false;
 
   const port = parseInt(
-    parsed.port ||
-      (parsed.protocol === "https:" ? "443" : "80"),
+    parsed.port || (parsed.protocol === "https:" ? "443" : "80"),
     10,
   );
   if (port && port !== 80 && port !== 443) {
@@ -134,19 +139,23 @@ export async function GET(request: NextRequest) {
 
   try {
     const settings = await readSettings();
-    let project = settings.projects?.find((p: ProjectConfig) => p.name === repo);
+    let project = settings.projects?.find(
+      (p: ProjectConfig) => p.name === repo,
+    );
 
     // If project not found directly, it might be from a folder container
     // Try to find it by checking folder containers
     if (!project) {
       // Look for folder containers
-      const folderConfigs = settings.projects?.filter((p: ProjectConfig) => p.type === 'folder') || [];
-      
+      const folderConfigs =
+        settings.projects?.filter((p: ProjectConfig) => p.type === "folder") ||
+        [];
+
       for (const folderConfig of folderConfigs) {
         const potentialPath = `${folderConfig.path}/${repo}`;
         // Check if this path exists as a directory
         try {
-          const fs = await import('fs/promises');
+          const fs = await import("fs/promises");
           const stat = await fs.stat(potentialPath);
           if (stat.isDirectory()) {
             // Create a virtual project config for this folder-based project
@@ -154,7 +163,7 @@ export async function GET(request: NextRequest) {
               id: `${folderConfig.id}/${repo}`,
               name: repo,
               path: potentialPath,
-              type: 'project' as const,
+              type: "project" as const,
               folderConfigId: folderConfig.id,
             };
             break;
@@ -193,14 +202,18 @@ export async function GET(request: NextRequest) {
     // Check if URL is responding
     if (project.url) {
       isUrlReady = await checkUrlAlive(project.url, true); // Strict check for readiness
-      const isAliveAtAll = isUrlReady || await checkUrlAlive(project.url, false);
-      
+      const isAliveAtAll =
+        isUrlReady || (await checkUrlAlive(project.url, false));
+
       if (isAliveAtAll) {
         isRunning = true;
         // If not managed but URL is alive, try to find the PID
         if (!isManaged) {
           const urlObj = new URL(project.url);
-          const port = parseInt(urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80'), 10);
+          const port = parseInt(
+            urlObj.port || (urlObj.protocol === "https:" ? "443" : "80"),
+            10,
+          );
           if (port && port !== 80 && port !== 443) {
             pid = await findProcessByPort(port);
           }
@@ -219,7 +232,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to check app status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -231,29 +244,33 @@ export async function POST(request: NextRequest) {
   if (!repo || !action) {
     return NextResponse.json(
       { error: "Missing repo or action" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   try {
     const settings = await readSettings();
-    let project = settings.projects?.find((p: ProjectConfig) => p.name === repo);
+    let project = settings.projects?.find(
+      (p: ProjectConfig) => p.name === repo,
+    );
 
     // If project not found directly, it might be from a folder container
     if (!project) {
-      const folderConfigs = settings.projects?.filter((p: ProjectConfig) => p.type === 'folder') || [];
-      
+      const folderConfigs =
+        settings.projects?.filter((p: ProjectConfig) => p.type === "folder") ||
+        [];
+
       for (const folderConfig of folderConfigs) {
         const potentialPath = `${folderConfig.path}/${repo}`;
         try {
-          const fs = await import('fs/promises');
+          const fs = await import("fs/promises");
           const stat = await fs.stat(potentialPath);
           if (stat.isDirectory()) {
             project = {
               id: `${folderConfig.id}/${repo}`,
               name: repo,
               path: potentialPath,
-              type: 'project' as const,
+              type: "project" as const,
               folderConfigId: folderConfig.id,
             };
             break;
@@ -272,15 +289,18 @@ export async function POST(request: NextRequest) {
     if (!repoPath) {
       return NextResponse.json(
         { success: false, error: "Project path is missing" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     try {
       const stat = await fs.stat(repoPath);
       if (!stat.isDirectory()) {
         return NextResponse.json(
-          { success: false, error: `Project path is not a directory: ${repoPath}` },
-          { status: 400 }
+          {
+            success: false,
+            error: `Project path is not a directory: ${repoPath}`,
+          },
+          { status: 400 },
         );
       }
     } catch (error: any) {
@@ -289,7 +309,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: `Project path not found: ${repoPath} (${error?.message || error})`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -306,7 +326,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if running externally
-        if (action === "start" && project.url && (await checkUrlAlive(project.url))) {
+        if (
+          action === "start" &&
+          project.url &&
+          (await checkUrlAlive(project.url))
+        ) {
           return NextResponse.json({
             success: false,
             error: "Already running externally",
@@ -314,8 +338,10 @@ export async function POST(request: NextRequest) {
         }
 
         const isShellAction = action === "shell";
-        const devCommand = isShellAction ? "shell" : (project.commands?.dev || "pnpm dev");
-        
+        const devCommand = isShellAction
+          ? "shell"
+          : project.commands?.dev || "pnpm dev";
+
         // Robust environment for macOS
         const cleanEnv: Record<string, string> = {
           HOME: process.env.HOME || "",
@@ -324,9 +350,9 @@ export async function POST(request: NextRequest) {
           LANG: "en_US.UTF-8",
           FORCE_COLOR: "1",
           BROWSER: "none",
-          CI: "1"
+          CI: "1",
         };
-        
+
         // Merge with existing path but ensure homebrew is first
         const systemPath = process.env.PATH || "";
         cleanEnv.PATH = `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${systemPath}`;
@@ -336,7 +362,9 @@ export async function POST(request: NextRequest) {
 
         if (isShellAction || action === "start") {
           cmd = "/bin/zsh";
-          args = isShellAction ? ["-l"] : ["-l", "-c", devCommand || "pnpm dev"];
+          args = isShellAction
+            ? ["-l"]
+            : ["-l", "-c", devCommand || "pnpm dev"];
         } else {
           cmd = "/bin/zsh";
           args = ["-l", "-c", devCommand];
@@ -344,7 +372,9 @@ export async function POST(request: NextRequest) {
 
         let childProcess: ChildProcess;
         try {
-          console.log(`[Spawn] Executing: ${cmd} ${args.join(" ")} in ${repoPath}`);
+          console.log(
+            `[Spawn] Executing: ${cmd} ${args.join(" ")} in ${repoPath}`,
+          );
           childProcess = spawn(cmd, args, {
             cwd: repoPath,
             env: {
@@ -373,7 +403,7 @@ export async function POST(request: NextRequest) {
 
         // Initialize output buffer for this process
         const startBanner = [
-          `\x1b[36m━━━ ${isShellAction ? 'Terminal' : 'Starting App'}: ${repo} ━━━\x1b[0m`,
+          `\x1b[36m━━━ ${isShellAction ? "Terminal" : "Starting App"}: ${repo} ━━━\x1b[0m`,
           `\x1b[90m  Cwd:     ${repoPath}\x1b[0m`,
           `\x1b[90m  Command: ${cmd} ${args.join(" ")}\x1b[0m`,
           `\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m`,
@@ -392,7 +422,10 @@ export async function POST(request: NextRequest) {
 
         childProcess.stderr?.on("data", (data) => {
           const existing = processOutputBuffers.get(pid) || "";
-          processOutputBuffers.set(pid, existing + `\x1b[31m${data.toString()}\x1b[m`);
+          processOutputBuffers.set(
+            pid,
+            existing + `\x1b[31m${data.toString()}\x1b[m`,
+          );
         });
 
         // Capture exit
@@ -400,7 +433,7 @@ export async function POST(request: NextRequest) {
           const existing = processOutputBuffers.get(pid) || "";
           const exitLine = `\n[Process exited] code=${code ?? "unknown"} signal=${signal ?? "unknown"}\n`;
           processOutputBuffers.set(pid, existing + exitLine);
-          
+
           cleanupProcess(repo, pid);
           setTimeout(() => {
             cleanupProcessBuffer(pid);
@@ -410,7 +443,7 @@ export async function POST(request: NextRequest) {
         processStore.set(repo, {
           pid: pid,
           startedAt: new Date().toISOString(),
-          command: isShellAction ? "shell" : (devCommand || "pnpm dev"),
+          command: isShellAction ? "shell" : devCommand || "pnpm dev",
           childProcess,
         });
 
@@ -422,12 +455,12 @@ export async function POST(request: NextRequest) {
 
       case "stop": {
         const managedProcess = processStore.get(repo);
-        
+
         if (managedProcess) {
           // Stop managed process
           try {
             await killProcessTree(managedProcess.pid);
-            
+
             cleanupProcess(repo, managedProcess.pid);
             setTimeout(() => cleanupProcessBuffer(managedProcess.pid), 10000);
             return NextResponse.json({ success: true, managed: true });
@@ -443,7 +476,7 @@ export async function POST(request: NextRequest) {
             const urlObj = new URL(project.url);
             const port = parseInt(
               urlObj.port || (urlObj.protocol === "https:" ? "443" : "80"),
-              10
+              10,
             );
             if (port && port !== 80 && port !== 443) {
               const pid = await findProcessByPort(port);
@@ -463,7 +496,7 @@ export async function POST(request: NextRequest) {
               }
             }
           }
-          
+
           return NextResponse.json({
             success: false,
             error: "No running process found",
@@ -477,7 +510,7 @@ export async function POST(request: NextRequest) {
         if (managedProcess) {
           try {
             await killProcessTree(managedProcess.pid);
-            
+
             cleanupProcess(repo, managedProcess.pid);
             setTimeout(() => cleanupProcessBuffer(managedProcess.pid), 10000);
             // Wait a bit for the process to die and release ports
@@ -500,14 +533,16 @@ export async function POST(request: NextRequest) {
           LANG: "en_US.UTF-8",
           FORCE_COLOR: "1",
           BROWSER: "none",
-          CI: "1"
+          CI: "1",
         };
         const systemPath = process.env.PATH || "";
         cleanEnv.PATH = `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${systemPath}`;
 
         let childProcess: ChildProcess;
         try {
-          console.log(`[Spawn] Restarting: ${cmd} ${args.join(" ")} in ${repoPath}`);
+          console.log(
+            `[Spawn] Restarting: ${cmd} ${args.join(" ")} in ${repoPath}`,
+          );
           childProcess = spawn(cmd, args, {
             cwd: repoPath,
             env: {
@@ -554,7 +589,10 @@ export async function POST(request: NextRequest) {
 
         childProcess.stderr?.on("data", (data) => {
           const existing = processOutputBuffers.get(pid) || "";
-          processOutputBuffers.set(pid, existing + `\x1b[31m${data.toString()}\x1b[m`);
+          processOutputBuffers.set(
+            pid,
+            existing + `\x1b[31m${data.toString()}\x1b[m`,
+          );
         });
 
         // Capture exit
@@ -562,7 +600,7 @@ export async function POST(request: NextRequest) {
           const existing = processOutputBuffers.get(pid) || "";
           const exitLine = `\n[Process exited] code=${code ?? "unknown"} signal=${signal ?? "unknown"}\n`;
           processOutputBuffers.set(pid, existing + exitLine);
-          
+
           cleanupProcess(repo, pid);
           setTimeout(() => {
             cleanupProcessBuffer(pid);
@@ -583,15 +621,12 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json(
-          { error: "Invalid action" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to perform action" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

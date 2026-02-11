@@ -44,7 +44,9 @@ export function AnnotationPromptList({
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4 text-center">
         <p className="text-sm">No annotations yet</p>
-        <p className="text-xs mt-2">Use the modal to add annotations to the screenshot</p>
+        <p className="text-xs mt-2">
+          Use the modal to add annotations to the screenshot
+        </p>
       </div>
     );
   }
@@ -80,7 +82,9 @@ export function AnnotationPromptList({
               {/* Prompt Preview (when not selected) */}
               <div className="flex-1 min-w-0">
                 {!isSelected && (
-                  <p className={`text-[11px] truncate ${ann.prompt ? "text-foreground" : "text-muted-foreground italic"}`}>
+                  <p
+                    className={`text-[11px] truncate ${ann.prompt ? "text-foreground" : "text-muted-foreground italic"}`}
+                  >
                     {ann.prompt || "No instructions..."}
                   </p>
                 )}

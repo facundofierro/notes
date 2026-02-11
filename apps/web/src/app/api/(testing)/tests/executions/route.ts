@@ -52,9 +52,7 @@ export async function GET(request: Request) {
             const resultFile = path.join(testRunsPath, execDir, "result.json");
             if (fs.existsSync(resultFile)) {
               try {
-                const result = JSON.parse(
-                  fs.readFileSync(resultFile, "utf-8")
-                );
+                const result = JSON.parse(fs.readFileSync(resultFile, "utf-8"));
                 executions.push(result);
               } catch {
                 // skip malformed result files
@@ -68,7 +66,7 @@ export async function GET(request: Request) {
     // Sort by startedAt descending (most recent first)
     executions.sort(
       (a, b) =>
-        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
     );
 
     return NextResponse.json(executions);

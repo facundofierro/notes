@@ -1,13 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Dialog,
-  DialogContent,
-  Input,
-  ScrollArea,
-  cn,
-} from "@agelum/shadcn";
+import { Dialog, DialogContent, Input, ScrollArea, cn } from "@agelum/shadcn";
 import { Search, FileText, Folder } from "lucide-react";
 import { useHomeStore } from "@/store/useHomeStore";
 
@@ -22,7 +16,10 @@ interface FileSearchDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) {
+export function FileSearchDialog({
+  open,
+  onOpenChange,
+}: FileSearchDialogProps) {
   const { selectedRepo, setViewMode, handleFileSelect } = useHomeStore();
   const [search, setSearch] = React.useState("");
   const [results, setResults] = React.useState<FileResult[]>([]);
@@ -49,7 +46,7 @@ export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) 
     const searchTimeout = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/files/search?repo=${encodeURIComponent(selectedRepo)}&query=${encodeURIComponent(search)}`
+          `/api/files/search?repo=${encodeURIComponent(selectedRepo)}&query=${encodeURIComponent(search)}`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -186,7 +183,7 @@ export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) 
                 results.map((file, index) => {
                   const isSelected = index === selectedIndex;
                   const Icon = file.type === "file" ? FileText : Folder;
-                  
+
                   return (
                     <div
                       key={file.path}
@@ -196,7 +193,8 @@ export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) 
                         "bg-white/[0.02] hover:bg-white/[0.05]",
                         isSelected &&
                           "bg-white/[0.06] border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.05)] ring-1 ring-white/10",
-                        !isSelected && "border-white/[0.04] hover:border-white/10"
+                        !isSelected &&
+                          "border-white/[0.04] hover:border-white/10",
                       )}
                     >
                       <div className="p-3 h-full flex items-center gap-3">
@@ -205,7 +203,7 @@ export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) 
                             "h-8 w-8 flex items-center justify-center rounded-[12px] transition-all duration-300",
                             isSelected
                               ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-                              : "bg-white/[0.05] text-zinc-500 group-hover:text-zinc-200 group-hover:bg-white/[0.08]"
+                              : "bg-white/[0.05] text-zinc-500 group-hover:text-zinc-200 group-hover:bg-white/[0.08]",
                           )}
                         >
                           <Icon className="h-4 w-4" />
@@ -216,7 +214,7 @@ export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) 
                               "text-[14px] font-bold truncate leading-none mb-1",
                               isSelected
                                 ? "text-white"
-                                : "text-zinc-400 group-hover:text-white"
+                                : "text-zinc-400 group-hover:text-white",
                             )}
                           >
                             {file.name}
@@ -242,16 +240,24 @@ export function FileSearchDialog({ open, onOpenChange }: FileSearchDialogProps) 
           <div className="px-6 py-4 bg-white/[0.02] border-t border-white/[0.05] flex items-center justify-between">
             <div className="flex items-center gap-4 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
               <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">↑</kbd>
-                <kbd className="px-1.5 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">
+                  ↑
+                </kbd>
+                <kbd className="px-1.5 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">
+                  ↓
+                </kbd>
                 Navigate
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-2 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">Enter</kbd>
+                <kbd className="px-2 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">
+                  Enter
+                </kbd>
                 Open
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-2 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">Esc</kbd>
+                <kbd className="px-2 py-0.5 bg-white/[0.05] border border-white/10 rounded text-zinc-400">
+                  Esc
+                </kbd>
                 Close
               </span>
             </div>

@@ -74,45 +74,38 @@ export interface UserSettings {
 }
 
 function getSettingsDir(): string {
-  return path.join(
-    os.homedir(),
-    ".agelum",
-  );
+  return path.join(os.homedir(), ".agelum");
 }
 
 function getSettingsFile(): string {
-  return path.join(
-    getSettingsDir(),
-    "user-settings.json",
-  );
+  return path.join(getSettingsDir(), "user-settings.json");
 }
 
-export const defaultSettings: UserSettings =
-  {
-    theme: "dark",
-    language: "en",
-    notifications: true,
-    autoSave: true,
-    defaultView: "kanban",
-    sidebarCollapsed: false,
-    editorFontSize: 14,
-    editorFontFamily: "monospace",
-    showLineNumbers: true,
-    wordWrap: true,
-    aiModel: "default",
-    aiProvider: "auto",
-    apiKeys: [],
-    projects: [],
-    enabledAgents: ["*"],
-    stagehandApiKey: "",
-    openaiApiKey: "",
-    anthropicApiKey: "",
-    googleApiKey: "",
-    grokApiKey: "",
-    workflows: [],
-    activeWorkflow: "default",
-    createBranchPerTask: false,
-  };
+export const defaultSettings: UserSettings = {
+  theme: "dark",
+  language: "en",
+  notifications: true,
+  autoSave: true,
+  defaultView: "kanban",
+  sidebarCollapsed: false,
+  editorFontSize: 14,
+  editorFontFamily: "monospace",
+  showLineNumbers: true,
+  wordWrap: true,
+  aiModel: "default",
+  aiProvider: "auto",
+  apiKeys: [],
+  projects: [],
+  enabledAgents: ["*"],
+  stagehandApiKey: "",
+  openaiApiKey: "",
+  anthropicApiKey: "",
+  googleApiKey: "",
+  grokApiKey: "",
+  workflows: [],
+  activeWorkflow: "default",
+  createBranchPerTask: false,
+};
 
 function ensureSettingsDir(): void {
   const dir = getSettingsDir();
@@ -123,9 +116,11 @@ function ensureSettingsDir(): void {
   }
 }
 
-export async function readProjectConfig(projectPath: string): Promise<Partial<ProjectConfig>> {
+export async function readProjectConfig(
+  projectPath: string,
+): Promise<Partial<ProjectConfig>> {
   const config: Partial<ProjectConfig> = {};
-  
+
   try {
     const configPath = path.join(projectPath, ".agelum", "config.json");
     if (fs.existsSync(configPath)) {
@@ -137,7 +132,7 @@ export async function readProjectConfig(projectPath: string): Promise<Partial<Pr
     if (fs.existsSync(pkgPath)) {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
       const scripts = pkg.scripts || {};
-      
+
       // Default commands
       if (!config.commands) config.commands = {};
       if (!config.commands.dev) config.commands.dev = "pnpm dev";
@@ -148,12 +143,15 @@ export async function readProjectConfig(projectPath: string): Promise<Partial<Pr
       // Auto-detect URL from package.json if not specified
       if (!config.url) {
         const devScript = scripts.dev || scripts.start || "";
-        
+
         // Try to find -p or --port followed by a number
         const portMatch = devScript.match(/(?:-p|--port)\s+(\d+)/);
         if (portMatch) {
           config.url = `http://localhost:${portMatch[1]}/`;
-        } else if (devScript.includes("next dev") || devScript.includes("next start")) {
+        } else if (
+          devScript.includes("next dev") ||
+          devScript.includes("next start")
+        ) {
           // Next.js default port is 3000
           config.url = "http://localhost:3000/";
         } else if (devScript.includes("vite")) {
@@ -168,12 +166,15 @@ export async function readProjectConfig(projectPath: string): Promise<Partial<Pr
   return config;
 }
 
-async function saveProjectConfig(projectPath: string, config: Partial<ProjectConfig>): Promise<void> {
+async function saveProjectConfig(
+  projectPath: string,
+  config: Partial<ProjectConfig>,
+): Promise<void> {
   try {
     ensureAgelumStructure(projectPath);
     const agelumDir = path.join(projectPath, ".agelum");
     const configPath = path.join(agelumDir, "config.json");
-    
+
     // Only save project-specific fields to the project config
     const projectSpecificConfig = {
       workflowId: config.workflowId,
@@ -182,7 +183,10 @@ async function saveProjectConfig(projectPath: string, config: Partial<ProjectCon
       autoRun: config.autoRun,
     };
 
-    fs.writeFileSync(configPath, JSON.stringify(projectSpecificConfig, null, 2));
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(projectSpecificConfig, null, 2),
+    );
   } catch (error) {
     console.error(`Error saving project config at ${projectPath}:`, error);
   }
@@ -203,11 +207,16 @@ export async function readSettings(): Promise<UserSettings> {
 
     // Backfill API keys from env
     const backfill: Partial<UserSettings> = {};
-    if (!settings.stagehandApiKey && process.env.BROWSERBASE_API_KEY) backfill.stagehandApiKey = process.env.BROWSERBASE_API_KEY;
-    if (!settings.openaiApiKey && process.env.OPENAI_API_KEY) backfill.openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!settings.anthropicApiKey && process.env.ANTHROPIC_API_KEY) backfill.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!settings.googleApiKey && process.env.GOOGLE_GENERATIVE_AI_API_KEY) backfill.googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!settings.grokApiKey && process.env.XAI_API_KEY) backfill.grokApiKey = process.env.XAI_API_KEY;
+    if (!settings.stagehandApiKey && process.env.BROWSERBASE_API_KEY)
+      backfill.stagehandApiKey = process.env.BROWSERBASE_API_KEY;
+    if (!settings.openaiApiKey && process.env.OPENAI_API_KEY)
+      backfill.openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!settings.anthropicApiKey && process.env.ANTHROPIC_API_KEY)
+      backfill.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!settings.googleApiKey && process.env.GOOGLE_GENERATIVE_AI_API_KEY)
+      backfill.googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!settings.grokApiKey && process.env.XAI_API_KEY)
+      backfill.grokApiKey = process.env.XAI_API_KEY;
 
     if (Object.keys(backfill).length > 0) {
       settings = { ...settings, ...backfill };
@@ -222,7 +231,7 @@ export async function readSettings(): Promise<UserSettings> {
             return { ...project, ...projectConfig };
           }
           return project;
-        })
+        }),
       );
     }
 
@@ -246,19 +255,19 @@ export async function saveSettings(settings: UserSettings): Promise<void> {
       }
     }
 
-    // When saving the global user-settings.json, we might want to strip the project-specific 
+    // When saving the global user-settings.json, we might want to strip the project-specific
     // fields to avoid duplication, but keeping them as a cache is also okay.
     // Given the request, it's better to NOT store them globally if they should be in the project.
     const globalSettingsToSave = {
       ...settings,
-      projects: settings.projects?.map(project => {
+      projects: settings.projects?.map((project) => {
         if (project.type === "project") {
           // eslint-disable-next-line no-unused-vars
           const { workflowId, commands, url, autoRun, ...rest } = project;
           return rest;
         }
         return project;
-      })
+      }),
     };
 
     fs.writeFileSync(
@@ -278,34 +287,20 @@ export async function resolveProjectPath(
   const settings = await readSettings();
 
   // 1. Check configured projects
-  if (
-    settings.projects &&
-    settings.projects.length > 0
-  ) {
+  if (settings.projects && settings.projects.length > 0) {
     // Check single projects
-    const single =
-      settings.projects.find(
-        (p) =>
-          p.type === "project" &&
-          p.name === repoName,
-      );
+    const single = settings.projects.find(
+      (p) => p.type === "project" && p.name === repoName,
+    );
     if (single) return single.path;
 
     // Check containers
-    const containers =
-      settings.projects.filter(
-        (p) => p.type === "folder",
-      );
+    const containers = settings.projects.filter((p) => p.type === "folder");
     for (const container of containers) {
-      const potentialPath = path.join(
-        container.path,
-        repoName,
-      );
+      const potentialPath = path.join(container.path, repoName);
       if (
         fs.existsSync(potentialPath) &&
-        fs
-          .statSync(potentialPath)
-          .isDirectory()
+        fs.statSync(potentialPath).isDirectory()
       ) {
         return potentialPath;
       }
@@ -319,38 +314,20 @@ export async function resolveProjectPath(
   // ensureRootGitDirectory defaults to path.resolve(process.cwd(), '../../..')
 
   try {
-    const configPath = path.join(
-      os.homedir(),
-      ".agelum",
-      "config.json",
-    );
-    let rootGitDir = path.resolve(
-      process.cwd(),
-      "../../..",
-    );
+    const configPath = path.join(os.homedir(), ".agelum", "config.json");
+    let rootGitDir = path.resolve(process.cwd(), "../../..");
 
     if (fs.existsSync(configPath)) {
-      const config = JSON.parse(
-        fs.readFileSync(
-          configPath,
-          "utf-8",
-        ),
-      );
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       if (config.rootGitDirectory) {
-        rootGitDir =
-          config.rootGitDirectory;
+        rootGitDir = config.rootGitDirectory;
       }
     }
 
-    const potentialPath = path.join(
-      rootGitDir,
-      repoName,
-    );
+    const potentialPath = path.join(rootGitDir, repoName);
     if (
       fs.existsSync(potentialPath) &&
-      fs
-        .statSync(potentialPath)
-        .isDirectory()
+      fs.statSync(potentialPath).isDirectory()
     ) {
       return potentialPath;
     }

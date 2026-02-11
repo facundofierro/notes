@@ -65,14 +65,14 @@ export default function Home() {
   // Keyboard shortcut for file search
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
         setIsFileSearchOpen((prev) => !prev);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, []);
 
   return (
@@ -80,14 +80,15 @@ export default function Home() {
       <Header />
 
       <div className="flex overflow-hidden flex-col flex-1 relative">
-        {hasMounted && Object.entries(projectStates).map(([repoName, projectState]) => (
-          <div 
-            key={repoName} 
-            className={`absolute inset-0 flex flex-col ${repoName === selectedRepo ? "z-10 visible" : "z-0 invisible"}`}
-          >
-            <ProjectView repoName={repoName} projectState={projectState} />
-          </div>
-        ))}
+        {hasMounted &&
+          Object.entries(projectStates).map(([repoName, projectState]) => (
+            <div
+              key={repoName}
+              className={`absolute inset-0 flex flex-col ${repoName === selectedRepo ? "z-10 visible" : "z-0 invisible"}`}
+            >
+              <ProjectView repoName={repoName} projectState={projectState} />
+            </div>
+          ))}
         {(!hasMounted || !selectedRepo) && (
           <div className="flex flex-1 items-center justify-center text-muted-foreground bg-background">
             Select a project to get started
@@ -100,11 +101,23 @@ export default function Home() {
         onOpenChange={setIsSettingsOpen}
         onSave={fetchSettings}
         initialTab={settingsTab as any}
-        projectName={["project-config", "project-commands", "project-preview"].includes(settingsTab) ? selectedRepo || undefined : undefined}
-        projectPath={["project-config", "project-commands", "project-preview"].includes(settingsTab) ? currentProjectPath || undefined : undefined}
+        projectName={
+          ["project-config", "project-commands", "project-preview"].includes(
+            settingsTab,
+          )
+            ? selectedRepo || undefined
+            : undefined
+        }
+        projectPath={
+          ["project-config", "project-commands", "project-preview"].includes(
+            settingsTab,
+          )
+            ? currentProjectPath || undefined
+            : undefined
+        }
       />
 
-      <FileSearchDialog 
+      <FileSearchDialog
         open={isFileSearchOpen}
         onOpenChange={setIsFileSearchOpen}
       />
@@ -112,13 +125,15 @@ export default function Home() {
   );
 }
 
-function ProjectView({ repoName, projectState }: { repoName: string; projectState: ProjectState }) {
+function ProjectView({
+  repoName,
+  projectState,
+}: {
+  repoName: string;
+  projectState: ProjectState;
+}) {
   const store = useHomeStore();
-  const {
-    repositories,
-    settings,
-    setProjectStateForRepo,
-  } = store;
+  const { repositories, settings, setProjectStateForRepo } = store;
 
   const { viewMode, logStreamPid, isAppStarting, projectConfig } = projectState;
 
@@ -131,7 +146,11 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
   }, [repositories, repoName, settings.projects]);
 
   const currentProjectConfig = React.useMemo(() => {
-    return settings.projects?.find((p) => p.name === repoName) || projectConfig || null;
+    return (
+      settings.projects?.find((p) => p.name === repoName) ||
+      projectConfig ||
+      null
+    );
   }, [repoName, settings.projects, projectConfig]);
 
   // Fetch project config
@@ -139,13 +158,17 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
     if (!currentProjectPath) return;
     let cancelled = false;
     fetch(`/api/project/config?path=${encodeURIComponent(currentProjectPath)}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
         if (!cancelled && data) {
-          setProjectStateForRepo(repoName, () => ({ projectConfig: data.config || null }));
+          setProjectStateForRepo(repoName, () => ({
+            projectConfig: data.config || null,
+          }));
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [currentProjectPath, repoName, setProjectStateForRepo]);
 
   // Check app status once on mount
@@ -160,11 +183,16 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
           isAppRunning: data.isRunning,
           isAppManaged: data.isManaged,
           appPid: data.pid || null,
-          logStreamPid: data.isManaged && data.pid && !prev.logStreamPid ? data.pid : prev.logStreamPid
+          logStreamPid:
+            data.isManaged && data.pid && !prev.logStreamPid
+              ? data.pid
+              : prev.logStreamPid,
         }));
       } catch {}
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [repoName, setProjectStateForRepo]);
 
   // Stream logs for this project
@@ -178,16 +206,25 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       const ac = new AbortController();
       setProjectStateForRepo(repoName, () => ({ appLogsAbortController: ac }));
       try {
-        const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, { signal: ac.signal });
+        const res = await fetch(`/api/app-logs?pid=${logStreamPid}`, {
+          signal: ac.signal,
+        });
         if (!res.ok || !res.body) {
-          setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n", isAppStarting: false }));
+          setProjectStateForRepo(repoName, (prev) => ({
+            appLogs:
+              prev.appLogs + "\x1b[31mError: Failed to stream logs\x1b[0m\n",
+            isAppStarting: false,
+          }));
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        
-        startTimeoutId = window.setTimeout(() => { if (!hasLoggedRecently) setProjectStateForRepo(repoName, () => ({ isAppStarting: false })); }, 2000);
+
+        startTimeoutId = window.setTimeout(() => {
+          if (!hasLoggedRecently)
+            setProjectStateForRepo(repoName, () => ({ isAppStarting: false }));
+        }, 2000);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -200,11 +237,22 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
               try {
                 const data = JSON.parse(line);
                 if (data.output) {
-                  setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + data.output, isAppStarting: !currentProjectConfig?.url && data.output ? false : prev.isAppStarting }));
+                  setProjectStateForRepo(repoName, (prev) => ({
+                    appLogs: prev.appLogs + data.output,
+                    isAppStarting:
+                      !currentProjectConfig?.url && data.output
+                        ? false
+                        : prev.isAppStarting,
+                  }));
                   hasLoggedRecently = true;
                 }
               } catch {
-                setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + line + "\n", isAppStarting: !currentProjectConfig?.url ? false : prev.isAppStarting }));
+                setProjectStateForRepo(repoName, (prev) => ({
+                  appLogs: prev.appLogs + line + "\n",
+                  isAppStarting: !currentProjectConfig?.url
+                    ? false
+                    : prev.isAppStarting,
+                }));
                 hasLoggedRecently = true;
               }
             }
@@ -213,7 +261,12 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
         setProjectStateForRepo(repoName, () => ({ isAppStarting: false }));
       } catch (error: any) {
         if (error.name !== "AbortError" && !cancelled) {
-          setProjectStateForRepo(repoName, (prev) => ({ appLogs: prev.appLogs + `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`, isAppStarting: false }));
+          setProjectStateForRepo(repoName, (prev) => ({
+            appLogs:
+              prev.appLogs +
+              `\x1b[31mLog streaming error: ${error.message}\x1b[0m\n`,
+            isAppStarting: false,
+          }));
         }
       }
     };
@@ -223,25 +276,50 @@ function ProjectView({ repoName, projectState }: { repoName: string; projectStat
       cancelled = true;
       if (startTimeoutId !== null) window.clearTimeout(startTimeoutId);
     };
-  }, [logStreamPid, repoName, currentProjectConfig?.url, setProjectStateForRepo]);
+  }, [
+    logStreamPid,
+    repoName,
+    currentProjectConfig?.url,
+    setProjectStateForRepo,
+  ]);
 
   const tabClass = (mode: string) =>
-    viewMode === mode 
-      ? "absolute inset-0 flex z-10" 
+    viewMode === mode
+      ? "absolute inset-0 flex z-10"
       : "absolute inset-0 flex z-0 opacity-0 pointer-events-none";
 
   return (
     <div className="flex overflow-hidden flex-1 relative">
-      <div className={tabClass("kanban")}><TasksTab /></div>
-      <div className={tabClass("docs")}><DocsTab /></div>
-      <div className={tabClass("tools")}><ToolsTab /></div>
-      <div className={tabClass("ai")}><AITab /></div>
-      <div className={tabClass("tests")}><TestsTab /></div>
-      <div className={tabClass("ideas")}><IdeasTab /></div>
-      <div className={tabClass("epics")}><EpicsTab /></div>
-      <div className={tabClass("review")}><ReviewTab /></div>
-      <div className={tabClass("logs")}><LogsTab /></div>
-      <div className={tabClass("browser")}><BrowserTab repoName={repoName} /></div>
+      <div className={tabClass("kanban")}>
+        <TasksTab />
+      </div>
+      <div className={tabClass("docs")}>
+        <DocsTab />
+      </div>
+      <div className={tabClass("tools")}>
+        <ToolsTab />
+      </div>
+      <div className={tabClass("ai")}>
+        <AITab />
+      </div>
+      <div className={tabClass("tests")}>
+        <TestsTab />
+      </div>
+      <div className={tabClass("ideas")}>
+        <IdeasTab />
+      </div>
+      <div className={tabClass("epics")}>
+        <EpicsTab />
+      </div>
+      <div className={tabClass("review")}>
+        <ReviewTab />
+      </div>
+      <div className={tabClass("logs")}>
+        <LogsTab />
+      </div>
+      <div className={tabClass("browser")}>
+        <BrowserTab repoName={repoName} />
+      </div>
     </div>
   );
 }

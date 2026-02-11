@@ -61,8 +61,8 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
       </div>
 
       {/* Local State for WorkEditor */}
-       {/* Why local state? WorkEditor manages its own state for sub-tabs, but requires some props. */}
-       {/* We simulate a 'task' view mode to enable the Plan/Summary/Tests tabs */}
+      {/* Why local state? WorkEditor manages its own state for sub-tabs, but requires some props. */}
+      {/* We simulate a 'task' view mode to enable the Plan/Summary/Tests tabs */}
 
       {/* Bottom: content */}
       <div className="flex-1 overflow-hidden relative">
@@ -73,11 +73,11 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
         ) : session.filePath && fileContent !== null ? (
           <WorkEditor
             file={{ path: session.filePath, content: fileContent }}
-            onFileChange={() => {}} 
-            onBack={() => {}} 
+            onFileChange={() => {}}
+            onBack={() => {}}
             onRename={async () => Promise.resolve()}
-            onRefresh={() => {}} 
-            viewMode="tasks" 
+            onRefresh={() => {}}
+            viewMode="tasks"
             selectedRepo={session.projectName || store.selectedRepo}
             basePath={store.basePath}
             projectPath={null}
@@ -97,7 +97,9 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
             {error ? (
               <div className="text-red-400 text-sm">Error: {error}</div>
             ) : (
-               <div className="text-sm">No file context associated with this session.</div>
+              <div className="text-sm">
+                No file context associated with this session.
+              </div>
             )}
           </div>
         )}

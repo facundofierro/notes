@@ -6,7 +6,7 @@ export interface PanelProps {
   projectPath?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   electronBrowserView?: ElectronBrowserViewAPI;
-  
+
   // Task/Screenshot related (may be shared or moved)
   isScreenshotMode?: boolean;
   onScreenshotModeChange?: (isActive: boolean) => void;

@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     if (!id || !data) {
       return NextResponse.json(
         { error: "Process ID and data are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!process) {
       return NextResponse.json(
         { error: "Process not found or inactive" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -27,13 +27,13 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json(
         { error: "Process stdin is not writable" },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to process input" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

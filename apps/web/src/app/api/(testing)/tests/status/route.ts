@@ -19,15 +19,10 @@ interface TestsSetupStatus {
   error?: string;
 }
 
-const TESTS_SETUP_STATUS_FILE =
-  ".agelum-tests-setup.json";
+const TESTS_SETUP_STATUS_FILE = ".agelum-tests-setup.json";
 
-export async function GET(
-  request: Request,
-) {
-  const { searchParams } = new URL(
-    request.url,
-  );
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const repo = searchParams.get("repo");
 
   if (!repo) {
@@ -37,8 +32,7 @@ export async function GET(
   }
 
   try {
-    const repoPath =
-      await resolveProjectPath(repo);
+    const repoPath = await resolveProjectPath(repo);
 
     if (!repoPath) {
       return NextResponse.json({
@@ -47,49 +41,23 @@ export async function GET(
     }
 
     const candidates = [
-      path.join(
-        repoPath,
-        "agelum-test",
-        TESTS_SETUP_STATUS_FILE,
-      ),
-      path.join(
-        repoPath,
-        "agelum-test",
-        "tests",
-        TESTS_SETUP_STATUS_FILE,
-      ),
-      path.join(
-        repoPath,
-        ".agelum",
-        "work",
-        "tests",
-        TESTS_SETUP_STATUS_FILE,
-      ),
+      path.join(repoPath, "agelum-test", TESTS_SETUP_STATUS_FILE),
+      path.join(repoPath, "agelum-test", "tests", TESTS_SETUP_STATUS_FILE),
+      path.join(repoPath, ".agelum", "work", "tests", TESTS_SETUP_STATUS_FILE),
     ];
 
-    const statusPath =
-      candidates.find((p) =>
-        fs.existsSync(p),
-      ) ?? null;
+    const statusPath = candidates.find((p) => fs.existsSync(p)) ?? null;
 
     if (!statusPath) {
       return NextResponse.json({ status: null });
     }
 
-    const raw = fs.readFileSync(
-      statusPath,
-      "utf8",
-    );
-    const status = JSON.parse(
-      raw,
-    ) as TestsSetupStatus;
+    const raw = fs.readFileSync(statusPath, "utf8");
+    const status = JSON.parse(raw) as TestsSetupStatus;
     return NextResponse.json({
       status,
     });
   } catch (error) {
-    return NextResponse.json(
-      { status: null },
-      { status: 500 },
-    );
+    return NextResponse.json({ status: null }, { status: 500 });
   }
 }

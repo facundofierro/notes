@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to save settings" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -24,8 +24,7 @@ export async function PATCH(request: Request) {
     const body = (await request.json()) as
       | { settings?: Partial<UserSettings> }
       | Partial<UserSettings>;
-    const partial =
-      "settings" in body && body.settings ? body.settings : body;
+    const partial = "settings" in body && body.settings ? body.settings : body;
 
     const current = await readSettings();
     const merged: UserSettings = {

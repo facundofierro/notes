@@ -14,6 +14,7 @@ The Agelum application supports capturing screenshots of the browser preview for
 When running in Electron, the browser preview is a `WebContentsView` managed by the main process.
 
 **Capture Flow:**
+
 1. User clicks "Capture Screen" in BrowserRightPanel
 2. `requestEmbeddedCapture()` detects Electron and calls `electronAPI.browserView.capture()`
 3. Main process calls `webContents.capturePage()` on the WebContentsView
@@ -21,6 +22,7 @@ When running in Electron, the browser preview is a `WebContentsView` managed by 
 5. Screenshot appears in the annotation interface
 
 **Benefits:**
+
 - Pixel-perfect capture of the actual rendered page
 - Works for any origin (no CORS issues)
 - No dependency on html2canvas or canvas hacks
@@ -31,12 +33,15 @@ When running in Electron, the browser preview is a `WebContentsView` managed by 
 When not running in Electron, the iframe-based capture is used.
 
 #### IframeCaptureInjector (`src/components/IframeCaptureInjector.tsx`)
+
 React component that injects a capture handler script into iframes. Only rendered when `!isElectron`.
 
 #### requestEmbeddedCapture (`src/app/page.tsx`)
+
 Sends `agelum:capture-request` via postMessage, waits for `agelum:capture-response` with 1.5s timeout.
 
 #### Capture Methods (iframe, in order of preference)
+
 1. **html2canvas** — Full page capture if the library is available
 2. **Viewport Canvas** — Captures visible area only
 3. **Basic Canvas** — Blank canvas with metadata as last resort
@@ -46,11 +51,13 @@ Sends `agelum:capture-request` via postMessage, waits for `agelum:capture-respon
 After capturing a screenshot, users can annotate it with three types of markups:
 
 ### Annotation Types
+
 1. **Modify (Orange)** — Box annotation to mark content that needs to be changed
 2. **Arrow (Blue)** — Directional arrow to point to specific elements (drawn from click point A to point B)
 3. **Remove (Red)** — Box annotation to mark content for deletion
 
 ### Annotation Workflow
+
 1. User captures screenshot → Full-screen modal opens with centered screenshot
 2. User selects annotation tool (Modify/Arrow/Remove)
 3. User draws on screenshot:
@@ -62,7 +69,9 @@ After capturing a screenshot, users can annotate it with three types of markups:
 7. Click "Create Task" to save screenshot with all annotations
 
 ### Full-Size Modal Interface
+
 When a screenshot is captured, a full-screen modal appears with:
+
 - **Dark overlay background** (black/90 opacity) for focus
 - **Centered screenshot** displayed at maximum size (maintains aspect ratio)
 - **SVG overlay** for real-time annotation rendering
@@ -71,7 +80,9 @@ When a screenshot is captured, a full-screen modal appears with:
 - **Badge numbers** on each annotation (1, 2, 3, etc.) for reference
 
 ### Prompt Sidebar
+
 While the modal is open, the right panel shows an **AnnotationPromptList**:
+
 - **Expandable list** of all annotations
 - **Type indicator** with color coding (orange/blue/red badges)
 - **Selection sync** — clicking annotation in list highlights it on screenshot
@@ -79,7 +90,9 @@ While the modal is open, the right panel shows an **AnnotationPromptList**:
 - **Delete button** to remove annotations
 
 ### Annotation Data Structure
+
 Each annotation stores:
+
 - `id`: Unique sequential number
 - `type`: "modify" | "arrow" | "remove"
 - `x`, `y`: Start coordinates (in screenshot pixel space)
@@ -90,6 +103,7 @@ Each annotation stores:
 ## Usage Workflow
 
 ### Electron
+
 1. User opens a URL in the browser panel
 2. URL is loaded in a WebContentsView via IPC
 3. User clicks "Capture Screen"
@@ -100,6 +114,7 @@ Each annotation stores:
 8. User clicks "Create Task" to finalize
 
 ### Browser (non-Electron)
+
 1. User opens a URL in the browser panel (loads in iframe)
 2. `IframeCaptureInjector` injects capture handler
 3. User clicks "Capture Screen"
@@ -147,17 +162,20 @@ When user clicks "Create Task" from the annotation modal:
 ## Implementation Files
 
 ### Capture & Screenshot Management
+
 - `apps/electron/src/main.js` — `browser-view:capture` IPC handler using `capturePage()`
 - `apps/electron/src/preload.js` — `browserView.capture()` IPC channel
 - `src/app/page.tsx` — `requestEmbeddedCapture()` with Electron/iframe dual path
 - `src/components/IframeCaptureInjector.tsx` — iframe capture injection (fallback only)
 
 ### Annotation Interface & Components
+
 - `src/components/BrowserRightPanel.tsx` — Main panel with screenshot capture, modal trigger, and state management
 - `src/components/ScreenshotAnnotationModal.tsx` — Full-screen modal with annotation canvas, SVG overlay, and drawing tools
 - `src/components/AnnotationPromptList.tsx` — Expandable list of annotations in right sidebar for prompt editing
 
 ### Annotation Features
+
 - **SVG rendering**: Real-time annotation preview (boxes and arrows with arrowheads)
 - **Live preview**: Dashed outlines while drawing before confirmation
 - **Canvas export**: Annotations rendered onto final screenshot for task creation

@@ -123,12 +123,13 @@ async function getProviderRecommendation(
   backendId: string,
 ): Promise<AIRecommendation> {
   const settings = await readSettings();
-  
+
   // Find the key config
   let config: any = null;
-  
+
   if (backendId === "google-legacy") {
-    const key = settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const key =
+      settings.googleApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!key) throw new Error("Google API key not found");
     config = {
       provider: "google",
@@ -136,18 +137,22 @@ async function getProviderRecommendation(
       model: "gemini-2.0-flash",
     };
   } else {
-    const keyConfig = settings.apiKeys?.find(k => k.id === backendId);
-    if (!keyConfig) throw new Error(`API Key configuration not found for ID: ${backendId}`);
-    
+    const keyConfig = settings.apiKeys?.find((k) => k.id === backendId);
+    if (!keyConfig)
+      throw new Error(`API Key configuration not found for ID: ${backendId}`);
+
     // Select default models based on provider if not specified
     let model = "gpt-4o";
     if (keyConfig.provider === "google") model = "gemini-2.0-flash";
-    if (keyConfig.provider === "anthropic") model = "claude-3-5-sonnet-20241022";
+    if (keyConfig.provider === "anthropic")
+      model = "claude-3-5-sonnet-20241022";
     if (keyConfig.provider === "xai") model = "grok-2-latest"; // Verify model name
-    if (keyConfig.provider === "openrouter") model = "google/gemini-2.0-flash-001"; // Default or configured
-    
+    if (keyConfig.provider === "openrouter")
+      model = "google/gemini-2.0-flash-001"; // Default or configured
+
     config = {
-      provider: keyConfig.provider === "openrouter" ? "custom" : keyConfig.provider,
+      provider:
+        keyConfig.provider === "openrouter" ? "custom" : keyConfig.provider,
       apiKey: keyConfig.key,
       baseURL: keyConfig.baseURL,
       model: model,
@@ -175,17 +180,15 @@ async function getProviderRecommendation(
       content: [
         { type: "text" as const, text: `DOM Snapshot:\n${input.snapshot}` },
         { type: "text" as const, text: `User instruction: ${input.prompt}` },
-        ...(input.screenshot ? [{ type: "image" as const, image: input.screenshot }] : []),
+        ...(input.screenshot
+          ? [{ type: "image" as const, image: input.screenshot }]
+          : []),
       ],
     },
   ];
 
   try {
-    const result = await generateStructuredObject(
-      config,
-      messages,
-      StepSchema
-    );
+    const result = await generateStructuredObject(config, messages, StepSchema);
 
     const object = result.object as z.infer<typeof StepSchema>;
 
@@ -197,8 +200,8 @@ async function getProviderRecommendation(
       stepDescription: object.stepDescription,
     };
   } catch (error: any) {
-     console.error("LLM Provider Error:", error);
-     throw new Error(`AI Provider failed: ${error.message}`);
+    console.error("LLM Provider Error:", error);
+    throw new Error(`AI Provider failed: ${error.message}`);
   }
 }
 

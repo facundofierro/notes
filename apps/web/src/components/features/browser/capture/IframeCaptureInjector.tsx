@@ -24,9 +24,7 @@ export function IframeCaptureInjector({
         if (!iframeDoc) return;
 
         // Check if script is already injected
-        if (
-          iframeDoc.getElementById("agelum-capture-script")
-        ) {
+        if (iframeDoc.getElementById("agelum-capture-script")) {
           return;
         }
 
@@ -261,10 +259,7 @@ export function IframeCaptureInjector({
 
         iframeDoc.head.appendChild(script);
       } catch (err) {
-        console.warn(
-          "Failed to inject capture handler into iframe:",
-          err
-        );
+        console.warn("Failed to inject capture handler into iframe:", err);
       }
     };
 
@@ -274,10 +269,7 @@ export function IframeCaptureInjector({
     try {
       const iframeDoc =
         iframe.contentDocument || iframe.contentWindow?.document;
-      if (
-        iframeDoc &&
-        iframeDoc.readyState === "complete"
-      ) {
+      if (iframeDoc && iframeDoc.readyState === "complete") {
         handleIframeLoad();
       }
     } catch (err) {

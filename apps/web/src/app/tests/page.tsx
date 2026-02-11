@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, ScrollArea } from "@agelum/shadcn";
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  ScrollArea,
+} from "@agelum/shadcn";
 import { Trash2, Play, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,12 +42,12 @@ export default function TestsPage() {
   const createTest = async () => {
     const name = prompt("Enter test name:");
     if (!name) return;
-    
+
     try {
       const res = await fetch("/api/tests", {
         method: "POST",
         body: JSON.stringify({ name }),
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
         fetchTests();
@@ -54,9 +63,9 @@ export default function TestsPage() {
       const res = await fetch("/api/tests/execute", {
         method: "POST",
         body: JSON.stringify({ id }),
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
-      
+
       const reader = res.body?.getReader();
       if (!reader) return;
 
@@ -95,14 +104,17 @@ export default function TestsPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-                <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                    </TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                </TableCell>
+              </TableRow>
             ) : tests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={4}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No tests found. Create one to get started.
                 </TableCell>
               </TableRow>
@@ -110,22 +122,37 @@ export default function TestsPage() {
               tests.map((test) => (
                 <TableRow key={test.id}>
                   <TableCell className="font-medium">
-                    <Link href={`/tests/${test.id}`} className="hover:underline">
-                        {test.name}
+                    <Link
+                      href={`/tests/${test.id}`}
+                      className="hover:underline"
+                    >
+                      {test.name}
                     </Link>
                   </TableCell>
                   <TableCell>{test.stepsCount}</TableCell>
-                  <TableCell>{test.updatedAt ? new Date(test.updatedAt).toLocaleString() : "-"}</TableCell>
+                  <TableCell>
+                    {test.updatedAt
+                      ? new Date(test.updatedAt).toLocaleString()
+                      : "-"}
+                  </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={() => runTest(test.id)}
-                        disabled={running === test.id}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => runTest(test.id)}
+                      disabled={running === test.id}
                     >
-                      {running === test.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                      {running === test.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
                     </Button>
-                    <Button size="icon" variant="ghost" className="text-destructive">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>

@@ -36,7 +36,7 @@ export function TestsTab() {
     workDocIsDraft,
     testViewMode,
     testOutput,
-    isTestRunning: storeIsTestRunning
+    isTestRunning: storeIsTestRunning,
   } = store.getProjectState();
 
   const state = useTestsState();
@@ -46,10 +46,13 @@ export function TestsTab() {
     state.fetchExecutions();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeleteTest = React.useCallback(async (id: string) => {
-    if (!confirm("Delete this test?")) return;
-    await state.deleteTest(id);
-  }, [state]);
+  const handleDeleteTest = React.useCallback(
+    async (id: string) => {
+      if (!confirm("Delete this test?")) return;
+      await state.deleteTest(id);
+    },
+    [state],
+  );
 
   const renderCenterView = () => {
     const { centerView } = state;
@@ -106,7 +109,10 @@ export function TestsTab() {
             onClose={() => {
               // Go back to detail if we have a testId, otherwise dashboard
               if (centerView.kind === "execution" && centerView.testId) {
-                state.setCenterView({ kind: "detail", testId: centerView.testId });
+                state.setCenterView({
+                  kind: "detail",
+                  testId: centerView.testId,
+                });
                 state.fetchExecutions(centerView.testId);
               } else {
                 state.goToDashboard();
