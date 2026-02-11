@@ -97,8 +97,9 @@ export function TerminalViewer({
         // Manual dimension calculation with buffer to maximize space usage
         const container = containerRef.current;
         const core = (terminalRef.current as any)._core;
-        const charWidth = core._renderService.dimensions.actualCellWidth;
-        const charHeight = core._renderService.dimensions.actualCellHeight;
+        const renderService = core?._renderService;
+        const charWidth = renderService?.dimensions?.actualCellWidth;
+        const charHeight = renderService?.dimensions?.actualCellHeight;
 
         if (charWidth && charHeight) {
           const cols = Math.floor(container.clientWidth / charWidth);
@@ -129,8 +130,9 @@ export function TerminalViewer({
         // Manual dimension calculation with buffer to maximize space usage
         const container = containerRef.current;
         const core = (terminalRef.current as any)._core;
-        const charWidth = core._renderService.dimensions.actualCellWidth;
-        const charHeight = core._renderService.dimensions.actualCellHeight;
+        const renderService = core?._renderService;
+        const charWidth = renderService?.dimensions?.actualCellWidth;
+        const charHeight = renderService?.dimensions?.actualCellHeight;
 
         if (charWidth && charHeight) {
           const cols = Math.floor(container.clientWidth / charWidth);
@@ -202,8 +204,9 @@ export function TerminalViewer({
           // Manual dimension calculation with buffer to maximize space usage
           const container = containerRef.current;
           const core = (terminalRef.current as any)._core;
-          const charWidth = core._renderService.dimensions.actualCellWidth;
-          const charHeight = core._renderService.dimensions.actualCellHeight;
+          const renderService = core?._renderService;
+          const charWidth = renderService?.dimensions?.actualCellWidth;
+          const charHeight = renderService?.dimensions?.actualCellHeight;
 
           if (charWidth && charHeight) {
             const cols = Math.floor(container.clientWidth / charWidth);
