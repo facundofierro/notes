@@ -107,6 +107,19 @@ export function AIRightSidebar({
   const [loadingIndicatorVisible, setLoadingIndicatorVisible] = React.useState(false);
   const [lastGeneratedPlanPath, setLastGeneratedPlanPath] = React.useState<string | null>(null);
   const [createSummary, setCreateSummary] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Helper to trigger loading indicator
   const triggerLoadingIndicator = React.useCallback(() => {
@@ -666,8 +679,65 @@ Cancelled` : "Cancelled");
 
   const isWide = (rightSidebarView === "terminal" && isTerminalRunning) || rightSidebarView === "iframe";
 
+
+  const renderToolCard = (tool: any) => {
+    const isActive = isTerminalRunning && terminalToolName === tool.name;
+    const savedSession = contextKey ? getTerminalSessionForContext(contextKey) : undefined;
+    const hasSavedSession = savedSession?.toolName === tool.name && savedSession?.isRunning && !isActive;
+    const isHighlighted = isActive || hasSavedSession;
+    
+    const getToolIcon = (type?: string) => {
+      switch (type) {
+        case "cli": return <Terminal className="w-3.5 h-3.5" />;
+        case "web": return <Globe className="w-3.5 h-3.5" />;
+        case "app": return <Monitor className="w-3.5 h-3.5" />;
+        default: return <Terminal className="w-3.5 h-3.5" />;
+      }
+    };
+
+    const handleClick = () => {
+      if (isActive) { setRightSidebarView("terminal"); return; }
+      if (hasSavedSession && savedSession) { reconnectToSession(savedSession.processId, savedSession.toolName); return; }
+      runTool(tool.name);
+    };
+    
+    return (
+      <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
+        <button 
+          onClick={handleClick} 
+          disabled={!tool.available || (!isHighlighted && !promptText.trim() && docAiMode !== "plan" && docAiMode !== "start")} 
+          className="flex-1 px-3 py-3 text-left group relative"
+        >
+          <div className="flex gap-2 items-center mb-0.5 pr-5">
+            <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
+            {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+          </div>
+          <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
+            {getToolIcon(tool.type)}
+          </div>
+          <div className="text-[10px] text-muted-foreground">{isHighlighted ? "Continue" : "Run"}</div>
+        </button>
+        <div className="p-1 border-t bg-background border-border">
+          <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
+            <option value="">Default</option>
+            {(toolModelsByTool[tool.name] || []).map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+    );
+  };
+
+  const cliTools = agentTools.filter(t => t.type === "cli" || t.type === "web");
+  const appTools = agentTools.filter(t => t.type === "app");
+  
+  // Use 800px as threshold for 3 columns
+  const showThreeCols = containerWidth > 800;
+
+  const cliToolsCol1 = showThreeCols ? cliTools.slice(0, Math.ceil(cliTools.length / 2)) : cliTools;
+  const cliToolsCol2 = showThreeCols ? cliTools.slice(Math.ceil(cliTools.length / 2)) : [];
+
   return (
-    <div className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${ isWide ? "w-[50%]" : "w-[360px]" } ${className}`}>
+    <div ref={containerRef} className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${ isWide ? "w-[50%]" : "w-[360px]" } ${className}`}>
         {/* Terminal View */}
         <div className={`flex overflow-hidden flex-col flex-1 h-full ${ rightSidebarView === "terminal" ? "" : "hidden" }`}>
           <div className="flex-1 min-h-0 bg-black relative">
@@ -838,103 +908,25 @@ Cancelled` : "Cancelled");
           </div>
 
           <div className="flex overflow-auto flex-col flex-1 p-3 border-b border-border">
-            <div className={`grid gap-3 ${isWide ? 'grid-cols-4' : 'grid-cols-2'}`}>
+            <div className={`grid gap-3 ${showThreeCols ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {/* Left Column: CLI & Web */}
               <div className="flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">CLI & Web</div>
-                {agentTools.filter(t => t.type === "cli" || t.type === "web").map(tool => {
-                  const isActive = isTerminalRunning && terminalToolName === tool.name;
-                  const savedSession = contextKey ? getTerminalSessionForContext(contextKey) : undefined;
-                  const hasSavedSession = savedSession?.toolName === tool.name && savedSession?.isRunning && !isActive;
-                  const isHighlighted = isActive || hasSavedSession;
-                  const getToolIcon = (type?: string) => {
-                    switch (type) {
-                      case "cli": return <Terminal className="w-3.5 h-3.5" />;
-                      case "web": return <Globe className="w-3.5 h-3.5" />;
-                      case "app": return <Monitor className="w-3.5 h-3.5" />;
-                      default: return <Terminal className="w-3.5 h-3.5" />;
-                    }
-                  };
-                  const handleClick = () => {
-                    if (isActive) { setRightSidebarView("terminal"); return; }
-                    if (hasSavedSession && savedSession) { reconnectToSession(savedSession.processId, savedSession.toolName); return; }
-                    runTool(tool.name);
-                  };
-                  
-                  return (
-                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                      <button 
-                        onClick={handleClick} 
-                        disabled={!tool.available || (!isHighlighted && !promptText.trim() && docAiMode !== "plan" && docAiMode !== "start")} 
-                        className="flex-1 px-3 py-3 text-left group relative"
-                      >
-                        <div className="flex gap-2 items-center mb-0.5 pr-5">
-                          <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
-                          {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
-                        </div>
-                        <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
-                          {getToolIcon(tool.type)}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">{isHighlighted ? "Continue" : "Run"}</div>
-                      </button>
-                      <div className="p-1 border-t bg-background border-border">
-                        <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
-                          <option value="">Default</option>
-                          {(toolModelsByTool[tool.name] || []).map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  );
-                })}
+                {cliToolsCol1.map(renderToolCard)}
               </div>
+
+              {/* Middle Column: CLI & Web (Part 2) - Only if wide */}
+              {showThreeCols && cliToolsCol2 && cliToolsCol2.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1 invisible">CLI & Web</div>
+                   {cliToolsCol2.map(renderToolCard)}
+                </div>
+              )}
 
               {/* Right Column: Applications */}
               <div className="flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-1 mb-1">Applications</div>
-                {agentTools.filter(t => t.type === "app").map(tool => {
-                  const isActive = isTerminalRunning && terminalToolName === tool.name;
-                  const savedSession = contextKey ? getTerminalSessionForContext(contextKey) : undefined;
-                  const hasSavedSession = savedSession?.toolName === tool.name && savedSession?.isRunning && !isActive;
-                  const isHighlighted = isActive || hasSavedSession;
-                  const getToolIcon = (type?: string) => {
-                    switch (type) {
-                      case "cli": return <Terminal className="w-3.5 h-3.5" />;
-                      case "web": return <Globe className="w-3.5 h-3.5" />;
-                      case "app": return <Monitor className="w-3.5 h-3.5" />;
-                      default: return <Terminal className="w-3.5 h-3.5" />;
-                    }
-                  };
-                  const handleClick = () => {
-                    if (isActive) { setRightSidebarView("terminal"); return; }
-                    if (hasSavedSession && savedSession) { reconnectToSession(savedSession.processId, savedSession.toolName); return; }
-                    runTool(tool.name);
-                  };
-                  
-                  return (
-                    <div key={tool.name} onMouseEnter={() => ensureModelsForTool(tool.name)} className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary" : "opacity-50"}`}>
-                      <button 
-                        onClick={handleClick} 
-                        disabled={!tool.available || (!isHighlighted && !promptText.trim() && docAiMode !== "plan" && docAiMode !== "start")} 
-                        className="flex-1 px-3 py-3 text-left group relative"
-                      >
-                        <div className="flex gap-2 items-center mb-0.5 pr-5">
-                          <div className="text-sm font-medium group-hover:text-white truncate">{tool.displayName}</div>
-                          {isHighlighted && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
-                        </div>
-                        <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
-                          {getToolIcon(tool.type)}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">{isHighlighted ? "Continue" : "Run"}</div>
-                      </button>
-                      <div className="p-1 border-t bg-background border-border">
-                        <select value={toolModelByTool[tool.name] || ""} onChange={(e) => setToolModelByTool(prev => ({ ...prev, [tool.name]: e.target.value }))} className="w-full bg-transparent text-[10px] text-muted-foreground outline-none cursor-pointer py-0.5 px-1 rounded hover:bg-secondary">
-                          <option value="">Default</option>
-                          {(toolModelsByTool[tool.name] || []).map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  );
-                })}
+                {appTools.map(renderToolCard)}
               </div>
             </div>
           </div>

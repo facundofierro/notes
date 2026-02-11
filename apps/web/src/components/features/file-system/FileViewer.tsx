@@ -363,8 +363,8 @@ export default function FileViewer({
 
   return (
     <div className="flex flex-col flex-1 bg-background">
-      <div className="flex justify-between items-center p-3 border-b bg-secondary border-border">
-        <div className="flex gap-2 items-center">
+      <div className="relative flex justify-between items-center p-3 border-b bg-secondary border-border">
+        <div className="relative flex gap-2 items-center z-10">
           {onBack && (
             <button
               onClick={onBack}
@@ -428,7 +428,7 @@ export default function FileViewer({
         </div>
 
         {headerCenter && (
-          <div className="flex-grow flex justify-center px-4 min-w-0">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {headerCenter}
           </div>
         )}
@@ -484,7 +484,7 @@ export default function FileViewer({
           </div>
         )}
 
-        <div className="flex gap-2 items-center">
+        <div className="relative flex gap-2 items-center z-10">
           {onRun && (
             <button
               onClick={() =>

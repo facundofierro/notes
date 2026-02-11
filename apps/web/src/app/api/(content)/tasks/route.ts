@@ -302,6 +302,9 @@ function parseTaskFile(
           ?.trim() || "";
     }
 
+    const epicFromFrontmatter = frontmatterMatch?.[1].match(/epic:\s*(.+)/)?.[1]?.trim();
+    const finalEpic = epicFromFrontmatter || epic;
+
     return {
       id: fileNameToId(fileName),
       title,
@@ -309,7 +312,7 @@ function parseTaskFile(
       state,
       createdAt:
         stats.mtime.toISOString(),
-      ...(epic && { epic }),
+      ...(finalEpic && { epic: finalEpic }),
       assignee,
       path: filePath,
     };

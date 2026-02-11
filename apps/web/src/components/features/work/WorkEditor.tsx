@@ -306,8 +306,8 @@ export function WorkEditor({
 
   // Common header component for consistent layout across views
   const EditorHeader = ({ extraContent }: { extraContent?: React.ReactNode }) => (
-    <div className="flex justify-between items-center p-3 border-b bg-secondary border-border">
-      <div className="flex gap-2 items-center">
+    <div className="relative flex justify-between items-center p-3 border-b bg-secondary border-border">
+      <div className="relative flex gap-2 items-center z-10">
         <button
           onClick={onBack}
           className="p-1 mr-1 rounded transition-colors text-muted-foreground hover:text-white hover:bg-accent"
@@ -316,15 +316,15 @@ export function WorkEditor({
         </button>
         <FileText className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground truncate">
-          {file.path.split('/').pop()}
+          {file.path.split('/').pop()?.replace(/\.md$/, '')}
         </span>
       </div>
       {headerCenter && (
-         <div className="flex-grow flex justify-center px-4 min-w-0">
+         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
            {headerCenter}
          </div>
       )}
-      <div className="flex gap-2 items-center">
+      <div className="relative flex gap-2 items-center z-10">
           {extraContent}
       </div>
     </div>
@@ -434,8 +434,7 @@ export function WorkEditor({
             onTestViewModeChange={onTestViewModeChange}
             testOutput={testOutput}
             isTestRunning={isTestRunning}
-            headerCenter={headerCenter}
-             allowEdit={taskSubView === "task"}
+             headerCenter={headerCenter}
             defaultRenaming={
               workDocIsDraft &&
               taskSubView === "task" &&
