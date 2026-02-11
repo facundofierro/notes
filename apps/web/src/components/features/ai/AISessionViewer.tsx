@@ -45,34 +45,40 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
       });
   }, [session.filePath]);
 
+  const projectPath = React.useMemo(() => {
+    const repoName = session.projectName || store.selectedRepo;
+    if (!repoName) return null;
+    return store.repositories.find((r) => r.name === repoName)?.path || null;
+  }, [session.projectName, store.selectedRepo, store.repositories]);
+
   return (
-      <div className="flex-1 overflow-hidden relative w-full h-full flex flex-col">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : session.filePath && fileContent !== null ? (
-          <WorkEditor
-            file={{ path: session.filePath, content: fileContent }}
-            onFileChange={(newFile) => {
-              if (newFile) setFileContent(newFile.content);
-            }}
-            onBack={() => {
-              // Optional: maybe clear selection in parent?
-            }}
-            onRename={async () => Promise.resolve()}
-            onRefresh={() => {
-               // Re-fetch file content
-               fetch(`/api/file?path=${encodeURIComponent(session.filePath!)}`)
-                 .then(res => res.json())
-                 .then(data => setFileContent(data.content))
-                 .catch(console.error);
-            }}
-            viewMode="tasks"
-            selectedRepo={session.projectName || store.selectedRepo}
-            basePath={store.basePath}
-            projectPath={null}
-            agentTools={store.agentTools}
+    <div className="flex-1 overflow-hidden relative w-full h-full flex flex-col">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : session.filePath && fileContent !== null ? (
+        <WorkEditor
+          file={{ path: session.filePath, content: fileContent }}
+          onFileChange={(newFile) => {
+            if (newFile) setFileContent(newFile.content);
+          }}
+          onBack={() => {
+            // Optional: maybe clear selection in parent?
+          }}
+          onRename={async () => Promise.resolve()}
+          onRefresh={() => {
+            // Re-fetch file content
+            fetch(`/api/file?path=${encodeURIComponent(session.filePath!)}`)
+              .then((res) => res.json())
+              .then((data) => setFileContent(data.content))
+              .catch(console.error);
+          }}
+          viewMode="tasks"
+          selectedRepo={session.projectName || store.selectedRepo}
+          basePath={store.basePath}
+          projectPath={projectPath}
+          agentTools={store.agentTools}
             workEditorEditing={isEditing}
             onWorkEditorEditingChange={setIsEditing}
             workDocIsDraft={false}

@@ -65,12 +65,12 @@ export function Header() {
       "separator",
       "epics",
       "kanban",
-      "tests",
       "review",
-      "separator",
       "tools",
+      "separator",
       "logs",
       "browser",
+      "tests",
     ];
 
     if (!selectedRepo || !settings.projects) return defaultItems;
@@ -118,44 +118,68 @@ export function Header() {
       <div className="flex gap-6 items-center">
         <AgelumNotesLogo size="sm" />
         <div className="flex gap-1 items-center">
-          {visibleItems.map((mode, index) => {
-            if (mode === "separator")
-              return (
-                <div key={`sep-${index}`} className="w-px h-6 bg-border mx-1" />
-              );
-            const config = VIEW_MODE_CONFIG[mode];
-            if (!config) return null;
-            const Icon = config.icon;
-
-            const isTerminalAndReceiving =
-              mode === "logs" &&
-              isTerminalReceiving &&
-              effectiveViewMode !== "logs";
-
-            return (
-              <button
-                key={`${mode}-${index}`}
-                onClick={() => setViewMode(mode as ViewMode)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
-                  effectiveViewMode === mode
-                    ? "text-amber-500 bg-amber-500/10"
-                    : isTerminalAndReceiving
-                      ? "text-amber-400/80 bg-amber-500/5 transition-all duration-300" // Subtle highlight for activity
-                      : "text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                <div className="relative">
-                  <Icon
-                    className={`w-4 h-4 ${isTerminalAndReceiving ? "animate-pulse" : ""}`}
+          {(() => {
+            let sectionIndex = 0;
+            return visibleItems.map((mode, index) => {
+              if (mode === "separator") {
+                sectionIndex++;
+                return (
+                  <div
+                    key={`sep-${index}`}
+                    className="w-px h-6 bg-border mx-1"
                   />
-                  {isTerminalAndReceiving && (
-                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
-                  )}
-                </div>
-                {config.label}
-              </button>
-            );
-          })}
+                );
+              }
+              const config = VIEW_MODE_CONFIG[mode];
+              if (!config) return null;
+              const Icon = config.icon;
+
+              const isTerminalAndReceiving =
+                mode === "logs" &&
+                isTerminalReceiving &&
+                effectiveViewMode !== "logs";
+
+              let activeClass = "text-amber-500 bg-amber-500/10";
+              let activityClass = "text-amber-400/80 bg-amber-500/5";
+              let pingClass = "bg-amber-500";
+
+              if (sectionIndex === 1) {
+                activeClass = "text-blue-500 bg-blue-500/10";
+                activityClass = "text-blue-400/80 bg-blue-500/5";
+                pingClass = "bg-blue-500";
+              } else if (sectionIndex === 2) {
+                activeClass = "text-green-500 bg-green-500/10";
+                activityClass = "text-green-400/80 bg-green-500/5";
+                pingClass = "bg-green-500";
+              }
+
+              return (
+                <button
+                  key={`${mode}-${index}`}
+                  onClick={() => setViewMode(mode as ViewMode)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
+                    effectiveViewMode === mode
+                      ? activeClass
+                      : isTerminalAndReceiving
+                        ? `${activityClass} transition-all duration-300`
+                        : "text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  <div className="relative">
+                    <Icon
+                      className={`w-4 h-4 ${isTerminalAndReceiving ? "animate-pulse" : ""}`}
+                    />
+                    {isTerminalAndReceiving && (
+                      <span
+                        className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 ${pingClass} rounded-full animate-ping`}
+                      />
+                    )}
+                  </div>
+                  {config.label}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 

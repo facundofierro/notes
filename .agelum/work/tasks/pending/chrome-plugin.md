@@ -50,13 +50,20 @@ The current implementation in the `BrowserTab` component (`apps/web/src/componen
 
 ### How to Create a Chrome Extension (Basic Steps)
 
-1.  **Project Structure**:
+1.  **Project Location**:
+    *   Create a new directory at `apps/chrome-extension` in the monorepo.
+    *   This ensures it follows the project's structure alongside `apps/web` and `apps/electron`.
+2.  **Project Structure**:
     *   `manifest.json`: Defines metadata, permissions, and entry points.
     *   `src/sidepanel/`: React application for the right panel.
     *   `src/background/`: Service worker for handling captures and API calls.
     *   `src/content/`: Scripts that run in the context of the web page.
-2.  **Development Flow**:
+3.  **Drawing & Annotation UI**:
+    *   **Full-Screen Drawing Mode**: To provide a better drawing experience, the plugin can expand the `sidePanel` or, more effectively, inject a full-screen overlay into the current webpage (`src/content/`) when the user enters "Drawing Mode".
+    *   **Sidebar Expansion**: Alternatively, investigate if `chrome.sidePanel.setOptions` can be used to dynamically change the width or if we should use a custom-injected `<iframe>` instead of the official SidePanel API to have more control over the "expansion" to full screen.
+    *   **Reuse Components**: Try to reuse `ScreenshotViewer.tsx` and `TaskPanel.tsx` from `apps/web` by moving them to a shared package or carefully importing them if the build system allows.
+4.  **Development Flow**:
     *   Use a bundler (Vite is recommended) to compile TypeScript/React code.
     *   Load the `dist` folder into Chrome via `chrome://extensions/` (Developer Mode -> Load unpacked).
-3.  **API Integration**: Use `fetch` to communicate with the Agelum backend. Ensure CORS is handled or the Agelum API allows requests from the extension's origin.
+5.  **API Integration**: Use `fetch` to communicate with the Agelum backend. Ensure CORS is handled or the Agelum API allows requests from the extension's origin.
 

@@ -163,6 +163,7 @@ export interface HomeState {
 
   // Global History
   historySessions: TerminalSessionInfo[];
+  selectedSessionId: string | null;
 
   // Helpers
   getProjectState: () => ProjectState;
@@ -238,6 +239,7 @@ export interface HomeState {
   ) => void;
   setTabEditing: (tabId: string, editing: boolean) => void;
   setHistorySessions: (sessions: TerminalSessionInfo[]) => void;
+  setSelectedSessionId: (id: string | null) => void;
 }
 
 const defaultSettings: UserSettings = {
@@ -282,6 +284,7 @@ export const useHomeStore = create<HomeState>()(
       isElectron: false,
       isGlobalOverlayOpen: false,
       historySessions: [],
+      selectedSessionId: null,
       projectStates: {},
 
       getProjectState: () => {
@@ -492,6 +495,7 @@ export const useHomeStore = create<HomeState>()(
       },
 
       setHistorySessions: (historySessions) => set({ historySessions }),
+      setSelectedSessionId: (selectedSessionId) => set({ selectedSessionId }),
 
       fetchSettings: async () => {
         try {

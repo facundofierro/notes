@@ -21,6 +21,8 @@ export function AITab() {
     handleRunTest,
     setHistorySessions,
     historySessions,
+    selectedSessionId,
+    setSelectedSessionId,
   } = store;
 
   // Retrieve history on mount
@@ -60,9 +62,14 @@ export function AITab() {
     isTestRunning,
   } = store.getProjectState();
 
-  const [selectedSessionId, setSelectedSessionId] = React.useState<
-    string | null
-  >(null);
+  const currentProjectPath = React.useMemo(() => {
+    if (!selectedRepo) return null;
+    return (
+      repositories.find((r) => r.name === selectedRepo)?.path ||
+      store.settings.projects?.find((p) => p.name === selectedRepo)?.path ||
+      null
+    );
+  }, [repositories, selectedRepo, store.settings.projects]);
 
   // Get last 20 sessions sorted by time, with active sessions first
   const sortedSessions = React.useMemo(() => {
@@ -80,9 +87,11 @@ export function AITab() {
 
   // Extract project name from context key (format: "ai-tab-projectName" or similar)
   const getProjectFromSession = (session: TerminalSessionInfo) => {
-    return (
-      session.projectName || session.contextKey.split("-").pop() || "Unknown"
-    );
+    if (session.projectName) return session.projectName;
+    if (session.contextKey.startsWith("ai-tab-")) {
+      return session.contextKey.replace(/^ai-tab-/, "");
+    }
+    return session.contextKey.split("-").pop() || "Unknown";
   };
 
   // Truncate prompt to show beginning
@@ -127,8 +136,8 @@ export function AITab() {
                     onClick={() => {
                       setSelectedSessionId(session.processId);
                       // Set the selected repo to match the session's project
-                      if (session.projectName) {
-                        setSelectedRepo(session.projectName);
+                      if (projectName && projectName !== "Unknown") {
+                        setSelectedRepo(projectName);
                       }
                     }}
                     className={`
@@ -187,9 +196,7 @@ export function AITab() {
           <AIRightSidebar
             selectedRepo={selectedRepo}
             basePath={store.basePath}
-            projectPath={
-              repositories.find((r) => r.name === selectedRepo)?.path
-            }
+            projectPath={currentProjectPath}
             agentTools={agentTools}
             viewMode="ai"
             file={selectedFile}
