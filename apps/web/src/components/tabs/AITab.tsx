@@ -101,7 +101,7 @@ export function AITab() {
   return (
     <div className="flex w-full h-full bg-background relative overflow-hidden">
       {/* Left Sidebar - Unified History */}
-      <div className="w-[320px] border-r border-border flex flex-col bg-secondary/30">
+      <div className="w-[260px] border-r border-border flex flex-col bg-secondary/30">
         <div className="p-4 border-b border-border">
           <h2 className="font-semibold text-sm mb-1 text-foreground">
             AI Sessions
@@ -180,8 +180,9 @@ export function AITab() {
 
       {/* Right Content - AI Tools (Wide Mode) */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {selectedSession && !selectedSession.isRunning ? (
-          <AISessionViewer session={selectedSession} />
+        {selectedSession &&
+        (selectedSession.filePath || !selectedSession.isRunning) ? (
+          <AISessionViewer session={selectedSession} sidebarWidth="50vw" />
         ) : selectedRepo ? (
           <AIRightSidebar
             selectedRepo={selectedRepo}

@@ -49,6 +49,7 @@ interface AIRightSidebarProps {
   onRunTest?: (path: string) => void;
   className?: string;
   contextKey?: string;
+  width?: string;
 }
 
 export function AIRightSidebar({
@@ -65,6 +66,7 @@ export function AIRightSidebar({
   onRunTest,
   className = "",
   contextKey = "",
+  width,
 }: AIRightSidebarProps) {
   const { buildToolPrompt } = usePromptBuilder();
   const {
@@ -1002,8 +1004,8 @@ Cancelled`
 
   return (
     <div
-      ref={containerRef}
-      className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${isWide ? "w-[50%]" : "w-[360px]"} ${className}`}
+      style={{ width: width ? width : undefined }}
+      className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${!width ? (isWide ? "w-[50%]" : "w-[360px]") : ""} ${className}`}
     >
       {/* Terminal View */}
       <div

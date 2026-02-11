@@ -8,13 +8,15 @@ import { Loader2, Terminal } from "lucide-react";
 
 interface AISessionViewerProps {
   session: TerminalSessionInfo;
+  sidebarWidth?: string;
 }
 
-export function AISessionViewer({ session }: AISessionViewerProps) {
+export function AISessionViewer({ session, sidebarWidth }: AISessionViewerProps) {
   const store = useHomeStore();
   const [fileContent, setFileContent] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [isEditing, setIsEditing] = React.useState(false);
 
   React.useEffect(() => {
     if (!session.filePath) {
@@ -43,29 +45,7 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
   }, [session.filePath]);
 
   return (
-    <div className="flex flex-col w-full h-full bg-background relative overflow-hidden">
-      {/* Top: Prompt View */}
-      <div className="flex flex-col p-4 border-b border-border bg-secondary/10 min-h-[120px] max-h-[300px] overflow-auto shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <Terminal className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">
-            Executed Prompt
-          </span>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {new Date(session.startedAt).toLocaleString()}
-          </span>
-        </div>
-        <div className="p-3 rounded-lg bg-secondary/50 border border-border text-sm font-mono whitespace-pre-wrap text-foreground/90">
-          {session.prompt || "(No prompt recorded)"}
-        </div>
-      </div>
-
-      {/* Local State for WorkEditor */}
-      {/* Why local state? WorkEditor manages its own state for sub-tabs, but requires some props. */}
-      {/* We simulate a 'task' view mode to enable the Plan/Summary/Tests tabs */}
-
-      {/* Bottom: content */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative w-full h-full flex flex-col">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -73,17 +53,27 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
         ) : session.filePath && fileContent !== null ? (
           <WorkEditor
             file={{ path: session.filePath, content: fileContent }}
-            onFileChange={() => {}}
-            onBack={() => {}}
+            onFileChange={(newFile) => {
+              if (newFile) setFileContent(newFile.content);
+            }}
+            onBack={() => {
+              // Optional: maybe clear selection in parent?
+            }}
             onRename={async () => Promise.resolve()}
-            onRefresh={() => {}}
+            onRefresh={() => {
+               // Re-fetch file content
+               fetch(`/api/file?path=${encodeURIComponent(session.filePath!)}`)
+                 .then(res => res.json())
+                 .then(data => setFileContent(data.content))
+                 .catch(console.error);
+            }}
             viewMode="tasks"
             selectedRepo={session.projectName || store.selectedRepo}
             basePath={store.basePath}
             projectPath={null}
             agentTools={store.agentTools}
-            workEditorEditing={false}
-            onWorkEditorEditingChange={() => {}}
+            workEditorEditing={isEditing}
+            onWorkEditorEditingChange={setIsEditing}
             workDocIsDraft={false}
             testViewMode="code"
             onTestViewModeChange={() => {}}
@@ -91,6 +81,15 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
             isTestRunning={false}
             onRunTest={() => {}}
             contextKey={session.contextKey}
+            onSave={async ({ path, content }) => {
+              await fetch("/api/file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path, content }),
+              });
+              setFileContent(content);
+            }}
+            sidebarWidth={sidebarWidth}
           />
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground w-full h-full">
@@ -104,6 +103,5 @@ export function AISessionViewer({ session }: AISessionViewerProps) {
           </div>
         )}
       </div>
-    </div>
   );
 }

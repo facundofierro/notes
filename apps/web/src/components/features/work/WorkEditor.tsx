@@ -32,6 +32,7 @@ interface WorkEditorProps {
   onRunTest?: (path: string) => void;
   contextKey?: string;
   onSave?: (opts: { path: string; content: string }) => Promise<void>;
+  sidebarWidth?: string;
 }
 
 import { TaskTests } from "./TaskTests";
@@ -58,6 +59,7 @@ export function WorkEditor({
   onRunTest,
   contextKey,
   onSave,
+  sidebarWidth,
 }: WorkEditorProps) {
   const [taskSubView, setTaskSubView] = React.useState<
     "task" | "plan" | "tests" | "summary"
@@ -569,6 +571,7 @@ export function WorkEditor({
         isTestRunning={isTestRunning}
         onRunTest={onRunTest}
         contextKey={contextKey}
+        width={sidebarWidth}
       />
     </div>
   );
