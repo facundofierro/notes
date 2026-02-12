@@ -71,7 +71,7 @@ const FilesCentralArea = ({
               className={cn(
                 "flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-border transition-colors min-w-[120px] max-w-[200px] group",
                 activeTabId === tab.id
-                  ? "bg-background text-foreground font-medium"
+                  ? "text-blue-500 bg-blue-500/10 font-medium"
                   : "text-muted-foreground hover:bg-accent/50",
               )}
             >
@@ -145,7 +145,7 @@ const ChangesCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "agent"
-              ? "bg-background text-foreground font-medium"
+              ? "text-blue-500 bg-blue-500/10 font-medium"
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -157,7 +157,7 @@ const ChangesCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "diff"
-              ? "bg-background text-foreground font-medium"
+              ? "text-blue-500 bg-blue-500/10 font-medium"
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -250,7 +250,7 @@ const PRsCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "info"
-              ? "bg-background text-foreground font-medium"
+              ? "text-blue-500 bg-blue-500/10 font-medium"
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -262,7 +262,7 @@ const PRsCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "diff"
-              ? "bg-background text-foreground font-medium"
+              ? "text-blue-500 bg-blue-500/10 font-medium"
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -873,7 +873,7 @@ export function ReviewTab() {
             className={cn(
               "flex-1 flex items-center justify-center py-3 transition-colors border-b-2",
               leftSidebarView === "files"
-                ? "border-amber-500 text-amber-500 bg-amber-500/5"
+                ? "border-blue-500 text-blue-500 bg-blue-500/5"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
             )}
             title="Project Files"
@@ -885,7 +885,7 @@ export function ReviewTab() {
             className={cn(
               "flex-1 flex items-center justify-center py-3 transition-colors border-b-2",
               leftSidebarView === "changes"
-                ? "border-amber-500 text-amber-500 bg-amber-500/5"
+                ? "border-blue-500 text-blue-500 bg-blue-500/5"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
             )}
             title="Local Changes"
@@ -897,7 +897,7 @@ export function ReviewTab() {
             className={cn(
               "flex-1 flex items-center justify-center py-3 transition-colors border-b-2",
               leftSidebarView === "prs"
-                ? "border-amber-500 text-amber-500 bg-amber-500/5"
+                ? "border-blue-500 text-blue-500 bg-blue-500/5"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
             )}
             title="GitHub PRs"
@@ -975,7 +975,7 @@ export function ReviewTab() {
         {/* Resize Handle */}
         {leftSidebarView && (
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-amber-500/50 active:bg-amber-500 transition-colors z-50"
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 active:bg-blue-500 transition-colors z-50"
             onMouseDown={startResizing}
           />
         )}

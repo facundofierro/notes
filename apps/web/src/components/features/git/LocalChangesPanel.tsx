@@ -295,7 +295,7 @@ export function LocalChangesPanel({
         <ChangeGroup
           title={`Changes (${unstagedFiles.length})`}
           count={unstagedFiles.length}
-          color="bg-amber-500"
+          color="bg-blue-500"
         >
           {unstagedFiles.length === 0 ? (
             <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">

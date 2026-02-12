@@ -35,7 +35,7 @@ function formatBytes(bytes: number, decimals = 2) {
 
 function getFileIcon(name: string, type: "file" | "directory") {
   if (type === "directory")
-    return <Folder className="w-4 h-4 text-yellow-500" />;
+    return <Folder className="w-4 h-4 text-indigo-500" />;
 
   const ext = name.split(".").pop()?.toLowerCase();
 
@@ -45,23 +45,23 @@ function getFileIcon(name: string, type: "file" | "directory") {
     case "ts":
     case "tsx":
     case "json":
-      return <Code className="w-4 h-4 text-blue-500" />;
+      return <Code className="w-4 h-4 text-sky-500" />;
     case "md":
     case "txt":
-      return <FileText className="w-4 h-4 text-gray-500" />;
+      return <FileText className="w-4 h-4 text-slate-400" />;
     case "png":
     case "jpg":
     case "jpeg":
     case "gif":
     case "svg":
     case "webp":
-      return <ImageIcon className="w-4 h-4 text-purple-500" />;
+      return <ImageIcon className="w-4 h-4 text-teal-400" />;
     case "mp4":
     case "webm":
     case "mov":
-      return <Film className="w-4 h-4 text-red-500" />;
+      return <Film className="w-4 h-4 text-cyan-400" />;
     default:
-      return <File className="w-4 h-4 text-gray-500" />;
+      return <File className="w-4 h-4 text-slate-400" />;
   }
 }
 
@@ -113,7 +113,7 @@ export default function DiskUsageChart({ node }: DiskUsageChartProps) {
                 </div>
                 <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${isDirectory ? "bg-yellow-500/70" : "bg-blue-500/70"}`}
+                    className={`h-full rounded-full transition-all duration-500 ${isDirectory ? "bg-indigo-500/70 shadow-[0_0_8px_rgba(99,102,241,0.4)]" : "bg-sky-500/70 shadow-[0_0_8px_rgba(14,165,233,0.4)]"}`}
                     style={{ width: `${Math.max(percentage, 0.5)}%` }}
                   />
                 </div>

@@ -116,12 +116,12 @@ function FileTreeNode({
           )}
           {node.type === "directory" ? (
             isExpanded ? (
-              <FolderOpen className="w-4 h-4 text-yellow-400" />
+              <FolderOpen className="w-4 h-4 text-indigo-400" />
             ) : (
-              <Folder className="w-4 h-4 text-yellow-400" />
+              <Folder className="w-4 h-4 text-indigo-400" />
             )
           ) : (
-            <FileText className="w-4 h-4 text-muted-foreground" />
+            <FileText className="w-4 h-4 text-sky-400/70" />
           )}
           <span className="text-sm text-foreground">{node.name}</span>
         </div>
@@ -198,9 +198,9 @@ function FileTreeNode({
               }}
             >
               {newItem.type === "directory" ? (
-                <Folder className="w-4 h-4 text-yellow-400" />
+                <Folder className="w-4 h-4 text-indigo-400" />
               ) : (
-                <FileText className="w-4 h-4 text-muted-foreground" />
+                <FileText className="w-4 h-4 text-sky-400/70" />
               )}
               <input
                 autoFocus

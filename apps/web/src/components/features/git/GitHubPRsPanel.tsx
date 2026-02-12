@@ -263,7 +263,7 @@ export function GitHubPRsPanel({
     if (state === "FAILURE")
       return <XCircle className="w-3.5 h-3.5 text-red-500" />;
     if (state === "PENDING")
-      return <Clock className="w-3.5 h-3.5 text-amber-500" />;
+      return <Clock className="w-3.5 h-3.5 text-blue-500" />;
     return null;
   };
 
