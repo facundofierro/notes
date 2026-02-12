@@ -235,10 +235,11 @@ export async function POST(request: Request) {
           safeClose();
         });
 
+        // On client disconnect, stop streaming but keep stdout/stderr listeners
+        // alive so appendOutput continues buffering for reconnection.
+        // safeEnqueue already no-ops when controllerClosed is true.
         request.signal.addEventListener("abort", () => {
           controllerClosed = true;
-          if (child.stdout) child.stdout.removeListener("data", onStdout);
-          if (child.stderr) child.stderr.removeListener("data", onStderr);
           safeClose();
         });
       },
