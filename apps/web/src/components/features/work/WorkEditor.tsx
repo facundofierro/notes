@@ -3,6 +3,7 @@
 import * as React from "react";
 import FileViewer from "@/components/features/file-system/FileViewer";
 import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
+import { useHomeStore } from "@/store/useHomeStore";
 
 interface FileNode {
   path: string;
@@ -73,6 +74,27 @@ export function WorkEditor({
   const [summaryFile, setSummaryFile] = React.useState<FileNode | null>(null);
   const [summaryLoading, setSummaryLoading] = React.useState(false);
 
+  // Pulse notification for file changes
+  const lastChangeDetected = useHomeStore(
+    (s) => s.getProjectState().lastChangeDetected,
+  );
+  const [pulseTabs, setPulseTabs] = React.useState<Set<string>>(new Set());
+
+  // Resolve a relative path to absolute
+  const resolveAbsPath = React.useCallback(
+    (relPath: string | null) => {
+      if (!relPath) return null;
+      if (relPath.startsWith("/")) return relPath;
+      const base =
+        projectPath ||
+        (basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/")
+          : null);
+      return base ? `${base}/${relPath}`.replace(/\/+/g, "/") : null;
+    },
+    [projectPath, basePath, selectedRepo],
+  );
+
   // Extract plan path from task file content
   const planPath = React.useMemo(() => {
     const isTaskView = viewMode === "tasks" || viewMode === "kanban";
@@ -114,6 +136,52 @@ export function WorkEditor({
     }
     return null;
   }, [file, viewMode]);
+
+  // Watch for file changes and trigger pulse animations on tabs
+  React.useEffect(() => {
+    const now = Date.now();
+    const RECENCY_THRESHOLD = 5000;
+    const newPulses = new Set<string>();
+
+    const absPlanPath = resolveAbsPath(planPath);
+    const absSummaryPath = resolveAbsPath(summaryPath);
+
+    for (const [changedPath, timestamp] of Object.entries(lastChangeDetected)) {
+      if (now - timestamp > RECENCY_THRESHOLD) continue;
+
+      if (changedPath === file.path) {
+        newPulses.add("task");
+      }
+      if (absPlanPath && changedPath === absPlanPath) {
+        newPulses.add("plan");
+      }
+      if (absSummaryPath && changedPath === absSummaryPath) {
+        newPulses.add("summary");
+      }
+    }
+
+    if (newPulses.size > 0) {
+      setPulseTabs((prev) => {
+        const merged = new Set(prev);
+        newPulses.forEach((t) => merged.add(t));
+        return merged;
+      });
+
+      // Invalidate cached file content so re-navigating fetches fresh data
+      if (newPulses.has("plan")) setPlanFile(null);
+      if (newPulses.has("summary")) setSummaryFile(null);
+
+      const timeout = setTimeout(() => {
+        setPulseTabs((prev) => {
+          const next = new Set(prev);
+          newPulses.forEach((t) => next.delete(t));
+          return next;
+        });
+      }, 4000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [lastChangeDetected, file.path, planPath, summaryPath, resolveAbsPath]);
 
   // Extract tests path from task file content
   React.useEffect(() => {
@@ -311,49 +379,64 @@ export function WorkEditor({
     viewMode === "kanban" ||
     (!!file && file.path.toLowerCase().includes("tasks"));
 
+  const pulseStyle = `
+    @keyframes tab-pulse-highlight {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+      50% { box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.5); }
+    }
+  `;
+
+  const getPulseClass = (tab: string) =>
+    pulseTabs.has(tab)
+      ? "ring-1 ring-blue-500/70 shadow-[0_0_8px_2px_rgba(59,130,246,0.4)]"
+      : "";
+
   const headerCenter = showTaskSwitcher ? (
-    <div className="flex items-center p-1 bg-secondary rounded-lg border border-border h-8">
-      <button
-        onClick={() => setTaskSubView("task")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${taskSubView === "task" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-      >
-        <FileText className="w-3.5 h-3.5" />
-        Task
-      </button>
-      <button
-        onClick={() => setTaskSubView("plan")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
-          taskSubView === "plan"
-            ? "bg-background shadow-sm text-foreground"
-            : `text-muted-foreground hover:text-foreground ${!planPath ? "opacity-40" : ""}`
-        }`}
-      >
-        <LayoutList className="w-3.5 h-3.5" />
-        Plan
-      </button>
-      <button
-        onClick={() => setTaskSubView("summary")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
-          taskSubView === "summary"
-            ? "bg-background shadow-sm text-foreground"
-            : `text-muted-foreground hover:text-foreground ${!summaryPath ? "opacity-40" : ""}`
-        }`}
-      >
-        <LayoutList className="w-3.5 h-3.5" />
-        Summary
-      </button>
-      <button
-        onClick={() => setTaskSubView("tests")}
-        className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
-          taskSubView === "tests"
-            ? "bg-background shadow-sm text-foreground"
-            : `text-muted-foreground hover:text-foreground ${!testsPath ? "opacity-40" : ""}`
-        }`}
-      >
-        <ListChecks className="w-3.5 h-3.5" />
-        Tests
-      </button>
-    </div>
+    <>
+      <style>{pulseStyle}</style>
+      <div className="flex items-center p-1 bg-secondary rounded-lg border border-border h-8">
+        <button
+          onClick={() => setTaskSubView("task")}
+          className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-all duration-300 ${taskSubView === "task" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"} ${getPulseClass("task")}`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Task
+        </button>
+        <button
+          onClick={() => setTaskSubView("plan")}
+          className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-all duration-300 ${
+            taskSubView === "plan"
+              ? "bg-background shadow-sm text-foreground"
+              : `text-muted-foreground hover:text-foreground ${!planPath ? "opacity-40" : ""}`
+          } ${getPulseClass("plan")}`}
+        >
+          <LayoutList className="w-3.5 h-3.5" />
+          Plan
+        </button>
+        <button
+          onClick={() => setTaskSubView("summary")}
+          className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-all duration-300 ${
+            taskSubView === "summary"
+              ? "bg-background shadow-sm text-foreground"
+              : `text-muted-foreground hover:text-foreground ${!summaryPath ? "opacity-40" : ""}`
+          } ${getPulseClass("summary")}`}
+        >
+          <LayoutList className="w-3.5 h-3.5" />
+          Summary
+        </button>
+        <button
+          onClick={() => setTaskSubView("tests")}
+          className={`flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-medium transition-colors ${
+            taskSubView === "tests"
+              ? "bg-background shadow-sm text-foreground"
+              : `text-muted-foreground hover:text-foreground ${!testsPath ? "opacity-40" : ""}`
+          }`}
+        >
+          <ListChecks className="w-3.5 h-3.5" />
+          Tests
+        </button>
+      </div>
+    </>
   ) : null;
 
   // Common header component for consistent layout across views

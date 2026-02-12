@@ -81,6 +81,7 @@ export interface ProjectState {
   terminalSessions: TerminalSessionInfo[];
   tabs: Record<string, TabState>;
   lastTerminalActivity: number;
+  lastChangeDetected: Record<string, number>;
 }
 
 const createDefaultProjectState = (): ProjectState => ({
@@ -133,6 +134,7 @@ const createDefaultProjectState = (): ProjectState => ({
     },
   },
   lastTerminalActivity: 0,
+  lastChangeDetected: {},
 });
 
 export interface HomeState {
@@ -238,6 +240,7 @@ export interface HomeState {
     file: { path: string; content: string; line?: number } | null,
   ) => void;
   setTabEditing: (tabId: string, editing: boolean) => void;
+  setFileModified: (path: string, mtime: number) => void;
   setHistorySessions: (sessions: TerminalSessionInfo[]) => void;
   setSelectedSessionId: (id: string | null) => void;
 }
@@ -490,6 +493,15 @@ export const useHomeStore = create<HomeState>()(
               ...prev.tabs[tabId],
               workEditorEditing: editing,
             },
+          },
+        }));
+      },
+
+      setFileModified: (path, mtime) => {
+        get().setProjectState((prev) => ({
+          lastChangeDetected: {
+            ...prev.lastChangeDetected,
+            [path]: mtime,
           },
         }));
       },

@@ -78,6 +78,7 @@ export function AIRightSidebar({
     getTerminalSessionForContext,
     setTabFile,
     setSelectedFile,
+    setFileModified,
   } = useHomeStore();
   const terminalAbortControllerRef = React.useRef<AbortController | null>(null);
   const recognitionRef = React.useRef<any>(null);
@@ -156,6 +157,8 @@ export function AIRightSidebar({
   const [lastGeneratedPlanPath, setLastGeneratedPlanPath] = React.useState<
     string | null
   >(null);
+  const [lastGeneratedSummaryPath, setLastGeneratedSummaryPath] =
+    React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
 
@@ -213,6 +216,76 @@ export function AIRightSidebar({
       console.error("Failed to refresh file:", error);
     }
   }, [file, viewMode, setTabFile, setSelectedFile]);
+
+  // Poll file stats while terminal is running to detect changes
+  const knownMtimesRef = React.useRef<Record<string, number>>({});
+  React.useEffect(() => {
+    if (!isTerminalRunning || !file?.path) return;
+
+    const resolveAbsolutePath = (relativePath: string) => {
+      if (relativePath.startsWith("/")) return relativePath;
+      const base =
+        projectPath ||
+        (basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/")
+          : null);
+      return base ? `${base}/${relativePath}`.replace(/\/+/g, "/") : null;
+    };
+
+    // Determine which files to monitor based on docAiMode
+    const filesToMonitor: string[] = [];
+    filesToMonitor.push(file.path);
+
+    if (docAiMode === "plan" && lastGeneratedPlanPath) {
+      const absPath = resolveAbsolutePath(lastGeneratedPlanPath);
+      if (absPath) filesToMonitor.push(absPath);
+    }
+
+    if (docAiMode === "start" && lastGeneratedSummaryPath) {
+      const absPath = resolveAbsolutePath(lastGeneratedSummaryPath);
+      if (absPath) filesToMonitor.push(absPath);
+    }
+
+    const pollStats = async () => {
+      for (const monitorPath of filesToMonitor) {
+        try {
+          const res = await fetch(
+            `/api/file?path=${encodeURIComponent(monitorPath)}&statsOnly=true`,
+          );
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (!data.exists) continue;
+
+          const knownMtime = knownMtimesRef.current[monitorPath];
+          if (knownMtime !== undefined && data.mtime !== knownMtime) {
+            setFileModified(monitorPath, Date.now());
+          }
+          knownMtimesRef.current[monitorPath] = data.mtime;
+        } catch {
+          // Ignore polling errors
+        }
+      }
+    };
+
+    // Initial poll to seed known mtimes
+    pollStats();
+
+    const intervalId = setInterval(pollStats, 2000);
+    return () => {
+      clearInterval(intervalId);
+      knownMtimesRef.current = {};
+    };
+  }, [
+    isTerminalRunning,
+    file,
+    docAiMode,
+    lastGeneratedPlanPath,
+    lastGeneratedSummaryPath,
+    projectPath,
+    basePath,
+    selectedRepo,
+    setFileModified,
+  ]);
 
   const reconnectToSession = React.useCallback(
     async (processId: string, toolName: string) => {
@@ -515,6 +588,7 @@ Error: ${error.message}`,
           currentFilePath.split("/").pop()?.replace(".md", "") || "task";
         const timestamp = Date.now();
         generatedSummaryPath = `.agelum/work/summaries/${taskFileName}-${timestamp}.md`;
+        setLastGeneratedSummaryPath(generatedSummaryPath);
 
         // Update the task file with the summary link immediately
         fetch("/api/tasks/link", {

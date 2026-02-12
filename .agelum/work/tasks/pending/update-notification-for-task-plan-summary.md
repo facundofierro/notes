@@ -2,6 +2,7 @@
 created: 2026-02-11T22:42:40.061Z
 state: pending
 plan: .agelum/work/plans/update-notification-for-task-plan-summary-1770852971997.md
+summary: .agelum/work/summaries/update-notification-for-task-plan-summary-1770863982797.md
 ---
 
 # update-notification-for-task-plan-summary

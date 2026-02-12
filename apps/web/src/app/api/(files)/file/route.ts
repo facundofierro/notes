@@ -5,6 +5,7 @@ import path from "path";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const filePath = searchParams.get("path");
+  const statsOnly = searchParams.get("statsOnly") === "true";
 
   if (!filePath) {
     return NextResponse.json({
@@ -14,8 +15,17 @@ export async function GET(request: Request) {
 
   try {
     if (!fs.existsSync(filePath)) {
+      return NextResponse.json(
+        statsOnly ? { mtime: 0, size: 0, exists: false } : { content: "" },
+      );
+    }
+
+    if (statsOnly) {
+      const stats = fs.statSync(filePath);
       return NextResponse.json({
-        content: "",
+        mtime: stats.mtimeMs,
+        size: stats.size,
+        exists: true,
       });
     }
 
@@ -24,7 +34,10 @@ export async function GET(request: Request) {
       content,
     });
   } catch (error) {
-    return NextResponse.json({ content: "" }, { status: 500 });
+    return NextResponse.json(
+      statsOnly ? { mtime: 0, size: 0, exists: false } : { content: "" },
+      { status: 500 },
+    );
   }
 }
 
