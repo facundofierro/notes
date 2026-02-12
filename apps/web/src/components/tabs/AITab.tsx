@@ -144,7 +144,7 @@ export function AITab() {
                       flex flex-col gap-1 p-3 rounded-lg text-left transition-all
                       ${
                         isSelected
-                          ? "bg-blue-900/20 border border-blue-600/50"
+                          ? "bg-amber-900/20 border border-amber-600/50"
                           : "bg-secondary/50 border border-border hover:bg-secondary hover:border-border"
                       }
                       ${session.isRunning ? "ring-1 ring-green-500/50" : ""}
@@ -153,7 +153,7 @@ export function AITab() {
                     {/* Header: Project + Tool + Status */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 truncate">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 truncate">
                           {projectName}
                         </span>
                         {session.isRunning && (

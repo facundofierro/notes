@@ -161,6 +161,32 @@ export function AIRightSidebar({
     React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
+  const theme = React.useMemo(() => {
+    if (
+      ["epics", "kanban", "review", "tools", "tasks", "work"].includes(viewMode)
+    ) {
+      return {
+        border: "border-blue-600/50",
+        bg: "bg-blue-900/10",
+        ring: "focus-within:ring-blue-600/50",
+        dot: "bg-blue-500",
+      };
+    }
+    if (["logs", "browser", "tests"].includes(viewMode)) {
+      return {
+        border: "border-green-600/50",
+        bg: "bg-green-900/10",
+        ring: "focus-within:ring-green-600/50",
+        dot: "bg-green-500",
+      };
+    }
+    return {
+      border: "border-amber-600/50",
+      bg: "bg-amber-900/10",
+      ring: "focus-within:ring-amber-600/50",
+      dot: "bg-amber-500",
+    };
+  }, [viewMode]);
 
   React.useEffect(() => {
     if (!containerRef.current) return;
@@ -993,7 +1019,7 @@ Cancelled`
       <div
         key={tool.name}
         onMouseEnter={() => ensureModelsForTool(tool.name)}
-        className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? (isHighlighted ? "border-blue-600/50 bg-blue-900/10 shadow-lg" : "border-border bg-secondary") : "opacity-50"}`}
+        className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? (isHighlighted ? `${theme.border} ${theme.bg} shadow-lg` : "border-border bg-secondary") : "opacity-50"}`}
       >
         <button
           onClick={handleClick}
@@ -1011,7 +1037,7 @@ Cancelled`
               {tool.displayName}
             </div>
             {isHighlighted && (
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+              <div className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse shrink-0`} />
             )}
           </div>
           <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
@@ -1234,7 +1260,7 @@ Cancelled`
         </div>
 
         <div className="p-3 border-b border-border">
-          <div className="flex overflow-hidden relative flex-col w-full rounded-xl border bg-secondary border-border focus-within:ring-2 focus-within:ring-blue-600/50">
+          <div className={`flex overflow-hidden relative flex-col w-full rounded-xl border bg-secondary border-border focus-within:ring-2 ${theme.ring}`}>
             <textarea
               value={promptText}
               onChange={(e) => {
