@@ -451,6 +451,22 @@ export const useHomeStore = create<HomeState>()(
       },
 
       updateTerminalSession: (processId, updates) => {
+        // Update history sessions as well
+        set((state) => ({
+          historySessions: state.historySessions.map((s) =>
+            s.processId === processId ? { ...s, ...updates } : s,
+          ),
+        }));
+
+        // Call API to persist history update
+        fetch("/api/history", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ processId, updates }),
+        }).catch((err) =>
+          console.error("Failed to update history on disk:", err),
+        );
+
         get().setProjectState((prev) => ({
           terminalSessions: prev.terminalSessions.map((s) =>
             s.processId === processId ? { ...s, ...updates } : s,

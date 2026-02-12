@@ -19,31 +19,99 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
   const [error, setError] = React.useState<string | null>(null);
   const [isEditing, setIsEditing] = React.useState(false);
 
+  const findTaskPath = React.useCallback(async (oldPath: string) => {
+    // Only search if it looks like a task path
+    if (!oldPath.includes("/tasks/")) return null;
+
+    const fileName = oldPath.split("/").pop() || "";
+    if (!fileName) return null;
+
+    const repoName = session.projectName || store.selectedRepo;
+    if (!repoName) return null;
+
+    // Remove any existing timestamp prefix from the filename to get the base task name
+    // Prefix format: YY_MM_DD-HHMMSS- (e.g., 23_02_12-102030-)
+    const taskBaseName = fileName.replace(/^\d{2}_\d{2}_\d{2}-\d{6}-/, "");
+
+    try {
+      // Use the search API to find files with the base name
+      const res = await fetch(
+        `/api/files/search?repo=${encodeURIComponent(repoName)}&query=${encodeURIComponent(taskBaseName)}&includeCommon=true`
+      );
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      const results = (data.results || []) as { path: string; name: string }[];
+
+      // Look for a match in the tasks directory
+      const match = results.find((r) => {
+        // Must be in a tasks directory
+        if (!r.path.includes("/tasks/")) return false;
+        
+        // Check if the filename (after stripping our prefix logic) matches
+        const rFileName = r.name;
+        const rBaseName = rFileName.replace(/^\d{2}_\d{2}_\d{2}-\d{6}-/, "");
+        
+        return rBaseName === taskBaseName;
+      });
+
+      if (match) {
+        // Resolve absolute path
+        const repo = store.repositories.find((r) => r.name === repoName);
+        if (repo) {
+          // Normalize path: match.path is relative to repo root
+          return `${repo.path}/${match.path}`;
+        }
+      }
+    } catch (err) {
+      console.error("Error searching for moved task:", err);
+    }
+    return null;
+  }, [session.projectName, store.selectedRepo, store.repositories]);
+
   React.useEffect(() => {
     if (!session.filePath) {
       setFileContent(null);
       return;
     }
 
-    setIsLoading(true);
-    fetch(`/api/file?path=${encodeURIComponent(session.filePath)}`)
-      .then((res) => {
+    const loadContent = async (path: string) => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
         if (!res.ok) throw new Error("Failed to load file");
-        return res.json();
-      })
-      .then((data) => {
+        const data = await res.json();
+        
+        // If content is empty, verify if it actually exists (API returns {content: ""} for non-existent files)
+        if (data.content === "") {
+          const statsRes = await fetch(`/api/file?path=${encodeURIComponent(path)}&statsOnly=true`);
+          const statsData = await statsRes.json();
+          if (!statsData.exists) {
+            // File doesn't exist, try to find it
+            const newPath = await findTaskPath(path);
+            if (newPath && newPath !== path) {
+              // Update session in store
+              store.updateTerminalSession(session.processId, { filePath: newPath });
+              // The effect will re-run automatically since session.filePath changed
+              return;
+            }
+            throw new Error("File not found and could not be recovered");
+          }
+        }
+        
         setFileContent(data.content);
         setError(null);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Failed to load session file:", err);
-        setError("Failed to load associated file");
+        setError("Failed to load associated file context");
         setFileContent(null);
-      })
-      .finally(() => {
+      } finally {
         setIsLoading(false);
-      });
-  }, [session.filePath]);
+      }
+    };
+
+    loadContent(session.filePath);
+  }, [session.filePath, session.processId, findTaskPath, store]);
 
   // Poll for file changes while session is running
   React.useEffect(() => {

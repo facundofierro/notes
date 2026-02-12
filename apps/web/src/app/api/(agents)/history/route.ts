@@ -33,3 +33,25 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const { processId, updates } = await request.json();
+    if (!processId || !updates) {
+      return NextResponse.json(
+        { error: "Missing processId or updates" },
+        { status: 400 },
+      );
+    }
+
+    const { updateAgentHistory } = await import("@/lib/agent-history");
+    await updateAgentHistory(processId, updates);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to update history:", error);
+    return NextResponse.json(
+      { error: "Failed to update history" },
+      { status: 500 },
+    );
+  }
+}

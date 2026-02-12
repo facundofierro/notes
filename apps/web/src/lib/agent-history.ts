@@ -63,3 +63,24 @@ export async function appendAgentHistory(
     throw error;
   }
 }
+
+export async function updateAgentHistory(
+  processId: string,
+  updates: Partial<AgentHistorySession>,
+): Promise<void> {
+  try {
+    ensureSettingsDir();
+    const sessions = await readAgentHistory();
+    const index = sessions.findIndex((s) => s.processId === processId);
+
+    if (index !== -1) {
+      sessions[index] = { ...sessions[index], ...updates };
+      fs.writeFileSync(getHistoryFile(), JSON.stringify(sessions, null, 2), {
+        mode: 0o600,
+      });
+    }
+  } catch (error) {
+    console.error("Error updating agent history:", error);
+    throw error;
+  }
+}
