@@ -59,8 +59,7 @@ export function LocalChangesPanel({
   selectedFile,
   className,
 }: LocalChangesPanelProps) {
-  const store = useHomeStore();
-  const { viewMode } = store.getProjectState();
+  const viewMode = useHomeStore((s) => s.projectStates[s.selectedRepo || ""]?.viewMode || "review");
   const themeColor = getViewModeColor(viewMode);
   const setProjectState = useHomeStore((s) => s.setProjectState);
   const [status, setStatus] = React.useState<GitStatus | null>(null);
@@ -83,6 +82,7 @@ export function LocalChangesPanel({
             ahead: data.ahead || 0,
             behind: data.behind || 0,
             hasChanges: (data.files || []).length > 0,
+            branch: data.branch || "",
           },
         }));
       }

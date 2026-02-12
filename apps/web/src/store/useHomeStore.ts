@@ -349,6 +349,18 @@ export const useHomeStore = create<HomeState>()(
               if (val.length !== cur.length) return true;
               return val.some((v, i) => v !== cur[i]);
             }
+            // Simple one-level deep compare for objects like gitStatus
+            if (
+              typeof val === "object" &&
+              val !== null &&
+              typeof cur === "object" &&
+              cur !== null
+            ) {
+              const valKeys = Object.keys(val);
+              const curKeys = Object.keys(cur);
+              if (valKeys.length !== curKeys.length) return true;
+              return valKeys.some((k) => (val as any)[k] !== (cur as any)[k]);
+            }
             return val !== cur;
           });
 

@@ -238,7 +238,11 @@ export async function GET(request: NextRequest) {
           } else if (line.startsWith("# branch.head")) {
             gitStatus.branch = line.split(" ")[2];
           } else if (!line.startsWith("#")) {
-            gitStatus.hasChanges = true;
+            const char = line[0];
+            // 1=changed, 2=renamed, u=unmerged, ?=untracked
+            if (char === "1" || char === "2" || char === "u" || char === "?") {
+              gitStatus.hasChanges = true;
+            }
           }
         });
       } catch (e) {

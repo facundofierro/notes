@@ -110,6 +110,14 @@ export async function GET(request: Request) {
               code: unstagedStatus,
             });
           }
+        } else if (char === "u") {
+          const parts = line.split(" ");
+          const filePath = parts.slice(10).join(" ");
+          files.push({
+            path: filePath,
+            status: "unmerged",
+            code: "U",
+          });
         } else if (char === "?") {
           const parts = line.split(" ");
           const filePath = parts.slice(1).join(" ");
