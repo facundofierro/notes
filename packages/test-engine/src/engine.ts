@@ -3,7 +3,7 @@ import { executeCommand } from "agent-browser/dist/actions.js";
 import {
   LLMConfig,
   generateStructuredObject,
-  CoreMessage,
+  ModelMessage,
   z,
 } from "@agelum/llm-provider";
 import { TestStep, TestScenario } from "./types";
@@ -154,7 +154,7 @@ export class TestEngine {
 
     // 2. Build prompt
     // We use the simpler snapshot for the LLM
-    const messages: CoreMessage[] = [
+    const messages: ModelMessage[] = [
       {
         role: "system",
         content: `You are a browser automation agent.

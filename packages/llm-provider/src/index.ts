@@ -6,10 +6,10 @@ import {
   generateText,
   generateObject,
   LanguageModel,
-  CoreMessage,
+  ModelMessage,
   Tool,
 } from "ai";
-export type { CoreMessage, Tool };
+export type { ModelMessage, Tool };
 import { z } from "zod";
 export { z };
 
@@ -70,9 +70,9 @@ export function createModel(config: LLMConfig): LanguageModel {
 
 export async function generateCompletion(
   config: LLMConfig,
-  messages: CoreMessage[],
+  messages: ModelMessage[],
   options?: CompletionOptions,
-) {
+): Promise<any> {
   const model = createModel(config);
 
   return generateText({
@@ -88,10 +88,10 @@ export async function generateCompletion(
 
 export async function generateStructuredObject<T>(
   config: LLMConfig,
-  messages: CoreMessage[],
+  messages: ModelMessage[],
   schema: z.ZodType<T>,
   options?: CompletionOptions,
-) {
+): Promise<any> {
   const model = createModel(config);
 
   return generateObject({

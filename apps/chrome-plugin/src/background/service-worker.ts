@@ -1,6 +1,6 @@
 import { ExtensionMessage } from "../shared/messages";
 
-chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: ExtensionMessage) => {
   if (message.type === "CAPTURE_TAB") {
     chrome.tabs.captureVisibleTab({ format: "png" }, (dataUrl) => {
       if (chrome.runtime.lastError) {

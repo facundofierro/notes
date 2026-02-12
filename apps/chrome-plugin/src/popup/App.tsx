@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getSettings, saveSettings, ConnectionSettings } from "../shared/storage";
-import { Settings, Save, CheckCircle2, LayoutPanelRight } from "lucide-react";
+import { Settings, Save, CheckCircle2, LayoutPanelTop } from "lucide-react";
 
 export default function App() {
   const [settings, setSettings] = useState<ConnectionSettings | null>(null);
@@ -100,7 +100,7 @@ export default function App() {
             className="flex items-center justify-center gap-2 bg-secondary text-secondary-foreground px-3 py-2 rounded-lg font-medium hover:bg-secondary/80 transition-all"
             title="Open Sidepanel"
           >
-            <LayoutPanelRight className="w-4 h-4" />
+            <LayoutPanelTop className="w-4 h-4" />
           </button>
         </div>
       </form>

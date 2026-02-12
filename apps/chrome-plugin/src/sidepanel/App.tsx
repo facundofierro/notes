@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Annotation, AnnotationType, burnAnnotations } from "@agelum/annotation";
 import { getSettings } from "../shared/storage";
 import { createReport } from "../shared/api-client";
@@ -65,9 +65,7 @@ export default function App() {
         displayHeight: displaySize.height,
       });
 
-      const description = annotations.map(a => `Annotation ${a.id}: ${a.prompt || "(no prompt)"}`).join("
-
-");
+      const description = annotations.map(a => `Annotation ${a.id}: ${a.prompt || "(no prompt)"}`).join("\n\n");
 
       await createReport(settings, {
         repo: settings.projectRepo,

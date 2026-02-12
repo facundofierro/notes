@@ -9,6 +9,9 @@ const copyManifestAndIcons = () => {
     name: 'copy-manifest-and-icons',
     closeBundle() {
       const distPath = resolve(__dirname, 'dist');
+      if (!fs.existsSync(distPath)) {
+        fs.mkdirSync(distPath, { recursive: true });
+      }
       const publicPath = resolve(__dirname, 'public');
       
       // Copy manifest.json
