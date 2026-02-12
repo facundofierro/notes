@@ -141,7 +141,7 @@ export function AITab() {
                       }
                     }}
                     className={`
-                      flex flex-col gap-1.5 p-3 rounded-lg text-left transition-all
+                      flex flex-col gap-1 p-3 rounded-lg text-left transition-all
                       ${
                         isSelected
                           ? "bg-blue-900/20 border border-blue-600/50"
@@ -150,31 +150,38 @@ export function AITab() {
                       ${session.isRunning ? "ring-1 ring-green-500/50" : ""}
                     `}
                   >
-                    {/* Header: Project + Status */}
+                    {/* Header: Project + Tool + Status */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                        <span className="text-xs font-medium text-blue-400 truncate">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 truncate">
                           {projectName}
                         </span>
                         {session.isRunning && (
                           <Zap className="w-3 h-3 text-green-500 shrink-0 animate-pulse" />
                         )}
                       </div>
-                      <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          {session.toolName}
+                        </span>
+                        <Clock className="w-3 h-3 text-muted-foreground" />
+                      </div>
                     </div>
 
-                    {/* Tool Name */}
-                    <div className="text-[10px] text-muted-foreground font-medium">
-                      {session.toolName}
-                    </div>
+                    {/* Task Name */}
+                    {session.filePath && (
+                      <div className="text-sm font-semibold text-foreground/90 truncate leading-tight">
+                        {session.filePath.split("/").pop()?.replace(".md", "")}
+                      </div>
+                    )}
 
                     {/* Prompt Preview */}
-                    <div className="text-xs text-foreground/80 line-clamp-2 leading-tight">
-                      {truncatePrompt(session.prompt)}
+                    <div className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+                      {truncatePrompt(session.prompt, 80)}
                     </div>
 
                     {/* Time */}
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[10px] text-muted-foreground/60 mt-0.5">
                       {formatDistanceToNow(session.startedAt, {
                         addSuffix: true,
                       })}

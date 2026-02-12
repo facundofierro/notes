@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PluginApiKey } from "@/lib/settings";
 
 export interface ProjectConfig {
   id: string;
@@ -67,9 +68,10 @@ export interface UserSettings {
   googleApiKey: string;
   grokApiKey: string;
   workflows: WorkflowConfig[];
-  defaultWorkflowId?: string;
+
   activeWorkflow: string;
   createBranchPerTask: boolean;
+  pluginApiKeys?: PluginApiKey[];
 }
 
 const defaultSettings: UserSettings = {

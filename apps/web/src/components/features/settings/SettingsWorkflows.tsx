@@ -190,7 +190,7 @@ export function SettingsWorkflows({
     if (onSelectWorkflow) {
       onSelectWorkflow(id);
     } else {
-      onChange("defaultWorkflowId", id === "default" ? undefined : id);
+      onChange("activeWorkflow", id === "default" ? undefined : id);
     }
   };
 
@@ -442,8 +442,7 @@ export function SettingsWorkflows({
     ...(settings.workflows || []),
   ];
 
-  const activeWorkflowId =
-    propActiveId || settings.defaultWorkflowId || "default";
+  const activeWorkflowId = propActiveId || settings.activeWorkflow || "default";
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">

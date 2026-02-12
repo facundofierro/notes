@@ -76,6 +76,61 @@
   .dataviews-hide-header header {
     display: none !important;
   }
+
+  /* Markdown Title Colors - Formal & Readable */
+  .wm-md-viewer h1,
+  .markdown-body h1,
+  .wm-md-viewer-preview h1,
+  .w-md-editor-preview h1 {
+    color: #60a5fa !important;
+    border-bottom-color: rgba(96, 165, 250, 0.2) !important;
+  }
+  .wm-md-viewer h2,
+  .markdown-body h2,
+  .wm-md-viewer-preview h2,
+  .w-md-editor-preview h2 {
+    color: #a78bfa !important;
+    border-bottom-color: rgba(167, 139, 250, 0.2) !important;
+  }
+  .wm-md-viewer h3,
+  .markdown-body h3,
+  .wm-md-viewer-preview h3,
+  .w-md-editor-preview h3 {
+    color: #34d399 !important;
+  }
+  .wm-md-viewer h4,
+  .markdown-body h4,
+  .wm-md-viewer-preview h4,
+  .w-md-editor-preview h4 {
+    color: #fbbf24 !important;
+  }
+  .wm-md-viewer h5,
+  .markdown-body h5,
+  .wm-md-viewer-preview h5,
+  .w-md-editor-preview h5 {
+    color: #f87171 !important;
+  }
+  .wm-md-viewer h6,
+  .markdown-body h6,
+  .wm-md-viewer-preview h6,
+  .w-md-editor-preview h6 {
+    color: #94a3b8 !important;
+  }
+
+  /* Ensure links are also themed but formal */
+  .wm-md-viewer a,
+  .markdown-body a,
+  .wm-md-viewer-preview a,
+  .w-md-editor-preview a {
+    color: #60a5fa !important;
+  }
+
+  /* Task list styling */
+  .wm-md-viewer input[type="checkbox"],
+  .markdown-body input[type="checkbox"],
+  .w-md-editor-preview input[type="checkbox"] {
+    accent-color: #60a5fa;
+  }
 }
 
 body {

@@ -15,6 +15,7 @@ export interface ProjectConfig {
     dev?: string;
     run?: string;
     start?: string;
+    stop?: string;
   };
   url?: string;
   autoRun?: boolean;
@@ -79,7 +80,7 @@ export interface UserSettings {
   googleApiKey: string;
   grokApiKey: string;
   workflows: WorkflowConfig[];
-  activeWorkflow: string;
+  activeWorkflow: string | undefined;
   createBranchPerTask: boolean;
 }
 

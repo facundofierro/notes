@@ -218,11 +218,11 @@ export function SettingsDefaults({
             Default Workflow
           </Label>
           <Select
-            value={settings.defaultWorkflowId || "default"}
+            value={settings.activeWorkflow || "default"}
             onValueChange={(value) =>
               onChange(
-                "defaultWorkflowId",
-                value === "default" ? undefined : value,
+                "activeWorkflow",
+                value === "default" ? "" : value,
               )
             }
           >

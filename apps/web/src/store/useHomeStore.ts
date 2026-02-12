@@ -269,6 +269,7 @@ const defaultSettings: UserSettings = {
   activeWorkflow: "default",
   createBranchPerTask: false,
   apiKeys: [],
+  pluginApiKeys: [],
 };
 
 export const useHomeStore = create<HomeState>()(

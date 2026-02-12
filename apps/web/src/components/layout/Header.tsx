@@ -75,7 +75,7 @@ export function Header() {
 
     if (!selectedRepo || !settings.projects) return defaultItems;
     const project = settings.projects.find((p) => p.name === selectedRepo);
-    const workflowId = project?.workflowId || settings.defaultWorkflowId;
+    const workflowId = project?.workflowId || settings.activeWorkflow;
     if (!workflowId) return defaultItems;
     const workflow = settings.workflows?.find((w) => w.id === workflowId);
     if (!workflow) return defaultItems;
