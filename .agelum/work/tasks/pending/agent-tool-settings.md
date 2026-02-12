@@ -1,6 +1,8 @@
 ---
 created: 2026-02-12T13:58:15.422Z
 state: pending
+plan: .agelum/work/plans/agent-tool-settings-1770906630387.md
+summary: .agelum/work/summaries/agent-tool-settings-1770908244508.md
 ---
 
 # agent-tool-settings
