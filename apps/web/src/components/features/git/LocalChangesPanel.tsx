@@ -285,7 +285,6 @@ export function LocalChangesPanel({
               onAction={handleUnstage}
               actionIcon={Minus}
               actionTitle="Unstage"
-              dotClass="hidden"
               actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
             />
           )}
@@ -309,7 +308,6 @@ export function LocalChangesPanel({
               onAction={handleStage}
               actionIcon={Plus}
               actionTitle="Stage"
-              dotClass="hidden"
               actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
             />
           )}

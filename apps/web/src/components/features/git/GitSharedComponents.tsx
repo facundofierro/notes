@@ -68,6 +68,54 @@ interface FileItemProps {
   actionButtonClass?: string;
 }
 
+const getStatusInfo = (code: string) => {
+  const c = code.trim().toUpperCase()[0];
+  switch (c) {
+    case "A":
+      return {
+        label: "A",
+        color: "text-green-500",
+        bg: "bg-green-500/10",
+        border: "border-green-500/20",
+      };
+    case "?":
+      return {
+        label: "U",
+        color: "text-purple-500",
+        bg: "bg-purple-500/10",
+        border: "border-purple-500/20",
+      };
+    case "M":
+      return {
+        label: "M",
+        color: "text-amber-500",
+        bg: "bg-amber-500/10",
+        border: "border-amber-500/20",
+      };
+    case "D":
+      return {
+        label: "D",
+        color: "text-red-500",
+        bg: "bg-red-500/10",
+        border: "border-red-500/20",
+      };
+    case "R":
+      return {
+        label: "R",
+        color: "text-blue-500",
+        bg: "bg-blue-500/10",
+        border: "border-blue-500/20",
+      };
+    default:
+      return {
+        label: c || "•",
+        color: "text-muted-foreground",
+        bg: "bg-muted/20",
+        border: "border-border",
+      };
+  }
+};
+
 export function FileItem({
   file,
   selected,
@@ -90,17 +138,27 @@ export function FileItem({
     }
   }, [file.path]);
 
+  const status = getStatusInfo(file.code || "");
+
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-0.5 hover:bg-accent/50 cursor-pointer text-xs group min-w-0 ${selected ? "bg-accent text-accent-foreground" : ""}`}
+      className={`flex items-center gap-2 px-3 py-1 hover:bg-accent/50 cursor-pointer text-xs group min-w-0 ${selected ? "bg-accent text-accent-foreground" : ""}`}
       onClick={() => onSelect(file)}
     >
-      <span
-        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass || "bg-muted"}`}
-      />
+      {file.code ? (
+        <span
+          className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0 border ${status.bg} ${status.color} ${status.border}`}
+        >
+          {status.label}
+        </span>
+      ) : (
+        <span
+          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass || "bg-muted"}`}
+        />
+      )}
       <span
         ref={textRef}
-        className={`flex-1 truncate font-medium transition-all ${isTight ? "text-[10px] leading-tight" : ""}`}
+        className={`flex-1 truncate font-medium transition-all ${isTight ? "text-[10px] leading-tight" : ""} ${file.code === "D" ? "line-through opacity-70" : ""}`}
         title={file.path.split("/").pop()}
       >
         {file.path.split("/").pop()}
