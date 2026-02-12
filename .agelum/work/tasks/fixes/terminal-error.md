@@ -1,6 +1,7 @@
 ---
 created: 2026-02-11T23:46:02.218Z
 state: fixes
+plan: .agelum/work/plans/terminal-error-1770860717075.md
 ---
 
 # terminal-error
