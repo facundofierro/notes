@@ -65,7 +65,7 @@ export function TasksTab() {
     : undefined;
 
   return (
-    <div className="flex-1 bg-background">
+    <div className="flex flex-col flex-1 bg-background min-w-0">
       {selectedFile ? (
         <WorkEditorTab onBack={onBack} onRename={onRename} tabId="tasks" />
       ) : (

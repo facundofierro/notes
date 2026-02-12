@@ -61,6 +61,7 @@ interface FileViewerProps {
   headerCenter?: React.ReactNode;
   allowEdit?: boolean;
   defaultRenaming?: boolean;
+  title?: string;
 }
 
 export default function FileViewer({
@@ -82,6 +83,7 @@ export default function FileViewer({
   headerCenter,
   allowEdit = true,
   defaultRenaming = false,
+  title,
 }: FileViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState("");
@@ -221,9 +223,11 @@ export default function FileViewer({
   }, [file?.content, updateContent, updateEditing]);
 
   const displayedFileName = file?.path.split("/").pop() || "";
-  const displayedTitle = displayedFileName.endsWith(".md")
-    ? displayedFileName.replace(/\.md$/, "")
-    : displayedFileName;
+  const displayedTitle =
+    title ||
+    (displayedFileName.endsWith(".md")
+      ? displayedFileName.replace(/\.md$/, "")
+      : displayedFileName);
 
   const isMarkdown = displayedFileName.endsWith(".md");
   const isJSON = displayedFileName.endsWith(".json");
@@ -300,7 +304,7 @@ export default function FileViewer({
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-background">
+    <div className="flex flex-col flex-1 bg-background min-w-0 overflow-hidden">
       <div className="relative flex justify-between items-center p-3 border-b bg-secondary border-border">
         <div className="relative flex gap-2 items-center z-10">
           {onBack && (
@@ -437,7 +441,7 @@ export default function FileViewer({
       </div>
       <div
         className={
-          isMarkdown ? "overflow-auto flex-1" : "overflow-hidden flex-1"
+          isMarkdown ? "overflow-auto flex-1 min-h-0 min-w-0" : "overflow-hidden flex-1 min-h-0 min-w-0"
         }
         data-color-mode="dark"
       >

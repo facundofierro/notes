@@ -387,8 +387,8 @@ export function WorkEditor({
   );
 
   return (
-    <div className="flex w-full h-full">
-      <div className="flex overflow-hidden flex-1 border-r border-border">
+    <div className="flex h-full min-w-0 overflow-hidden">
+      <div className="flex flex-col overflow-hidden flex-1 border-r border-border min-w-0">
         {taskSubView === "tests" && !testsPath ? (
           <div className="flex flex-col flex-1 bg-background">
             <EditorHeader />
@@ -537,6 +537,7 @@ export function WorkEditor({
                   ? summaryFile
                   : file
             }
+            title={file.path.split("/").pop()?.replace(/\.md$/, "")}
             onSave={handleSaveFile}
             onFileSaved={onRefresh}
             editing={workEditorEditing}
