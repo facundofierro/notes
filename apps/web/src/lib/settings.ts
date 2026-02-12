@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { ensureAgelumStructure } from "./project";
+import { AgentToolSettings } from "./tool-settings";
 
 export interface ProjectConfig {
   id: string;
@@ -82,6 +83,7 @@ export interface UserSettings {
   workflows: WorkflowConfig[];
   activeWorkflow: string | undefined;
   createBranchPerTask: boolean;
+  agentToolSettings: AgentToolSettings;
 }
 
 function getSettingsDir(): string {
@@ -116,6 +118,7 @@ export const defaultSettings: UserSettings = {
   workflows: [],
   activeWorkflow: "default",
   createBranchPerTask: false,
+  agentToolSettings: {},
 };
 
 function ensureSettingsDir(): void {

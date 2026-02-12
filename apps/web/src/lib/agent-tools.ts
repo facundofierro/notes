@@ -1,6 +1,7 @@
 import { exec, spawn } from "child_process";
 import { promisify } from "util";
 import path from "path";
+import { ToolSettings } from "./tool-settings";
 
 const execAsync = promisify(exec);
 
@@ -63,7 +64,7 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     supportedModels: ["claude-3-5-sonnet"],
   },
   gemini: {
-    name: "Gemini",
+    name: "Gemini cli",
     command: "gemini",
     type: "cli",
     modelFlag: "--model",
@@ -81,13 +82,45 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     supportedModels: ["kimi-v1"],
   },
   grok: {
-    name: "Grok",
+    name: "Grok cli",
     command: "grok",
     type: "cli",
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "-p",
     supportedModels: ["grok-1"],
+  },
+  codex: {
+    name: "Codex",
+    command: "codex",
+    type: "cli",
+    modelFlag: "-m",
+    listModelsCommand: null,
+    promptFlag: null,
+  },
+  copilot: {
+    name: "GitHub Copilot",
+    command: "gh copilot",
+    type: "cli",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: "-p",
+  },
+  crush: {
+    name: "Crush",
+    command: "crush",
+    type: "cli",
+    modelFlag: null,
+    listModelsCommand: null,
+    promptFlag: "run",
+  },
+  aider: {
+    name: "Aider",
+    command: "aider",
+    type: "cli",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "--message",
   },
   antigravity: {
     name: "Antigravity",
@@ -185,8 +218,9 @@ export function getExtendedPath(): string {
 }
 
 export async function isCommandAvailable(command: string): Promise<boolean> {
+  const baseCommand = command.split(" ")[0];
   try {
-    await execAsync(`which ${command}`, {
+    await execAsync(`which ${baseCommand}`, {
       env: {
         ...process.env,
         PATH: getExtendedPath(),
@@ -240,26 +274,52 @@ export function buildAgentCommand(
   prompt: string,
   model?: string,
   allowModify?: boolean,
+  settings?: ToolSettings,
+  workflow?: string,
 ): { command: string; args: string[] } {
   const tool = AGENT_TOOLS[toolName];
-  const args: string[] = [];
+  const parts = tool.command.split(" ");
+  const command = parts[0];
+  const args: string[] = parts.slice(1);
+
+  // Apply settings and workflow overrides
+  let effectiveModel = model;
+  let effectiveAllowModify = allowModify;
+  let extraCliParams = "";
+
+  if (settings) {
+    const overrides = workflow ? settings.workflowOverrides?.[workflow] : null;
+
+    effectiveModel = model || overrides?.defaultModel || settings.defaultModel;
+    effectiveAllowModify =
+      allowModify ||
+      overrides?.defaultPermissions ||
+      settings.defaultPermissions;
+    extraCliParams = overrides?.cliParameters || settings.cliParameters || "";
+  }
+
+  if (extraCliParams) {
+    args.push(...extraCliParams.split(" ").filter((p) => p.trim() !== ""));
+  }
 
   if (tool.extraArgs) {
     args.push(...tool.extraArgs);
   }
 
   // Handle allowModify logic
-  if (allowModify) {
+  if (effectiveAllowModify) {
     if (toolName === "claude") {
       args.push("--dangerously-skip-permissions");
     }
-    // Append permission text to prompt
-    prompt +=
-      "\n\n[SYSTEM] You have permission to read/write files and execute commands.";
+    // Append permission text to prompt if not already there
+    if (!prompt.includes("[SYSTEM] You have permission")) {
+      prompt +=
+        "\n\n[SYSTEM] You have permission to read/write files and execute commands.";
+    }
   }
 
-  if (model && tool.modelFlag) {
-    args.push(tool.modelFlag, model);
+  if (effectiveModel && tool.modelFlag) {
+    args.push(tool.modelFlag, effectiveModel);
   }
 
   if (tool.promptFlag) {
@@ -268,7 +328,7 @@ export function buildAgentCommand(
   args.push(prompt);
 
   return {
-    command: tool.command,
+    command,
     args,
   };
 }
@@ -278,6 +338,8 @@ export async function executeAgentCommand(
   prompt: string,
   model?: string,
   allowModify?: boolean,
+  settings?: ToolSettings,
+  workflow?: string,
 ): Promise<{
   success: boolean;
   output: string;
@@ -299,6 +361,8 @@ export async function executeAgentCommand(
     prompt,
     model,
     allowModify,
+    settings,
+    workflow,
   );
 
   const resolvedCommand = await resolveCommandPath(command);

@@ -614,10 +614,15 @@ export async function POST(request: Request) {
       if (agentMode && agent) {
         // Agent mode: execute agent command first, then verify file was created
         try {
+          const settings = await readSettings();
+          const toolSettings = settings.agentToolSettings?.[agent.tool];
+
           const agentResult = await executeAgentCommand(
             agent.tool,
             agent.prompt,
             agent.model,
+            false,
+            toolSettings,
           );
 
           if (!agentResult.success) {

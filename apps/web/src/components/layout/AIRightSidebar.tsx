@@ -14,6 +14,7 @@ import {
   Globe,
   Monitor,
   Loader2,
+  Settings,
 } from "lucide-react";
 import {
   usePromptBuilder,
@@ -21,6 +22,7 @@ import {
 } from "@/hooks/usePromptBuilder";
 import { inferTestExecutionStatus } from "@/lib/test-output";
 import { useHomeStore } from "@/store/useHomeStore";
+import { ToolSettingsDialog } from "@/components/features/agent-tools/ToolSettingsDialog";
 
 const TerminalViewer = dynamic(
   () =>
@@ -159,6 +161,7 @@ export function AIRightSidebar({
   >(null);
   const [lastGeneratedSummaryPath, setLastGeneratedSummaryPath] =
     React.useState<string | null>(null);
+  const [settingsTool, setSettingsTool] = React.useState<any | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
   const theme = React.useMemo(() => {
@@ -739,6 +742,7 @@ Error: ${error.message}`,
             cols,
             rows,
             allowModify: docAiMode === "modify",
+            workflow: docAiMode,
           }),
           signal: controller.signal,
         });
@@ -1052,32 +1056,51 @@ Cancelled`
         onMouseEnter={() => ensureModelsForTool(tool.name)}
         className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${tool.available ? (isHighlighted ? `${theme.border} ${theme.active} shadow-lg` : "border-border bg-secondary hover:border-border/80") : "opacity-50"}`}
       >
-        <button
-          onClick={handleClick}
-          disabled={
-            !tool.available ||
-            (!isHighlighted &&
-              !promptText.trim() &&
-              docAiMode !== "plan" &&
-              docAiMode !== "start")
-          }
-          className="flex-1 px-3 py-3 text-left group relative"
-        >
-          <div className="flex gap-2 items-center mb-0.5 pr-5">
-            <div className={`text-sm font-medium group-hover:text-white truncate ${isHighlighted ? theme.text : ""}`}>
-              {tool.displayName}
+        <div className="flex-1 relative group">
+          <button
+            onClick={handleClick}
+            disabled={
+              !tool.available ||
+              (!isHighlighted &&
+                !promptText.trim() &&
+                docAiMode !== "plan" &&
+                docAiMode !== "start")
+            }
+            className="w-full px-3 py-3 text-left"
+          >
+            <div className="flex gap-2 items-center mb-1 pr-6">
+              <div
+                className={`text-sm font-medium group-hover:text-white truncate ${isHighlighted ? theme.text : ""}`}
+              >
+                {tool.displayName}
+              </div>
+              {isHighlighted && (
+                <div
+                  className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse shrink-0`}
+                />
+              )}
             </div>
-            {isHighlighted && (
-              <div className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse shrink-0`} />
-            )}
-          </div>
-          <div className={`absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors ${isHighlighted ? theme.text : ""}`}>
-            {getToolIcon(tool.type)}
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {isHighlighted ? "Continue" : "Run"}
-          </div>
-        </button>
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`text-muted-foreground group-hover:text-white transition-colors ${isHighlighted ? theme.text : ""}`}
+              >
+                {getToolIcon(tool.type)}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold group-hover:text-white/70">
+                {isHighlighted ? "Continue" : tool.type || "cli"}
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSettingsTool(tool);
+            }}
+            className="absolute top-2.5 right-2 p-1.5 text-muted-foreground hover:text-white hover:bg-white/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </div>
         <div className="p-1 border-t bg-background border-border">
           <select
             value={toolModelByTool[tool.name] || ""}
@@ -1422,6 +1445,11 @@ Cancelled`
           </div>
         </div>
       </div>
+      <ToolSettingsDialog
+        tool={settingsTool}
+        open={!!settingsTool}
+        onOpenChange={(open) => !open && setSettingsTool(null)}
+      />
     </div>
   );
 }

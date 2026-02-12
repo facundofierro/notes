@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { executeAgentCommand } from "@/lib/agent-tools";
-import { resolveProjectPath } from "@/lib/settings";
+import { resolveProjectPath, readSettings } from "@/lib/settings";
 import { getTimestampPrefix } from "@/lib/date-utils";
 
 interface Epic {
@@ -408,10 +408,15 @@ export async function POST(request: Request) {
     if (action === "create") {
       if (agentMode && agent) {
         try {
+          const settings = await readSettings();
+          const toolSettings = settings.agentToolSettings?.[agent.tool];
+
           const agentResult = await executeAgentCommand(
             agent.tool,
             agent.prompt,
             agent.model,
+            false,
+            toolSettings,
           );
 
           if (!agentResult.success) {

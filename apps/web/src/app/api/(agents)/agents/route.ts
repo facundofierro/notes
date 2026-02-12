@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { StringDecoder } from "string_decoder";
+import { readSettings } from "@/lib/settings";
 import {
   AGENT_TOOLS,
   buildAgentCommand,
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
       cols = 200,
       rows = 50,
       allowModify,
+      workflow,
     } = body;
 
     if (!tool || !prompt) {
@@ -95,6 +97,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const settings = await readSettings();
+    const toolSettings = settings.agentToolSettings?.[toolName];
+
     const isAvailable = await isCommandAvailable(AGENT_TOOLS[toolName].command);
     if (!isAvailable) {
       return NextResponse.json(
@@ -110,6 +115,8 @@ export async function POST(request: Request) {
       prompt,
       model,
       allowModify,
+      toolSettings,
+      workflow,
     );
 
     const resolvedCommand = await resolveCommandPath(command);
