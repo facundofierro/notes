@@ -32,14 +32,31 @@ export function useGitStatusPoller() {
         );
         if (res.ok) {
           const data = await res.json();
-          setProjectState(() => ({
-            isAppRunning: data.isRunning,
-            isAppManaged: data.isManaged,
-            appPid: data.pid || null,
-            gitStatus: data.gitStatus
-              ? { ...data.gitStatus, lastPolledAt: Date.now() }
-              : null,
-          }));
+          const currentState = useHomeStore.getState().getProjectState();
+
+          const hasChanged =
+            currentState.isAppRunning !== data.isRunning ||
+            currentState.isAppManaged !== data.isManaged ||
+            currentState.appPid !== (data.pid || null) ||
+            JSON.stringify(currentState.gitStatus?.ahead) !==
+              JSON.stringify(data.gitStatus?.ahead) ||
+            JSON.stringify(currentState.gitStatus?.behind) !==
+              JSON.stringify(data.gitStatus?.behind) ||
+            JSON.stringify(currentState.gitStatus?.hasChanges) !==
+              JSON.stringify(data.gitStatus?.hasChanges) ||
+            JSON.stringify(currentState.gitStatus?.branch) !==
+              JSON.stringify(data.gitStatus?.branch);
+
+          if (hasChanged) {
+            setProjectState(() => ({
+              isAppRunning: data.isRunning,
+              isAppManaged: data.isManaged,
+              appPid: data.pid || null,
+              gitStatus: data.gitStatus
+                ? { ...data.gitStatus, lastPolledAt: Date.now() }
+                : null,
+            }));
+          }
         }
       } catch (e) {
         console.error("Failed to fetch git status for poller", e);

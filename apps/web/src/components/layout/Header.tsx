@@ -20,29 +20,44 @@ import { useHomeStore } from "@/store/useHomeStore";
 import { useGitStatusPoller } from "@/hooks/useGitStatus";
 
 export function Header() {
-  const store = useHomeStore();
+  const setViewMode = useHomeStore((s) => s.setViewMode);
+  const selectedRepo = useHomeStore((s) => s.selectedRepo);
+  const setSelectedRepo = useHomeStore((s) => s.setSelectedRepo);
+  const repositories = useHomeStore((s) => s.repositories);
+  const isRepositoriesLoading = useHomeStore((s) => s.isRepositoriesLoading);
+  const handleStartApp = useHomeStore((s) => s.handleStartApp);
+  const handleStopApp = useHomeStore((s) => s.handleStopApp);
+  const handleRestartApp = useHomeStore((s) => s.handleRestartApp);
+  const handleBuildApp = useHomeStore((s) => s.handleBuildApp);
+  const setSettingsTab = useHomeStore((s) => s.setSettingsTab);
+  const setIsSettingsOpen = useHomeStore((s) => s.setIsSettingsOpen);
+  const settings = useHomeStore((s) => s.settings);
+  const setProjectState = useHomeStore((s) => s.setProjectState);
+
   useGitStatusPoller();
-  const {
-    setViewMode,
-    selectedRepo,
-    setSelectedRepo,
-    repositories,
-    isRepositoriesLoading,
-    handleStartApp,
-    handleStopApp,
-    handleRestartApp,
-    handleBuildApp,
-    setSettingsTab,
-    setIsSettingsOpen,
-    settings,
-  } = store;
 
   // Defer persisted viewMode until after hydration to avoid SSR mismatch
   const [hasMounted, setHasMounted] = React.useState(false);
 
-  // Terminal activity animation state
-  const { viewMode, isAppRunning, isAppManaged, lastTerminalActivity } =
-    store.getProjectState();
+  const { viewMode, isAppRunning, isAppManaged, lastTerminalActivity, gitStatus } =
+    useHomeStore((s) => {
+      const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+      return {
+        viewMode: pState?.viewMode || "kanban",
+        isAppRunning: pState?.isAppRunning || false,
+        isAppManaged: pState?.isAppManaged || false,
+        lastTerminalActivity: pState?.lastTerminalActivity || 0,
+        gitStatus: pState?.gitStatus || null,
+      };
+    }, (oldVal, newVal) => {
+      return (
+        oldVal.viewMode === newVal.viewMode &&
+        oldVal.isAppRunning === newVal.isAppRunning &&
+        oldVal.isAppManaged === newVal.isAppManaged &&
+        oldVal.lastTerminalActivity === newVal.lastTerminalActivity &&
+        oldVal.gitStatus?.hasChanges === newVal.gitStatus?.hasChanges
+      );
+    });
   const [isTerminalReceiving, setIsTerminalReceiving] = React.useState(false);
 
   React.useEffect(() => setHasMounted(true), []);
@@ -89,12 +104,13 @@ export function Header() {
     if (!selectedRepo) return;
 
     // Switch to logs view
-    store.setProjectState(() => ({
+    setProjectState(() => ({
       viewMode: "logs",
     }));
 
-    const projectState = store.getProjectState();
-    const mainTerminal = projectState.terminals?.find((t) => t.id === "main");
+    const state = useHomeStore.getState();
+    const pState = state.selectedRepo ? state.projectStates[state.selectedRepo] : null;
+    const mainTerminal = pState?.terminals?.find((t) => t.id === "main");
     if (!mainTerminal?.processId) {
       console.error("Main terminal not found or has no process ID");
       return;
@@ -114,7 +130,7 @@ export function Header() {
     } catch (error) {
       console.error("Failed to send install command to terminal:", error);
     }
-  }, [selectedRepo, store]);
+  }, [selectedRepo, setProjectState]);
 
   return (
     <div className="flex justify-between items-center px-4 py-2 border-b bg-secondary border-border">
@@ -156,7 +172,6 @@ export function Header() {
                 pingClass = "bg-green-500";
               }
 
-              const { gitStatus } = store.getProjectState();
               const hasGitChanges =
                 mode === "review" && gitStatus?.hasChanges === true;
 

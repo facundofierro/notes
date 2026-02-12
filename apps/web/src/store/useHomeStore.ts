@@ -278,6 +278,7 @@ const defaultSettings: UserSettings = {
   createBranchPerTask: false,
   apiKeys: [],
   pluginApiKeys: [],
+  agentToolSettings: {},
 };
 
 export const useHomeStore = create<HomeState>()(

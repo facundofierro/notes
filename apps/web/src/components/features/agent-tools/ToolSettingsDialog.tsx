@@ -7,12 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Label,
+  Input,
+  Switch,
+  Button,
+} from "@agelum/shadcn";
 import { useHomeStore } from "@/store/useHomeStore";
 import { DEFAULT_TOOL_SETTINGS, ToolSettings } from "@/lib/tool-settings";
 

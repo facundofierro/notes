@@ -72,6 +72,7 @@ export interface UserSettings {
   activeWorkflow: string;
   createBranchPerTask: boolean;
   pluginApiKeys?: PluginApiKey[];
+  agentToolSettings: Record<string, any>;
 }
 
 const defaultSettings: UserSettings = {
@@ -98,6 +99,7 @@ const defaultSettings: UserSettings = {
   workflows: [],
   activeWorkflow: "default",
   createBranchPerTask: false,
+  agentToolSettings: {},
 };
 
 interface UseSettingsReturn {

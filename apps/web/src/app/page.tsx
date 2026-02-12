@@ -19,20 +19,17 @@ import { TextSearchDialog } from "@/components/shared/TextSearchDialog";
 import { ViewMode } from "@/lib/view-config";
 
 export default function Home() {
-  const store = useHomeStore();
-  const {
-    fetchSettings,
-    fetchRepositories,
-    selectedRepo,
-    setProjectState,
-    repositories,
-    settings,
-    setIsElectron,
-    isSettingsOpen,
-    setIsSettingsOpen,
-    settingsTab,
-    projectStates,
-  } = store;
+  const fetchSettings = useHomeStore((s) => s.fetchSettings);
+  const fetchRepositories = useHomeStore((s) => s.fetchRepositories);
+  const selectedRepo = useHomeStore((s) => s.selectedRepo);
+  const repositories = useHomeStore((s) => s.repositories);
+  const settings = useHomeStore((s) => s.settings);
+  const setIsElectron = useHomeStore((s) => s.setIsElectron);
+  const isSettingsOpen = useHomeStore((s) => s.isSettingsOpen);
+  const setIsSettingsOpen = useHomeStore((s) => s.setIsSettingsOpen);
+  const settingsTab = useHomeStore((s) => s.settingsTab);
+  const projectStates = useHomeStore((s) => s.projectStates);
+  const setViewMode = useHomeStore((s) => s.setViewMode);
 
   // Prevent hydration mismatch by only rendering after mount
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -98,7 +95,7 @@ export default function Home() {
 
         if (tabShortcuts[key]) {
           e.preventDefault();
-          store.setViewMode(tabShortcuts[key]);
+          setViewMode(tabShortcuts[key]);
         }
 
         // File Search: Cmd+P or Ctrl+P
@@ -116,7 +113,7 @@ export default function Home() {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [store]);
+  }, [setViewMode]);
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -179,8 +176,10 @@ function ProjectView({
   repoName: string;
   projectState: ProjectState;
 }) {
-  const store = useHomeStore();
-  const { repositories, settings, setProjectStateForRepo } = store;
+  const repositories = useHomeStore((s) => s.repositories);
+  const settings = useHomeStore((s) => s.settings);
+  const setProjectStateForRepo = useHomeStore((s) => s.setProjectStateForRepo);
+  const selectedRepo = useHomeStore((s) => s.selectedRepo);
 
   const { viewMode, logStreamPid, isAppStarting, projectConfig } = projectState;
 
@@ -221,7 +220,7 @@ function ProjectView({
   // Check app status once on mount
   React.useEffect(() => {
     // Skip if this is the selected repo, as the global poller handles it
-    if (repoName === store.selectedRepo) return;
+    if (repoName === selectedRepo) return;
 
     let cancelled = false;
     (async () => {
@@ -243,7 +242,7 @@ function ProjectView({
     return () => {
       cancelled = true;
     };
-  }, [repoName, setProjectStateForRepo, store.selectedRepo]);
+  }, [repoName, setProjectStateForRepo, selectedRepo]);
 
   // Stream logs for this project
   React.useEffect(() => {

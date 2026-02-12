@@ -199,7 +199,7 @@ export function AITab() {
         {selectedSession &&
         (selectedSession.filePath || !selectedSession.isRunning) ? (
           <AISessionViewer session={selectedSession} sidebarWideWidth="50vw" />
-        ) : selectedRepo ? (
+        ) : (
           <AIRightSidebar
             selectedRepo={selectedRepo}
             basePath={store.basePath}
@@ -214,21 +214,15 @@ export function AITab() {
             onRunTest={handleRunTest}
             className="h-full border-0"
             wideWidth="50vw"
+            isCentered={!selectedSessionId && !selectedRepo}
             contextKey={
               selectedSession && selectedSession.isRunning
                 ? selectedSession.contextKey
-                : `ai-tab-${selectedRepo}`
+                : selectedRepo
+                  ? `ai-tab-${selectedRepo}`
+                  : "ai-tab-global"
             }
           />
-        ) : (
-          <div className="flex flex-1 items-center justify-center flex-col gap-3 text-muted-foreground">
-            <div className="text-sm">Welcome to AI Hub</div>
-            <div className="text-xs text-center max-w-md">
-              {sortedSessions.length === 0
-                ? "Start by selecting a project from another tab and running an AI tool"
-                : "Select a session from the history to continue or start a new one"}
-            </div>
-          </div>
         )}
       </div>
     </div>

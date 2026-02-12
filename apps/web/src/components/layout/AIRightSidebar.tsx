@@ -53,6 +53,7 @@ interface AIRightSidebarProps {
   contextKey?: string;
   width?: string;
   wideWidth?: string;
+  isCentered?: boolean;
 }
 
 export function AIRightSidebar({
@@ -71,6 +72,7 @@ export function AIRightSidebar({
   contextKey = "",
   width,
   wideWidth,
+  isCentered = false,
 }: AIRightSidebarProps) {
   const { buildToolPrompt } = usePromptBuilder();
   const {
@@ -426,111 +428,6 @@ Cancelled`
     docAiMode,
   ]);
 
-  const openInteractiveTerminal = React.useCallback(async () => {
-    const cwd =
-      projectPath ||
-      (basePath && selectedRepo
-        ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/")
-        : undefined);
-
-    setTerminalToolName("Interactive Terminal");
-    setTerminalOutput("");
-    setTerminalProcessId(null);
-    setIsTerminalRunning(true);
-    setIsTerminalRunning(true);
-    setRightSidebarView("terminal");
-    triggerLoadingIndicator();
-
-    // Calculate expected terminal dimensions based on container size
-    // Terminal sidebar is 50% width when running, with p-3 padding (12px each side)
-    const expectedWidth = window.innerWidth * 0.5 - 48; // 24px padding + 24px buffer
-    const expectedHeight = window.innerHeight - 200; // Approximate usable height
-    const charWidth = 7.2; // Typical monospace char width for 12px font
-    const charHeight = 18; // Typical line height
-    const calculatedCols = Math.floor(expectedWidth / charWidth);
-    const calculatedRows = Math.floor(expectedHeight / charHeight);
-
-    // Use calculated dimensions or fall back to current termSize
-    const cols = calculatedCols > 0 ? calculatedCols : termSize.cols;
-    const rows = calculatedRows > 0 ? calculatedRows : termSize.rows;
-
-    terminalAbortControllerRef.current = new AbortController();
-    const ac = terminalAbortControllerRef.current;
-    let localProcessId: string | null = null;
-
-    try {
-      const res = await fetch("/api/terminal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cwd,
-          cols,
-          rows,
-          allowModify: docAiMode === "modify",
-        }),
-        signal: ac.signal,
-      });
-
-      const processId = res.headers.get("X-Agent-Process-ID");
-      localProcessId = processId;
-      if (processId) {
-        setTerminalProcessId(processId);
-        if (contextKey) {
-          registerTerminalSession({
-            processId,
-            toolName: "Interactive Terminal",
-            contextKey,
-            isRunning: true,
-            startedAt: Date.now(),
-            prompt: "",
-            projectName: selectedRepo || undefined,
-          });
-        }
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        setTerminalOutput("Failed to open terminal");
-        setIsTerminalRunning(false);
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) setTerminalOutput((prev) => prev + chunk);
-      }
-    } catch (error: any) {
-      if (error.name !== "AbortError") {
-        setTerminalOutput(
-          (prev) => `${prev}
-Error: ${error.message}`,
-        );
-      }
-    } finally {
-      if (terminalAbortControllerRef.current === ac) {
-        terminalAbortControllerRef.current = null;
-      }
-      setIsTerminalRunning(false);
-      setLoadingIndicatorVisible(false);
-      if (localProcessId && contextKey && !ac.signal.aborted) {
-        updateTerminalSession(localProcessId, { isRunning: false });
-      }
-    }
-  }, [
-    selectedRepo,
-    basePath,
-    projectPath,
-    contextKey,
-    registerTerminalSession,
-    updateTerminalSession,
-    termSize.cols,
-    termSize.rows,
-    triggerLoadingIndicator,
-    docAiMode,
-  ]);
 
   const handleTerminalInput = React.useCallback(async (data: string) => {
     const pid = terminalProcessIdRef.current;
@@ -652,28 +549,32 @@ Error: ${error.message}`,
           });
       }
 
-      const rawPrompt = buildToolPrompt({
-        promptText: trimmedPrompt,
-        mode: "agent",
-        docMode: docAiMode,
-        file: file
-          ? { path: file.path, planPath: (file as any).planPath }
-          : undefined,
-        viewMode: viewMode as any,
-        testContext:
-          viewMode === "tests"
-            ? {
-                testViewMode,
-                testOutput,
-                testStatus: inferTestExecutionStatus(testOutput, isTestRunning),
-              }
+      let prompt = "";
+      if (file) {
+        const rawPrompt = buildToolPrompt({
+          promptText: trimmedPrompt,
+          mode: "agent",
+          docMode: docAiMode,
+          file: file
+            ? { path: file.path, planPath: (file as any).planPath }
             : undefined,
-        selectedRepo,
-        generatedPlanPath: generatedPlanPath || undefined,
-        generatedSummaryPath: generatedSummaryPath || undefined,
-      } as PromptBuilderOptions);
-
-      let prompt = rawPrompt;
+          viewMode: viewMode as any,
+          testContext:
+            viewMode === "tests"
+              ? {
+                  testViewMode,
+                  testOutput,
+                  testStatus: inferTestExecutionStatus(testOutput, isTestRunning),
+                }
+              : undefined,
+          selectedRepo,
+          generatedPlanPath: generatedPlanPath || undefined,
+          generatedSummaryPath: generatedSummaryPath || undefined,
+        } as PromptBuilderOptions);
+        prompt = rawPrompt;
+      } else {
+        prompt = trimmedPrompt;
+      }
       Object.entries(fileMap).forEach(([name, path]) => {
         prompt = prompt.split(`@${name}`).join(path);
       });
@@ -974,24 +875,30 @@ Cancelled`
   );
 
   const handleCopyFullPrompt = React.useCallback(() => {
-    const prompt = buildToolPrompt({
-      promptText,
-      mode: "agent",
-      docMode: docAiMode,
-      file: file
-        ? { path: file.path, planPath: (file as any).planPath }
-        : undefined,
-      viewMode: viewMode as any,
-      testContext:
-        viewMode === "tests"
-          ? {
-              testViewMode,
-              testOutput,
-              testStatus: inferTestExecutionStatus(testOutput, isTestRunning),
-            }
+    let prompt = "";
+    if (file) {
+      prompt = buildToolPrompt({
+        promptText,
+        mode: "agent",
+        docMode: docAiMode,
+        file: file
+          ? { path: file.path, planPath: (file as any).planPath }
           : undefined,
-      selectedRepo,
-    } as PromptBuilderOptions);
+        viewMode: viewMode as any,
+        testContext:
+          viewMode === "tests"
+            ? {
+                testViewMode,
+                testOutput,
+                testStatus: inferTestExecutionStatus(testOutput, isTestRunning),
+              }
+            : undefined,
+        selectedRepo,
+      } as PromptBuilderOptions);
+    } else {
+      prompt = promptText;
+    }
+
     let finalPrompt = prompt;
     Object.entries(fileMap).forEach(([name, path]) => {
       finalPrompt = finalPrompt.split(`@${name}`).join(path);
@@ -1157,8 +1064,9 @@ Cancelled`
     <div
       ref={containerRef}
       style={{ width: effectiveStyleWidth }}
-      className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${effectiveWidthClass} ${className}`}
+      className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${effectiveWidthClass} ${isCentered ? "items-center !w-full !border-l-0" : ""} ${className}`}
     >
+      <div className={`flex flex-col flex-1 ${isCentered ? "max-w-4xl w-full" : "w-full"}`}>
       {/* Terminal View */}
       <div
         className={`flex overflow-hidden flex-col flex-1 h-full ${rightSidebarView === "terminal" ? "" : "hidden"}`}
@@ -1274,16 +1182,7 @@ Cancelled`
               <Play className="w-3.5 h-3.5" />
               {isTestRunning ? "Running…" : "Run test"}
             </button>
-          ) : viewMode === "ai" || workDocIsDraft ? (
-            <button
-              onClick={openInteractiveTerminal}
-              disabled={isTerminalRunning}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-secondary hover:text-white disabled:opacity-50"
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              Terminal
-            </button>
-          ) : (
+          ) : file ? (
             <div className={`flex flex-1 p-1 rounded-lg border bg-background ${theme.border}`}>
               <button
                 onClick={() => setDocAiMode("modify")}
@@ -1310,7 +1209,7 @@ Cancelled`
                 </button>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="p-3 border-b border-border">
@@ -1450,6 +1349,7 @@ Cancelled`
         open={!!settingsTool}
         onOpenChange={(open) => !open && setSettingsTool(null)}
       />
+      </div>
     </div>
   );
 }

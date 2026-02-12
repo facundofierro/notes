@@ -12,16 +12,26 @@ const TerminalViewer = dynamic(
 );
 
 export function LogsTab() {
-  const store = useHomeStore();
-  const { terminals, activeTerminalId } = store.getProjectState();
-  const {
-    setActiveTerminalId,
-    addTerminal,
-    removeTerminal,
-    updateTerminalOutput,
-    selectedRepo,
-    repositories,
-  } = store;
+  const { terminals, activeTerminalId } = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return {
+      terminals: pState?.terminals || [],
+      activeTerminalId: pState?.activeTerminalId || "logs",
+    };
+  }, (oldVal, newVal) => {
+    return (
+      oldVal.terminals === newVal.terminals &&
+      oldVal.activeTerminalId === newVal.activeTerminalId
+    );
+  });
+
+  const setActiveTerminalId = useHomeStore((s) => s.setActiveTerminalId);
+  const addTerminal = useHomeStore((s) => s.addTerminal);
+  const removeTerminal = useHomeStore((s) => s.removeTerminal);
+  const updateTerminalOutput = useHomeStore((s) => s.updateTerminalOutput);
+  const selectedRepo = useHomeStore((s) => s.selectedRepo);
+  const repositories = useHomeStore((s) => s.repositories);
+  const setProjectState = useHomeStore((s) => s.setProjectState);
 
   const currentRepoPath = React.useMemo(() => {
     return repositories.find((r) => r.name === selectedRepo)?.path;
@@ -92,7 +102,7 @@ export function LogsTab() {
 
       const processId = response.headers.get("X-Agent-Process-ID");
       if (processId) {
-        store.setProjectState((prev) => ({
+        setProjectState((prev) => ({
           terminals:
             prev.terminals?.map((t) =>
               t.id === id ? { ...t, processId } : t,
@@ -149,7 +159,7 @@ export function LogsTab() {
         // We should probably update the terminal state with the processId
         // But our TerminalState already has processId? Yes.
         // Update the store with the processId
-        store.setProjectState((prev) => ({
+        setProjectState((prev) => ({
           terminals:
             prev.terminals?.map((t) =>
               t.id === id
