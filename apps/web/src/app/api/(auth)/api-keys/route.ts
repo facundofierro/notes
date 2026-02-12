@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     id: crypto.randomUUID(),
     name: name || "Chrome Plugin Key",
     key: hashedKey,
+    userId: "default-user",
     createdAt: new Date().toISOString(),
   };
 

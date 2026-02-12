@@ -5,7 +5,7 @@ export interface ConnectionSettings {
 }
 
 export const DEFAULT_SETTINGS: ConnectionSettings = {
-  serverUrl: "http://localhost:6500",
+  serverUrl: "http://localhost:6600",
   apiKey: "",
   projectRepo: "",
 };

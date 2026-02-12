@@ -2,7 +2,7 @@
 created: 2026-02-11T17:22:00.303Z
 state: pending
 plan: .agelum/work/plans/chrome-plugin-1770836650628.md
-summary: .agelum/work/summaries/chrome-plugin-1770862296942.md
+summary: .agelum/work/summaries/chrome-plugin-1770863179954.md
 ---
 
 # Chrome Plugin for Issue Reporting

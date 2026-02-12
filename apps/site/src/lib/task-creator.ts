@@ -15,9 +15,22 @@ export interface CreateTaskOptions {
 const AGELUM_DIR = path.join(os.homedir(), ".agelum");
 
 export async function createTask(opts: CreateTaskOptions) {
-  // For simplicity in this prototype, we'll assume the project is the current working directory
-  // In a real scenario, we would resolve this from a global projects list
-  const projectRoot = process.cwd(); 
+  // Resolve project path from settings
+  let projectRoot = process.cwd();
+  const settingsFile = path.join(os.homedir(), ".agelum", "user-settings.json");
+  
+  if (fs.existsSync(settingsFile)) {
+    try {
+      const settings = JSON.parse(fs.readFileSync(settingsFile, "utf-8"));
+      const project = settings.projects?.find((p: any) => p.name === opts.repo && p.type === "project");
+      if (project && project.path) {
+        projectRoot = project.path;
+      }
+    } catch (error) {
+      console.error("Error reading user settings:", error);
+    }
+  }
+
   const tasksDir = path.join(projectRoot, ".agelum", "work", "tasks", opts.state);
   const imagesDir = path.join(projectRoot, ".agelum", "work", "tasks", "images");
 

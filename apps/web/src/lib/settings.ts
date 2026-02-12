@@ -39,6 +39,7 @@ export interface PluginApiKey {
   id: string;
   key: string; // SHA-256 hash
   name: string;
+  userId?: string;
   createdAt: string;
   lastUsedAt?: string;
 }
