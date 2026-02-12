@@ -93,6 +93,10 @@ export function AIRightSidebar({
   const [terminalProcessId, setTerminalProcessId] = React.useState<
     string | null
   >(null);
+  const terminalProcessIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    terminalProcessIdRef.current = terminalProcessId;
+  }, [terminalProcessId]);
   const [iframeUrl, setIframeUrl] = React.useState("");
   const [isOpenCodeWebLoading, setIsOpenCodeWebLoading] = React.useState(false);
   const [openCodeWebLoadingLabel, setOpenCodeWebLoadingLabel] =
@@ -420,21 +424,19 @@ Error: ${error.message}`,
     docAiMode,
   ]);
 
-  const handleTerminalInput = React.useCallback(
-    async (data: string) => {
-      if (!terminalProcessId) return;
-      try {
-        await fetch("/api/agents/input", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: terminalProcessId, data }),
-        });
-      } catch (error) {
-        console.error("Failed to send input:", error);
-      }
-    },
-    [terminalProcessId],
-  );
+  const handleTerminalInput = React.useCallback(async (data: string) => {
+    const pid = terminalProcessIdRef.current;
+    if (!pid) return;
+    try {
+      await fetch("/api/agents/input", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pid, data }),
+      });
+    } catch (error) {
+      console.error("Failed to send input:", error);
+    }
+  }, []);
 
   const runTool = React.useCallback(
     async (toolName: string) => {

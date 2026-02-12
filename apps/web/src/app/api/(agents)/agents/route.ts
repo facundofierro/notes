@@ -120,9 +120,30 @@ export async function POST(request: Request) {
 
     const stream = new ReadableStream({
       start(controller) {
+        let controllerClosed = false;
+
+        const safeEnqueue = (chunk: Uint8Array | Buffer) => {
+          if (controllerClosed) return;
+          try {
+            controller.enqueue(chunk);
+          } catch {
+            controllerClosed = true;
+          }
+        };
+
+        const safeClose = () => {
+          if (controllerClosed) return;
+          controllerClosed = true;
+          try {
+            controller.close();
+          } catch {
+            // Already closed
+          }
+        };
+
         const debugMsg = `\n[Debug] Spawning command: ${resolvedCommand}\n[Debug] Args: ${JSON.stringify(args)}\n\n`;
         appendOutput(processId, debugMsg);
-        controller.enqueue(encoder.encode(debugMsg));
+        safeEnqueue(encoder.encode(debugMsg));
 
         // Use python pty to emulate TTY
         // This is more reliable than 'script' on macOS/Linux for non-interactive shells
@@ -165,24 +186,24 @@ export async function POST(request: Request) {
 
         const decoder = new StringDecoder("utf8");
 
-        if (child.stdout) {
-          child.stdout.on("data", (data) => {
-            // Send raw buffer to client to avoid double-encoding issues
-            // The client (TextDecoder) will handle the stream correctly
-            controller.enqueue(data);
+        const onStdout = (data: Buffer) => {
+          safeEnqueue(data);
+          const str = decoder.write(data);
+          appendOutput(processId, str);
+        };
 
-            // Use stateful decoder for storage to handle split multi-byte characters
-            const str = decoder.write(data);
-            appendOutput(processId, str);
-          });
+        const onStderr = (data: Buffer) => {
+          safeEnqueue(data);
+          const str = decoder.write(data);
+          appendOutput(processId, str);
+        };
+
+        if (child.stdout) {
+          child.stdout.on("data", onStdout);
         }
 
         if (child.stderr) {
-          child.stderr.on("data", (data) => {
-            controller.enqueue(data);
-            const str = decoder.write(data);
-            appendOutput(processId, str);
-          });
+          child.stderr.on("data", onStderr);
         }
 
         child.on("close", (code) => {
@@ -195,16 +216,23 @@ export async function POST(request: Request) {
           if (code !== 0) {
             const msg = `\nProcess exited with code ${code}`;
             appendOutput(processId, msg);
-            controller.enqueue(encoder.encode(msg));
+            safeEnqueue(encoder.encode(msg));
           }
-          controller.close();
+          safeClose();
         });
 
         child.on("error", (err) => {
           const msg = `\nFailed to start process: ${err.message}`;
           appendOutput(processId, msg);
-          controller.enqueue(encoder.encode(msg));
-          controller.close();
+          safeEnqueue(encoder.encode(msg));
+          safeClose();
+        });
+
+        request.signal.addEventListener("abort", () => {
+          controllerClosed = true;
+          if (child.stdout) child.stdout.removeListener("data", onStdout);
+          if (child.stderr) child.stderr.removeListener("data", onStderr);
+          safeClose();
         });
       },
     });

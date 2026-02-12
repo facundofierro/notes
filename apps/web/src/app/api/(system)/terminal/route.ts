@@ -44,35 +44,63 @@ export async function GET(request: Request) {
 
   const stream = new ReadableStream({
     start(controller) {
+      let controllerClosed = false;
+
+      const safeEnqueue = (chunk: Uint8Array) => {
+        if (controllerClosed) return;
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          controllerClosed = true;
+          clearInterval(pollInterval);
+        }
+      };
+
+      const safeClose = () => {
+        if (controllerClosed) return;
+        controllerClosed = true;
+        try {
+          controller.close();
+        } catch {
+          // Already closed
+        }
+      };
+
       if (buffer) {
-        controller.enqueue(encoder.encode(buffer));
+        safeEnqueue(encoder.encode(buffer));
         position = buffer.length;
       }
 
       if (!alive) {
-        controller.close();
+        safeClose();
         return;
       }
 
       const pollInterval = setInterval(() => {
+        if (controllerClosed) {
+          clearInterval(pollInterval);
+          return;
+        }
+
         const currentBuffer = getOutputBuffer(id);
         if (currentBuffer && currentBuffer.length > position) {
           const newContent = currentBuffer.slice(position);
           position = currentBuffer.length;
-          controller.enqueue(encoder.encode(newContent));
+          safeEnqueue(encoder.encode(newContent));
         }
 
         if (!isProcessAlive(id)) {
           const finalBuffer = getOutputBuffer(id);
           if (finalBuffer && finalBuffer.length > position) {
-            controller.enqueue(encoder.encode(finalBuffer.slice(position)));
+            safeEnqueue(encoder.encode(finalBuffer.slice(position)));
           }
           clearInterval(pollInterval);
-          controller.close();
+          safeClose();
         }
       }, 100);
 
       request.signal.addEventListener("abort", () => {
+        controllerClosed = true;
         clearInterval(pollInterval);
       });
     },
@@ -99,6 +127,27 @@ export async function POST(request: Request) {
 
     const stream = new ReadableStream({
       start(controller) {
+        let controllerClosed = false;
+
+        const safeEnqueue = (chunk: Uint8Array | Buffer) => {
+          if (controllerClosed) return;
+          try {
+            controller.enqueue(chunk);
+          } catch {
+            controllerClosed = true;
+          }
+        };
+
+        const safeClose = () => {
+          if (controllerClosed) return;
+          controllerClosed = true;
+          try {
+            controller.close();
+          } catch {
+            // Already closed
+          }
+        };
+
         const decoder = new StringDecoder("utf8");
 
         const usePty =
@@ -134,22 +183,24 @@ export async function POST(request: Request) {
 
         registerProcess(processId, child, "Interactive Terminal");
 
+        const onStdout = (data: Buffer) => {
+          safeEnqueue(data);
+          const str = decoder.write(data);
+          appendOutput(processId, str);
+        };
+
+        const onStderr = (data: Buffer) => {
+          safeEnqueue(data);
+          const str = decoder.write(data);
+          appendOutput(processId, str);
+        };
+
         if (child.stdout) {
-          child.stdout.on("data", (data) => {
-            // Send raw buffer to client
-            controller.enqueue(data);
-            // Decode safely for storage
-            const str = decoder.write(data);
-            appendOutput(processId, str);
-          });
+          child.stdout.on("data", onStdout);
         }
 
         if (child.stderr) {
-          child.stderr.on("data", (data) => {
-            controller.enqueue(data);
-            const str = decoder.write(data);
-            appendOutput(processId, str);
-          });
+          child.stderr.on("data", onStderr);
         }
 
         child.on("close", (code) => {
@@ -159,16 +210,23 @@ export async function POST(request: Request) {
           if (code !== 0) {
             const msg = `\nProcess exited with code ${code}`;
             appendOutput(processId, msg);
-            controller.enqueue(encoder.encode(msg));
+            safeEnqueue(encoder.encode(msg));
           }
-          controller.close();
+          safeClose();
         });
 
         child.on("error", (err) => {
           const msg = `\nFailed to start terminal: ${err.message}`;
           appendOutput(processId, msg);
-          controller.enqueue(encoder.encode(msg));
-          controller.close();
+          safeEnqueue(encoder.encode(msg));
+          safeClose();
+        });
+
+        request.signal.addEventListener("abort", () => {
+          controllerClosed = true;
+          if (child.stdout) child.stdout.removeListener("data", onStdout);
+          if (child.stderr) child.stderr.removeListener("data", onStderr);
+          safeClose();
         });
       },
     });
