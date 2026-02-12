@@ -42,10 +42,6 @@ interface ProjectStatus {
   };
 }
 
-interface BranchInfo {
-  currentBranch: string | null;
-}
-
 interface ProjectSelectorProps {
   repositories: Repository[];
   selectedRepo: string | null;
@@ -68,9 +64,6 @@ export function ProjectSelector({
   const [projectUsage, setProjectUsage] = React.useState<
     Record<string, { lastAccessed: number }>
   >({});
-  const [branchInfo, setBranchInfo] = React.useState<BranchInfo>({
-    currentBranch: null,
-  });
   const [search, setSearch] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -156,8 +149,7 @@ export function ProjectSelector({
   }, [search]);
 
   const { gitStatus: selectedGitStatus } = store.getProjectState();
-  const currentBranch =
-    selectedGitStatus?.branch || branchInfo.currentBranch || "";
+  const currentBranch = selectedGitStatus?.branch || "";
 
   const [visibleRepos, setVisibleRepos] = React.useState<Repository[]>(() =>
     [...repositories].sort((a, b) => a.name.localeCompare(b.name)),
@@ -239,13 +231,13 @@ export function ProjectSelector({
               variant="ghost"
               className="h-14 px-3 hover:bg-white/10 flex items-center gap-2 transition-all group rounded-2xl border border-transparent hover:border-white/10"
             >
-              <div className="flex flex-col items-end pt-4">
-                <span className="font-semibold text-zinc-100 group-hover:text-white transition-colors text-sm">
+              <div className="flex flex-col items-start min-w-0">
+                <span className="font-bold text-zinc-100 group-hover:text-white transition-colors text-sm leading-none">
                   {isLoading ? "Loading..." : selectedRepo || "Select Project"}
                 </span>
-                {!isLoading && branchInfo.currentBranch && (
-                  <span className="text-[10px] text-zinc-500 font-normal">
-                    {branchInfo.currentBranch}
+                {!isLoading && currentBranch && (
+                  <span className="text-[10px] text-zinc-500 font-bold leading-none mt-[3px]">
+                    {currentBranch}
                   </span>
                 )}
               </div>
