@@ -23,6 +23,8 @@ import {
   Check,
 } from "lucide-react";
 import { cn, Button } from "@agelum/shadcn";
+import { getViewModeColor } from "@/lib/view-config";
+
 
 interface FileNode {
   name: string;
@@ -31,6 +33,8 @@ interface FileNode {
   children?: FileNode[];
   content?: string;
   size?: number;
+  isProject?: boolean;
+  isContainer?: boolean;
 }
 
 type LeftSidebarView = "files" | "changes" | "prs";
@@ -50,6 +54,7 @@ const FilesCentralArea = ({
   setActiveTabId,
   removeTab,
   addTab,
+  themeColor,
 }: any) => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
@@ -71,7 +76,7 @@ const FilesCentralArea = ({
               className={cn(
                 "flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-border transition-colors min-w-[120px] max-w-[200px] group",
                 activeTabId === tab.id
-                  ? "text-blue-500 bg-blue-500/10 font-medium"
+                  ? `${themeColor.text} ${themeColor.bg} font-medium`
                   : "text-muted-foreground hover:bg-accent/50",
               )}
             >
@@ -126,6 +131,7 @@ const ChangesCentralArea = ({
   selectedGitFile,
   diffOriginal,
   diffModified,
+  themeColor,
 }: any) => {
   const [activeTab, setActiveTab] = React.useState<ChangesTab>("agent");
 
@@ -145,7 +151,7 @@ const ChangesCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "agent"
-              ? "text-blue-500 bg-blue-500/10 font-medium"
+              ? `${themeColor.text} ${themeColor.bg} font-medium`
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -157,7 +163,7 @@ const ChangesCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "diff"
-              ? "text-blue-500 bg-blue-500/10 font-medium"
+              ? `${themeColor.text} ${themeColor.bg} font-medium`
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -231,6 +237,7 @@ const PRsCentralArea = ({
   onClose,
   actionLoading,
   showCheckoutOverlay,
+  themeColor,
 }: any) => {
   const [activeTab, setActiveTab] = React.useState<PRsTab>("info");
 
@@ -250,7 +257,7 @@ const PRsCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "info"
-              ? "text-blue-500 bg-blue-500/10 font-medium"
+              ? `${themeColor.text} ${themeColor.bg} font-medium`
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -262,7 +269,7 @@ const PRsCentralArea = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm border-r border-border transition-colors",
             activeTab === "diff"
-              ? "text-blue-500 bg-blue-500/10 font-medium"
+              ? `${themeColor.text} ${themeColor.bg} font-medium`
               : "text-muted-foreground hover:bg-accent/50",
           )}
         >
@@ -496,6 +503,7 @@ export function ReviewTab() {
     testOutput,
     isTestRunning,
   } = store.getProjectState();
+  const themeColor = getViewModeColor(viewMode);
 
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [leftSidebarView, setLeftSidebarView] =
@@ -873,36 +881,43 @@ export function ReviewTab() {
             className={cn(
               "flex-1 flex items-center justify-center py-3 transition-colors border-b-2",
               leftSidebarView === "files"
-                ? "border-blue-500 text-blue-500 bg-blue-500/5"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                ? `${themeColor.border.replace("border-", "border-b-")} ${themeColor.text} ${themeColor.bg}`
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/10",
             )}
             title="Project Files"
           >
-            <Folder className="w-4 h-4" />
+            <Folder className="w-5 h-5" />
           </button>
           <button
             onClick={() => setLeftSidebarView("changes")}
             className={cn(
-              "flex-1 flex items-center justify-center py-3 transition-colors border-b-2",
+              "flex-1 flex items-center justify-center py-3 transition-colors border-b-2 relative",
               leftSidebarView === "changes"
-                ? "border-blue-500 text-blue-500 bg-blue-500/5"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                ? `${themeColor.border.replace("border-", "border-b-")} ${themeColor.text} ${themeColor.bg}`
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/10",
             )}
             title="Local Changes"
           >
-            <GitBranch className="w-4 h-4" />
+            <GitBranch className="w-5 h-5" />
+            {(store.getProjectState().gitStatus?.hasChanges ||
+              (store.getProjectState().gitStatus?.ahead || 0) > 0 ||
+              (store.getProjectState().gitStatus?.behind || 0) > 0) && (
+              <span
+                className={`absolute top-2 right-1/2 translate-x-4 w-2.5 h-2.5 ${themeColor.dot} rounded-full border-2 border-background shadow-[0_0_10px_rgba(59,130,246,0.6)]`}
+              />
+            )}
           </button>
           <button
             onClick={() => setLeftSidebarView("prs")}
             className={cn(
               "flex-1 flex items-center justify-center py-3 transition-colors border-b-2",
               leftSidebarView === "prs"
-                ? "border-blue-500 text-blue-500 bg-blue-500/5"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                ? `${themeColor.border.replace("border-", "border-b-")} ${themeColor.text} ${themeColor.bg}`
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/10",
             )}
             title="GitHub PRs"
           >
-            <Github className="w-4 h-4" />
+            <Github className="w-5 h-5" />
           </button>
         </div>
 
@@ -975,7 +990,7 @@ export function ReviewTab() {
         {/* Resize Handle */}
         {leftSidebarView && (
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 active:bg-blue-500 transition-colors z-50"
+            className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:${themeColor.bg} active:${themeColor.dot} transition-colors z-50`}
             onMouseDown={startResizing}
           />
         )}
@@ -1000,6 +1015,7 @@ export function ReviewTab() {
           setActiveTabId={setActiveTabId}
           removeTab={removeTab}
           addTab={addTab}
+          themeColor={themeColor}
         />
       </div>
 
@@ -1014,6 +1030,7 @@ export function ReviewTab() {
           selectedGitFile={selectedGitFile}
           diffOriginal={changesDiffOriginal}
           diffModified={changesDiffModified}
+          themeColor={themeColor}
         />
       </div>
 
@@ -1035,6 +1052,7 @@ export function ReviewTab() {
           onClose={handleClose}
           actionLoading={actionLoading}
           showCheckoutOverlay={showCheckoutOverlay}
+          themeColor={themeColor}
         />
       </div>
 

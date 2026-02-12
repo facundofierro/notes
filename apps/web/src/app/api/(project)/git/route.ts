@@ -234,6 +234,10 @@ export async function POST(request: Request) {
         result = await execPromise(`git pull`, repoPath);
         break;
 
+      case "fetch":
+        result = await execPromise(`git fetch`, repoPath);
+        break;
+
       case "checkout":
         const { branch } = body;
         if (!branch)

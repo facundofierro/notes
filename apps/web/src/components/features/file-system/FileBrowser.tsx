@@ -14,6 +14,9 @@ import {
   Copy,
 } from "lucide-react";
 import { useToast } from "@agelum/shadcn";
+import { getViewModeColor } from "@/lib/view-config";
+import { useHomeStore } from "@/store/useHomeStore";
+
 
 interface FileNode {
   name: string;
@@ -22,6 +25,8 @@ interface FileNode {
   children?: FileNode[];
   content?: string;
   size?: number;
+  isProject?: boolean;
+  isContainer?: boolean;
 }
 
 interface FileBrowserProps {
@@ -57,6 +62,7 @@ function FileTreeNode({
   onCancelNewItem,
   onSaveNewItem,
   onCopyPath,
+  themeColor,
 }: {
   node: FileNode;
   level: number;
@@ -77,6 +83,7 @@ function FileTreeNode({
   onCancelNewItem: () => void;
   onSaveNewItem: () => void;
   onCopyPath: (path: string) => void;
+  themeColor: ReturnType<typeof getViewModeColor>;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const isExpanded = expandedPaths.has(node.path);
@@ -116,12 +123,24 @@ function FileTreeNode({
           )}
           {node.type === "directory" ? (
             isExpanded ? (
-              <FolderOpen className="w-4 h-4 text-indigo-400" />
+              <FolderOpen
+                className={`w-4 h-4 ${
+                  node.isProject || node.isContainer
+                    ? themeColor.folderLight || "text-blue-400"
+                    : themeColor.folder || "text-blue-500"
+                }`}
+              />
             ) : (
-              <Folder className="w-4 h-4 text-indigo-400" />
+              <Folder
+                className={`w-4 h-4 ${
+                  node.isProject || node.isContainer
+                    ? themeColor.folderLight || "text-blue-400"
+                    : themeColor.folder || "text-blue-500"
+                }`}
+              />
             )
           ) : (
-            <FileText className="w-4 h-4 text-sky-400/70" />
+            <FileText className={`w-4 h-4 ${themeColor.file || "text-muted-foreground"}`} />
           )}
           <span className="text-sm text-foreground">{node.name}</span>
         </div>
@@ -198,9 +217,9 @@ function FileTreeNode({
               }}
             >
               {newItem.type === "directory" ? (
-                <Folder className="w-4 h-4 text-indigo-400" />
+                <Folder className={`w-4 h-4 ${themeColor.folder}`} />
               ) : (
-                <FileText className="w-4 h-4 text-sky-400/70" />
+                <FileText className={`w-4 h-4 ${themeColor.file}`} />
               )}
               <input
                 autoFocus
@@ -234,6 +253,7 @@ function FileTreeNode({
               onCancelNewItem={onCancelNewItem}
               onSaveNewItem={onSaveNewItem}
               onCopyPath={onCopyPath}
+              themeColor={themeColor}
             />
           ))}
         </div>
@@ -262,6 +282,11 @@ export default function FileBrowser({
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartX = useRef(0);
   const resizeStartWidth = useRef(SIDEBAR_DEFAULT_WIDTH);
+
+  const store = useHomeStore();
+  const { viewMode: storeViewMode } = store.getProjectState();
+  const activeViewMode = viewMode || storeViewMode;
+  const themeColor = getViewModeColor(activeViewMode);
 
   const handleCopyPath = (path: string) => {
     navigator.clipboard.writeText(path);
@@ -482,6 +507,7 @@ export default function FileBrowser({
               onCancelNewItem={handleCancelNewItem}
               onSaveNewItem={handleSaveNewItem}
               onCopyPath={handleCopyPath}
+              themeColor={themeColor}
             />
           ) : (
             <p className="p-2 text-sm text-muted-foreground">

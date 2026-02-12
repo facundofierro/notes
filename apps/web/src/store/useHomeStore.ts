@@ -82,6 +82,12 @@ export interface ProjectState {
   tabs: Record<string, TabState>;
   lastTerminalActivity: number;
   lastChangeDetected: Record<string, number>;
+  gitStatus: {
+    ahead: number;
+    behind: number;
+    hasChanges: boolean;
+    branch: string;
+  } | null;
 }
 
 const createDefaultProjectState = (): ProjectState => ({
@@ -135,6 +141,7 @@ const createDefaultProjectState = (): ProjectState => ({
   },
   lastTerminalActivity: 0,
   lastChangeDetected: {},
+  gitStatus: null,
 });
 
 export interface HomeState {

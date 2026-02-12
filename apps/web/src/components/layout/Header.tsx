@@ -17,8 +17,11 @@ import { ProjectSelector } from "@/components/shared/ProjectSelector";
 import { VIEW_MODE_CONFIG, ViewMode } from "@/lib/view-config";
 import { useHomeStore } from "@/store/useHomeStore";
 
+import { useGitStatusPoller } from "@/hooks/useGitStatus";
+
 export function Header() {
   const store = useHomeStore();
+  useGitStatusPoller();
   const {
     setViewMode,
     selectedRepo,
@@ -153,11 +156,18 @@ export function Header() {
                 pingClass = "bg-green-500";
               }
 
+              const { gitStatus } = store.getProjectState();
+              const hasGitChanges =
+                mode === "review" &&
+                (gitStatus?.hasChanges ||
+                  (gitStatus?.ahead || 0) > 0 ||
+                  (gitStatus?.behind || 0) > 0);
+
               return (
                 <button
                   key={`${mode}-${index}`}
                   onClick={() => setViewMode(mode as ViewMode)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
+                  className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
                     effectiveViewMode === mode
                       ? activeClass
                       : isTerminalAndReceiving
@@ -176,6 +186,9 @@ export function Header() {
                     )}
                   </div>
                   {config.label}
+                  {hasGitChanges && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-secondary shadow-[0_0_10px_rgba(59,130,246,0.6)] z-10" />
+                  )}
                 </button>
               );
             });

@@ -18,6 +18,9 @@ import {
   GitMerge,
   X,
 } from "lucide-react";
+import { getViewModeColor } from "@/lib/view-config";
+import { useHomeStore } from "@/store/useHomeStore";
+
 import {
   Button,
   Skeleton,
@@ -99,6 +102,9 @@ export function GitHubPRsPanel({
   onClose,
   actionLoading: externalActionLoading,
 }: GitHubPRsPanelProps) {
+  const store = useHomeStore();
+  const { viewMode } = store.getProjectState();
+  const themeColor = getViewModeColor(viewMode);
   const [prs, setPrs] = React.useState<PR[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -263,7 +269,7 @@ export function GitHubPRsPanel({
     if (state === "FAILURE")
       return <XCircle className="w-3.5 h-3.5 text-red-500" />;
     if (state === "PENDING")
-      return <Clock className="w-3.5 h-3.5 text-blue-500" />;
+      return <Clock className={`w-3.5 h-3.5 ${themeColor.text}`} />;
     return null;
   };
 
@@ -398,7 +404,7 @@ export function GitHubPRsPanel({
                       <ChangeGroup
                         title={`Changes (${files.length})`}
                         count={files.length}
-                        color="bg-blue-500"
+                        color={themeColor.dot}
                       >
                         <FileGroupList
                           files={files}
@@ -406,7 +412,7 @@ export function GitHubPRsPanel({
                           onSelect={(file) =>
                             onSelectFile && onSelectFile(file)
                           }
-                          dotClass="bg-blue-400"
+                          dotClass={themeColor.dot}
                         />
                       </ChangeGroup>
                     )}

@@ -8,6 +8,9 @@ import {
   Film,
   Code,
 } from "lucide-react";
+import { getViewModeColor } from "@/lib/view-config";
+import { useHomeStore } from "@/store/useHomeStore";
+
 
 interface FileNode {
   name: string;
@@ -15,6 +18,8 @@ interface FileNode {
   type: "file" | "directory";
   children?: FileNode[];
   size?: number;
+  isProject?: boolean;
+  isContainer?: boolean;
 }
 
 interface DiskUsageChartProps {
@@ -33,39 +38,52 @@ function formatBytes(bytes: number, decimals = 2) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
-function getFileIcon(name: string, type: "file" | "directory") {
-  if (type === "directory")
-    return <Folder className="w-4 h-4 text-indigo-500" />;
-
-  const ext = name.split(".").pop()?.toLowerCase();
-
-  switch (ext) {
-    case "js":
-    case "jsx":
-    case "ts":
-    case "tsx":
-    case "json":
-      return <Code className="w-4 h-4 text-sky-500" />;
-    case "md":
-    case "txt":
-      return <FileText className="w-4 h-4 text-slate-400" />;
-    case "png":
-    case "jpg":
-    case "jpeg":
-    case "gif":
-    case "svg":
-    case "webp":
-      return <ImageIcon className="w-4 h-4 text-teal-400" />;
-    case "mp4":
-    case "webm":
-    case "mov":
-      return <Film className="w-4 h-4 text-cyan-400" />;
-    default:
-      return <File className="w-4 h-4 text-slate-400" />;
-  }
-}
-
 export default function DiskUsageChart({ node }: DiskUsageChartProps) {
+  const store = useHomeStore();
+  const { viewMode } = store.getProjectState();
+  const themeColor = getViewModeColor(viewMode);
+
+  const getFileIcon = (
+    name: string,
+    type: "file" | "directory",
+    isProject?: boolean,
+    isContainer?: boolean,
+  ) => {
+    if (type === "directory")
+      return (
+        <Folder
+          className={`w-4 h-4 ${isProject || isContainer ? themeColor.folderLight || "text-blue-400" : themeColor.folder || "text-blue-500"}`}
+        />
+      );
+
+    const ext = name.split(".").pop()?.toLowerCase();
+
+    switch (ext) {
+      case "js":
+      case "jsx":
+      case "ts":
+      case "tsx":
+      case "json":
+        return <Code className={`w-4 h-4 ${themeColor.file || "text-muted-foreground"}`} />;
+      case "md":
+      case "txt":
+        return <FileText className="w-4 h-4 text-slate-400" />;
+      case "png":
+      case "jpg":
+      case "jpeg":
+      case "gif":
+      case "svg":
+      case "webp":
+        return <ImageIcon className="w-4 h-4 text-teal-400" />;
+      case "mp4":
+      case "webm":
+      case "mov":
+        return <Film className="w-4 h-4 text-cyan-400" />;
+      default:
+        return <File className="w-4 h-4 text-slate-400" />;
+    }
+  };
+
   const children = React.useMemo(() => {
     if (!node.children) return [];
     // Sort by size descending
@@ -98,9 +116,17 @@ export default function DiskUsageChart({ node }: DiskUsageChartProps) {
             const isDirectory = child.type === "directory";
 
             return (
-              <div key={child.path} className="group">
+              <div
+                key={child.path}
+                className="group p-2 -mx-2 rounded-lg transition-colors hover:bg-secondary/30"
+              >
                 <div className="flex items-center gap-3 mb-1.5">
-                  {getFileIcon(child.name, child.type)}
+                  {getFileIcon(
+                    child.name,
+                    child.type,
+                    child.isProject,
+                    child.isContainer,
+                  )}
                   <span
                     className="font-medium truncate flex-1"
                     title={child.name}
@@ -113,8 +139,11 @@ export default function DiskUsageChart({ node }: DiskUsageChartProps) {
                 </div>
                 <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${isDirectory ? "bg-indigo-500/70 shadow-[0_0_8px_rgba(99,102,241,0.4)]" : "bg-sky-500/70 shadow-[0_0_8px_rgba(14,165,233,0.4)]"}`}
-                    style={{ width: `${Math.max(percentage, 0.5)}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ${isDirectory ? themeColor.folderBar || "bg-blue-500/70" : themeColor.fileBar || "bg-indigo-500/70"}`}
+                    style={{
+                      width: `${Math.max(percentage, 0.5)}%`,
+                      boxShadow: `0 0 8px ${isDirectory ? themeColor.folderGlow || "rgba(59, 130, 246, 0.4)" : themeColor.fileGlow || "rgba(99, 102, 241, 0.4)"}`,
+                    }}
                   />
                 </div>
               </div>

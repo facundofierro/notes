@@ -186,6 +186,9 @@ function ProjectView({
 
   // Check app status once on mount
   React.useEffect(() => {
+    // Skip if this is the selected repo, as the global poller handles it
+    if (repoName === store.selectedRepo) return;
+
     let cancelled = false;
     (async () => {
       try {
@@ -206,7 +209,7 @@ function ProjectView({
     return () => {
       cancelled = true;
     };
-  }, [repoName, setProjectStateForRepo]);
+  }, [repoName, setProjectStateForRepo, store.selectedRepo]);
 
   // Stream logs for this project
   React.useEffect(() => {

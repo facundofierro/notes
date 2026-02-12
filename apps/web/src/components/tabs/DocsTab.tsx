@@ -9,6 +9,8 @@ interface FileNode {
   type: "file" | "directory";
   children?: FileNode[];
   content?: string;
+  isProject?: boolean;
+  isContainer?: boolean;
 }
 
 export function DocsTab() {

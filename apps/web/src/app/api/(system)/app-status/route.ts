@@ -221,6 +221,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Check Git Status
+    let gitStatus = { ahead: 0, behind: 0, hasChanges: false, branch: "" };
+    if (project.path) {
+      try {
+        const { stdout: statusOutput } = await execAsync(
+          `git status --porcelain=v2 -b -u`,
+          { cwd: project.path },
+        );
+        const lines = statusOutput.split("\n").filter(Boolean);
+        lines.forEach((line) => {
+          if (line.startsWith("# branch.ab")) {
+            const parts = line.split(" ");
+            gitStatus.ahead = parseInt(parts[2].replace("+", ""));
+            gitStatus.behind = parseInt(parts[3].replace("-", ""));
+          } else if (line.startsWith("# branch.head")) {
+            gitStatus.branch = line.split(" ")[2];
+          } else if (!line.startsWith("#")) {
+            gitStatus.hasChanges = true;
+          }
+        });
+      } catch (e) {
+        // Not a git repo or other error, ignore
+      }
+    }
+
     return NextResponse.json({
       isRunning,
       isManaged,
@@ -228,6 +253,7 @@ export async function GET(request: NextRequest) {
       pid,
       startedAt: managedProcess?.startedAt,
       command: managedProcess?.command,
+      gitStatus,
     });
   } catch (error: any) {
     return NextResponse.json(

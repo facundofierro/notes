@@ -35,6 +35,11 @@ interface ProjectStatus {
   isRunning: boolean;
   isManaged: boolean;
   pid: number | null;
+  gitStatus?: {
+    ahead: number;
+    behind: number;
+    hasChanges: boolean;
+  };
 }
 
 interface BranchInfo {
@@ -56,6 +61,7 @@ export function ProjectSelector({
   className,
   isLoading = false,
 }: ProjectSelectorProps) {
+  const store = useHomeStore();
   const [projectStatuses, setProjectStatuses] = React.useState<
     Record<string, ProjectStatus>
   >({});
@@ -99,6 +105,7 @@ export function ProjectSelector({
                 isRunning: data.isRunning || false,
                 isManaged: data.isManaged || false,
                 pid: data.pid || null,
+                gitStatus: data.gitStatus,
               },
             }));
           }
@@ -148,50 +155,9 @@ export function ProjectSelector({
     setSelectedIndex(0);
   }, [search]);
 
-  React.useEffect(() => {
-    if (!selectedRepo) return;
-
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch(
-          `/api/app-status?repo=${encodeURIComponent(selectedRepo)}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setProjectStatuses((prev) => ({
-            ...prev,
-            [selectedRepo]: {
-              isRunning: data.isRunning || false,
-              isManaged: data.isManaged || false,
-              pid: data.pid || null,
-            },
-          }));
-        }
-      } catch (error) {}
-    };
-
-    const fetchBranch = async () => {
-      try {
-        const repo = repositories.find((r) => r.name === selectedRepo);
-        if (!repo) return;
-
-        const res = await fetch(
-          `/api/git?path=${encodeURIComponent(repo.path)}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setBranchInfo({
-            currentBranch: data.branch || null,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to fetch branch:", error);
-      }
-    };
-
-    fetchStatus();
-    fetchBranch();
-  }, [selectedRepo, repositories]);
+  const { gitStatus: selectedGitStatus } = store.getProjectState();
+  const currentBranch =
+    selectedGitStatus?.branch || branchInfo.currentBranch || "";
 
   const [visibleRepos, setVisibleRepos] = React.useState<Repository[]>(() =>
     [...repositories].sort((a, b) => a.name.localeCompare(b.name)),
@@ -462,17 +428,27 @@ export function ProjectSelector({
                                     <LayoutGrid className="h-5 w-5" />
                                   )}
                                 </div>
-                                <div className="flex flex-col min-w-0">
-                                  <span
-                                    className={cn(
-                                      "text-[14px] font-bold truncate leading-none mb-1",
-                                      isSelected || isHighlighted
-                                        ? "text-white"
-                                        : "text-zinc-400 group-hover/item:text-white",
+                                <div className="flex flex-col min-w-0 relative">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={cn(
+                                        "text-[14px] font-bold truncate leading-none mb-1",
+                                        isSelected || isHighlighted
+                                          ? "text-white"
+                                          : "text-zinc-400 group-hover/item:text-white",
+                                      )}
+                                    >
+                                      {repo.name}
+                                    </span>
+                                    {(status?.gitStatus?.hasChanges ||
+                                      (status?.gitStatus?.ahead || 0) > 0 ||
+                                      (status?.gitStatus?.behind || 0) > 0) && (
+                                      <div
+                                        className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] mb-1 shrink-0"
+                                        title="Uncommitted changes or pending commits"
+                                      />
                                     )}
-                                  >
-                                    {repo.name}
-                                  </span>
+                                  </div>
                                   <span className="text-[10px] text-zinc-600 truncate font-mono tracking-wider">
                                     {repo.path.split("/").pop()}
                                   </span>

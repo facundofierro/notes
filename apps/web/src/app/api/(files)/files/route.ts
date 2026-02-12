@@ -5,13 +5,7 @@ import { spawn } from "child_process";
 import { readSettings } from "@/lib/settings";
 import { ensureEnvFileMissingOnly } from "@/lib/env-file";
 
-interface FileNode {
-  name: string;
-  path: string;
-  type: "file" | "directory";
-  size?: number;
-  children?: FileNode[];
-}
+
 
 type TestsSetupState =
   | "missing"
@@ -373,6 +367,33 @@ function ensureAgelumStructure(agelumDir: string) {
   }
 }
 
+interface FileNode {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+  children?: FileNode[];
+  isProject?: boolean;
+  isContainer?: boolean;
+}
+
+const PROJECT_INDICATORS = [
+  "package.json",
+  "Cargo.toml",
+  "go.mod",
+  "pom.xml",
+  "build.gradle",
+  "requirements.txt",
+  "pyproject.toml",
+  "setup.py",
+  "composer.json",
+  "Gemfile",
+  "Makefile",
+  "CMakeLists.txt",
+  "mix.exs",
+  "Package.swift",
+];
+
 function buildFileTree(
   dir: string,
   basePath: string,
@@ -401,17 +422,25 @@ function buildFileTree(
     "thumbs.db",
   ]);
 
-  const children = entries
+  let isProject = false;
+  const children: FileNode[] = entries
     .filter((entry) => {
       if (ignores.has(entry.name)) return false;
       if (entry.isDirectory()) return true;
+      if (
+        PROJECT_INDICATORS.includes(entry.name) ||
+        entry.name.endsWith(".csproj") ||
+        entry.name.endsWith(".sln")
+      ) {
+        isProject = true;
+      }
       if (!allowedFileExtensions) return true;
       return allowedFileExtensions.some((ext) => entry.name.endsWith(ext));
     })
     .map((entry) => {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        return buildFileTree(fullPath, basePath, allowedFileExtensions)!;
+        return buildFileTree(fullPath, basePath, allowedFileExtensions);
       } else {
         let size = 0;
         try {
@@ -427,13 +456,17 @@ function buildFileTree(
         };
       }
     })
-    .filter(Boolean)
+    .filter((child): child is FileNode => child !== null)
     .sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === "directory" ? -1 : 1;
     });
 
-  let totalSize = children.reduce((acc, child) => acc + (child.size || 0), 0);
+  let isContainer = children.some(
+    (child: FileNode) => child.type === "directory" && child.isProject,
+  );
+
+  let totalSize = children.reduce((acc: number, child: FileNode) => acc + (child.size || 0), 0);
 
   return {
     name,
@@ -441,6 +474,8 @@ function buildFileTree(
     type: "directory",
     size: totalSize,
     children,
+    isProject,
+    isContainer,
   };
 }
 

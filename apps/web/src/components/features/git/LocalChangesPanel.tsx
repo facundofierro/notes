@@ -12,6 +12,8 @@ import {
   Minus,
   GitBranch,
 } from "lucide-react";
+import { getViewModeColor } from "@/lib/view-config";
+
 import {
   GitFile,
   ChangeGroup,
@@ -48,6 +50,8 @@ interface LocalChangesPanelProps {
   className?: string;
 }
 
+import { useHomeStore } from "@/store/useHomeStore";
+
 export function LocalChangesPanel({
   repoPath,
   projectName,
@@ -55,6 +59,10 @@ export function LocalChangesPanel({
   selectedFile,
   className,
 }: LocalChangesPanelProps) {
+  const store = useHomeStore();
+  const { viewMode } = store.getProjectState();
+  const themeColor = getViewModeColor(viewMode);
+  const setProjectState = useHomeStore((s) => s.setProjectState);
   const [status, setStatus] = React.useState<GitStatus | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [commitMessage, setCommitMessage] = React.useState("");
@@ -68,13 +76,22 @@ export function LocalChangesPanel({
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+
+        // Update global store git status for indicators
+        setProjectState(() => ({
+          gitStatus: {
+            ahead: data.ahead || 0,
+            behind: data.behind || 0,
+            hasChanges: (data.files || []).length > 0,
+          },
+        }));
       }
     } catch (e) {
       console.error("Failed to fetch git status", e);
     } finally {
       setRefreshing(false);
     }
-  }, [repoPath]);
+  }, [repoPath, setProjectState]);
 
   React.useEffect(() => {
     fetchStatus();
@@ -271,7 +288,7 @@ export function LocalChangesPanel({
         <ChangeGroup
           title={`Staged Changes (${stagedFiles.length})`}
           count={stagedFiles.length}
-          color="bg-green-500"
+          color={themeColor.dot}
         >
           {stagedFiles.length === 0 ? (
             <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">
@@ -285,6 +302,7 @@ export function LocalChangesPanel({
               onAction={handleUnstage}
               actionIcon={Minus}
               actionTitle="Unstage"
+              dotClass={themeColor.dot}
               actionButtonClass="hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500"
             />
           )}
@@ -294,7 +312,7 @@ export function LocalChangesPanel({
         <ChangeGroup
           title={`Changes (${unstagedFiles.length})`}
           count={unstagedFiles.length}
-          color="bg-blue-500"
+          color={themeColor.dot}
         >
           {unstagedFiles.length === 0 ? (
             <div className="py-4 text-center text-[10px] text-muted-foreground/50 italic">
@@ -308,6 +326,7 @@ export function LocalChangesPanel({
               onAction={handleStage}
               actionIcon={Plus}
               actionTitle="Stage"
+              dotClass={themeColor.dot}
               actionButtonClass="hover:bg-green-100 dark:hover:bg-green-900/30 text-muted-foreground hover:text-green-500"
             />
           )}
