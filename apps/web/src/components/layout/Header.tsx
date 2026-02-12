@@ -163,10 +163,32 @@ export function Header() {
                   (gitStatus?.ahead || 0) > 0 ||
                   (gitStatus?.behind || 0) > 0);
 
+              const shortcutMap: Record<string, string> = {
+                ai: "A",
+                ideas: "I",
+                docs: "D",
+                kanban: "T",
+                tests: "E",
+                review: "R, F, O, P",
+                tools: "S",
+                logs: "X",
+                browser: "B",
+              };
+
+              const shortcut = shortcutMap[mode];
+              let title = config.label;
+
+              if (mode === "review") {
+                title = `Review (Ctrl+R: Review, Ctrl+F: Find content, Ctrl+P: Find files, Ctrl+O: Switch project)`;
+              } else if (shortcut) {
+                title = `${config.label} (Ctrl+${shortcut})`;
+              }
+
               return (
                 <button
                   key={`${mode}-${index}`}
                   onClick={() => setViewMode(mode as ViewMode)}
+                  title={title}
                   className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors outline-none focus:outline-none ring-0 ${
                     effectiveViewMode === mode
                       ? activeClass

@@ -16,6 +16,7 @@ import { Header } from "@/components/layout/Header";
 import { useHomeStore, ProjectState } from "@/store/useHomeStore";
 import { FileSearchDialog } from "@/components/shared/FileSearchDialog";
 import { TextSearchDialog } from "@/components/shared/TextSearchDialog";
+import { ViewMode } from "@/lib/view-config";
 
 export default function Home() {
   const store = useHomeStore();
@@ -68,21 +69,54 @@ export default function Home() {
   // Keyboard shortcuts
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // File Search: Cmd+P or Ctrl+P
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
-        e.preventDefault();
-        setIsFileSearchOpen((prev) => !prev);
+      // Don't trigger shortcuts if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
       }
-      // Text Search: Cmd+F or Ctrl+F
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        setIsTextSearchOpen((prev) => !prev);
+
+      const key = e.key.toLowerCase();
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      if (isCmdOrCtrl) {
+        // Tab Switching
+        const tabShortcuts: Record<string, ViewMode> = {
+          a: "ai",
+          i: "ideas",
+          d: "docs",
+          e: "tests",
+          t: "kanban",
+          r: "review",
+          s: "tools",
+          x: "logs",
+          b: "browser",
+        };
+
+        if (tabShortcuts[key]) {
+          e.preventDefault();
+          store.setViewMode(tabShortcuts[key]);
+        }
+
+        // File Search: Cmd+P or Ctrl+P
+        if (key === "p") {
+          e.preventDefault();
+          setIsFileSearchOpen((prev) => !prev);
+        }
+        // Text Search: Cmd+F or Ctrl+F
+        if (key === "f") {
+          e.preventDefault();
+          setIsTextSearchOpen((prev) => !prev);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, []);
+  }, [store]);
 
   return (
     <div className="flex flex-col w-full h-full">
