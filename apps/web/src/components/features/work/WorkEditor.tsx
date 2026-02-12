@@ -97,7 +97,8 @@ export function WorkEditor({
 
   // Extract plan path from task file content
   const planPath = React.useMemo(() => {
-    const isTaskView = viewMode === "tasks" || viewMode === "kanban";
+    const isTaskView =
+      viewMode === "tasks" || viewMode === "kanban" || viewMode === "ai";
     if (!file?.content || !isTaskView) return null;
 
     // Check frontmatter with flexible line endings
@@ -120,7 +121,8 @@ export function WorkEditor({
 
   // Extract summary path from task file content
   const summaryPath = React.useMemo(() => {
-    const isTaskView = viewMode === "tasks" || viewMode === "kanban";
+    const isTaskView =
+      viewMode === "tasks" || viewMode === "kanban" || viewMode === "ai";
     if (!file?.content || !isTaskView) return null;
 
     // Check frontmatter with flexible line endings

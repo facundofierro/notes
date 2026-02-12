@@ -166,7 +166,7 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
               .then((data) => setFileContent(data.content))
               .catch(console.error);
           }}
-          viewMode="tasks"
+          viewMode={store.getProjectState().viewMode}
           selectedRepo={session.projectName || store.selectedRepo}
           basePath={store.basePath}
           projectPath={projectPath}

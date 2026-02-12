@@ -170,6 +170,8 @@ export function AIRightSidebar({
         bg: "bg-blue-900/10",
         ring: "focus-within:ring-blue-600/50",
         dot: "bg-blue-500",
+        text: "text-blue-500",
+        active: "bg-blue-500/10 text-blue-500",
       };
     }
     if (["logs", "browser", "tests"].includes(viewMode)) {
@@ -178,6 +180,8 @@ export function AIRightSidebar({
         bg: "bg-green-900/10",
         ring: "focus-within:ring-green-600/50",
         dot: "bg-green-500",
+        text: "text-green-500",
+        active: "bg-green-500/10 text-green-500",
       };
     }
     return {
@@ -185,6 +189,8 @@ export function AIRightSidebar({
       bg: "bg-amber-900/10",
       ring: "focus-within:ring-amber-600/50",
       dot: "bg-amber-500",
+      text: "text-amber-500",
+      active: "bg-amber-500/10 text-amber-500",
     };
   }, [viewMode]);
 
@@ -1019,7 +1025,7 @@ Cancelled`
       <div
         key={tool.name}
         onMouseEnter={() => ensureModelsForTool(tool.name)}
-        className={`flex flex-col w-full rounded-lg border overflow-hidden ${tool.available ? (isHighlighted ? `${theme.border} ${theme.bg} shadow-lg` : "border-border bg-secondary") : "opacity-50"}`}
+        className={`flex flex-col w-full rounded-lg border overflow-hidden transition-all ${tool.available ? (isHighlighted ? `${theme.border} ${theme.active} shadow-lg` : "border-border bg-secondary hover:border-border/80") : "opacity-50"}`}
       >
         <button
           onClick={handleClick}
@@ -1033,14 +1039,14 @@ Cancelled`
           className="flex-1 px-3 py-3 text-left group relative"
         >
           <div className="flex gap-2 items-center mb-0.5 pr-5">
-            <div className="text-sm font-medium group-hover:text-white truncate">
+            <div className={`text-sm font-medium group-hover:text-white truncate ${isHighlighted ? theme.text : ""}`}>
               {tool.displayName}
             </div>
             {isHighlighted && (
               <div className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse shrink-0`} />
             )}
           </div>
-          <div className="absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors">
+          <div className={`absolute top-3.5 right-3 text-muted-foreground group-hover:text-white transition-colors ${isHighlighted ? theme.text : ""}`}>
             {getToolIcon(tool.type)}
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -1230,16 +1236,16 @@ Cancelled`
               Terminal
             </button>
           ) : (
-            <div className="flex flex-1 p-1 rounded-lg border border-border bg-background">
+            <div className={`flex flex-1 p-1 rounded-lg border bg-background ${theme.border}`}>
               <button
                 onClick={() => setDocAiMode("modify")}
-                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${docAiMode === "modify" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground"}`}
+                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${docAiMode === "modify" ? `${theme.active} shadow-sm` : "text-muted-foreground hover:text-foreground"}`}
               >
                 Modify
               </button>
               <button
                 onClick={() => setDocAiMode("start")}
-                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${docAiMode === "start" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground"}`}
+                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${docAiMode === "start" ? `${theme.active} shadow-sm` : "text-muted-foreground hover:text-foreground"}`}
               >
                 {file?.path.includes("/epics/") || viewMode === "epics"
                   ? "Create tasks"
@@ -1250,7 +1256,7 @@ Cancelled`
                 file?.path.includes("/tasks/")) && (
                 <button
                   onClick={() => setDocAiMode("plan")}
-                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${docAiMode === "plan" ? "bg-secondary text-white shadow-sm" : "text-muted-foreground"}`}
+                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${docAiMode === "plan" ? `${theme.active} shadow-sm` : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Plan
                 </button>
