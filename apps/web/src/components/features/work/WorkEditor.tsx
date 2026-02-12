@@ -234,7 +234,7 @@ export function WorkEditor({
       // Clear plan file when not in plan view
       setPlanLoading(false);
     }
-  }, [taskSubView, planPath, projectPath, basePath, selectedRepo, planFile]);
+  }, [taskSubView, planPath, projectPath, basePath, selectedRepo]);
 
   // Fetch summary content when switching to summary view
   React.useEffect(() => {
@@ -282,14 +282,7 @@ export function WorkEditor({
     } else if (taskSubView !== "summary") {
       setSummaryLoading(false);
     }
-  }, [
-    taskSubView,
-    summaryPath,
-    projectPath,
-    basePath,
-    selectedRepo,
-    summaryFile,
-  ]);
+  }, [taskSubView, summaryPath, projectPath, basePath, selectedRepo]);
 
   const handleSaveFile = async (opts: { path: string; content: string }) => {
     if (onSave) {
