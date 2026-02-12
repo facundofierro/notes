@@ -185,7 +185,7 @@ const ChangesCentralArea = ({
             <div className="mt-8 grid grid-cols-2 gap-4 w-full max-w-lg">
               <div className="p-4 border border-border rounded-lg bg-secondary/5 text-left">
                 <div className="font-medium mb-1 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                   Security Audit
                 </div>
                 <div className="text-xs opacity-70">
