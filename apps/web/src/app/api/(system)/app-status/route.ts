@@ -225,6 +225,8 @@ export async function GET(request: NextRequest) {
     let gitStatus = { ahead: 0, behind: 0, hasChanges: false, branch: "" };
     if (project.path) {
       try {
+        // hasChanges = true only for working-tree changes (staged/modified/untracked/unmerged).
+        // ahead/behind is tracked separately and does NOT affect hasChanges.
         const { stdout: statusOutput } = await execAsync(
           `git status --porcelain=v2 -b -u`,
           { cwd: project.path },

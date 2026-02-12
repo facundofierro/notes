@@ -1,5 +1,5 @@
 ---
-summary: .agelum/work/summaries/fix-local-changes-status-1770901473999.md
+summary: .agelum/work/summaries/fix-local-changes-status-1770903989797.md
 plan: .agelum/work/plans/fix-local-changes-status-1770901158138.md
 ---
 # Fix Git Status Indicators and Refresh Spinning

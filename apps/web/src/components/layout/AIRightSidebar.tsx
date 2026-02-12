@@ -917,10 +917,8 @@ Cancelled`
     recognition.start();
   }, [isRecording, setPromptText]);
 
-  const handleFileUpload = React.useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+  const uploadAndInsertImage = React.useCallback(
+    async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
       try {
@@ -932,8 +930,7 @@ Cancelled`
         if (data.path) {
           setPromptText((prev) =>
             prev
-              ? `${prev}
-![${data.name}](${data.path})`
+              ? `${prev}\n![${data.name}](${data.path})`
               : `![${data.name}](${data.path})`,
           );
         }
@@ -942,6 +939,34 @@ Cancelled`
       }
     },
     [setPromptText],
+  );
+
+  const handleFileUpload = React.useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        await uploadAndInsertImage(file);
+      }
+    },
+    [uploadAndInsertImage],
+  );
+
+  const handlePaste = React.useCallback(
+    async (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            await uploadAndInsertImage(file);
+          }
+        }
+      }
+    },
+    [uploadAndInsertImage],
   );
 
   const handleCopyFullPrompt = React.useCallback(() => {
@@ -1276,6 +1301,7 @@ Cancelled`
                   fetchFiles();
                 }
               }}
+              onPaste={handlePaste}
               className="px-3 py-2 w-full h-32 text-sm bg-transparent resize-none text-foreground focus:outline-none"
               placeholder="Write a prompt…"
             />

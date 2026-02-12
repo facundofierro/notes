@@ -59,17 +59,44 @@ export function LocalChangesPanel({
   selectedFile,
   className,
 }: LocalChangesPanelProps) {
-  const viewMode = useHomeStore((s) => s.projectStates[s.selectedRepo || ""]?.viewMode || "review");
+  const selectedRepo = useHomeStore((s) => s.selectedRepo);
+  const projectState = useHomeStore((s) => s.projectStates[selectedRepo || ""]);
+  const viewMode = projectState?.viewMode || "review";
+  const gitStatus = projectState?.gitStatus;
   const themeColor = getViewModeColor(viewMode);
-  const setProjectState = useHomeStore((s) => s.setProjectState);
   const [status, setStatus] = React.useState<GitStatus | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [commitMessage, setCommitMessage] = React.useState("");
   const [generating, setGenerating] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
   const abortRef = React.useRef<AbortController | null>(null);
+  const lastFetchRef = React.useRef<number>(0);
+  const MIN_FETCH_INTERVAL = 1000; // 1 second
 
-  const fetchStatus = React.useCallback(async () => {
+  const [lastUpdatedText, setLastUpdatedText] = React.useState<string>("");
+
+  React.useEffect(() => {
+    const updateTime = () => {
+      if (!gitStatus?.lastPolledAt) {
+        setLastUpdatedText("");
+        return;
+      }
+      const seconds = Math.floor((Date.now() - gitStatus.lastPolledAt) / 1000);
+      if (seconds < 5) setLastUpdatedText("Just now");
+      else if (seconds < 60) setLastUpdatedText(`${seconds}s ago`);
+      else setLastUpdatedText(`${Math.floor(seconds / 60)}m ago`);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 10000);
+    return () => clearInterval(interval);
+  }, [gitStatus?.lastPolledAt]);
+
+  const fetchStatus = React.useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchRef.current < MIN_FETCH_INTERVAL) return;
+    lastFetchRef.current = now;
+
     // Cancel any in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -86,16 +113,6 @@ export function LocalChangesPanel({
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
-
-        // Update global store git status for indicators
-        setProjectState(() => ({
-          gitStatus: {
-            ahead: data.ahead || 0,
-            behind: data.behind || 0,
-            hasChanges: (data.files || []).length > 0,
-            branch: data.branch || "",
-          },
-        }));
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
@@ -105,10 +122,10 @@ export function LocalChangesPanel({
       clearTimeout(timeout);
       setRefreshing(false);
     }
-  }, [repoPath, setProjectState]);
+  }, [repoPath]);
 
   React.useEffect(() => {
-    fetchStatus();
+    fetchStatus(true);
     return () => {
       abortRef.current?.abort();
     };
@@ -221,14 +238,14 @@ export function LocalChangesPanel({
         {/* Left: Branch Info */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <BranchSwitcher
-            currentBranch={status?.branch || "..."}
+            currentBranch={gitStatus?.branch || status?.branch || "..."}
             repoPath={repoPath}
             onBranchChanged={fetchStatus}
           >
             <div className="flex items-center gap-1.5 cursor-pointer hover:bg-secondary/50 px-2 py-1 rounded-lg transition-all group/branch">
               <GitBranch className="w-3.5 h-3.5 text-muted-foreground group-hover/branch:text-primary transition-colors" />
               <span className="text-sm font-bold truncate text-foreground">
-                {status?.branch || "..."}
+                {gitStatus?.branch || status?.branch || "..."}
               </span>
             </div>
           </BranchSwitcher>
@@ -236,8 +253,13 @@ export function LocalChangesPanel({
 
         {/* Right: Actions Row (Refresh, Pull, Push) */}
         <div className="flex items-center gap-1 flex-shrink-0 ml-2 border-l border-border pl-1.5">
+          {lastUpdatedText && (
+            <span className="text-[10px] text-muted-foreground mr-1 hidden sm:inline opacity-50">
+              {lastUpdatedText}
+            </span>
+          )}
           <button
-            onClick={fetchStatus}
+            onClick={() => fetchStatus(true)}
             disabled={refreshing}
             className={`p-1.5 hover:bg-secondary rounded-full ${refreshing ? "animate-spin" : ""} text-muted-foreground hover:text-foreground transition-colors`}
             title="Refresh Status"
@@ -252,7 +274,7 @@ export function LocalChangesPanel({
             title="Pull Changes"
           >
             <ArrowDown className="w-3.5 h-3.5" />
-            <span>{status?.behind || 0}</span>
+            <span>{gitStatus?.behind ?? status?.behind ?? 0}</span>
           </button>
           <button
             onClick={handlePush}
@@ -261,7 +283,7 @@ export function LocalChangesPanel({
             title="Push Changes"
           >
             <ArrowUp className="w-3.5 h-3.5" />
-            <span>{status?.ahead || 0}</span>
+            <span>{gitStatus?.ahead ?? status?.ahead ?? 0}</span>
           </button>
         </div>
       </div>
