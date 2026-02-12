@@ -67,11 +67,22 @@ export function LocalChangesPanel({
   const [commitMessage, setCommitMessage] = React.useState("");
   const [generating, setGenerating] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   const fetchStatus = React.useCallback(async () => {
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // 15-second timeout so the spinner never runs indefinitely
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
     try {
       setRefreshing(true);
-      const res = await fetch(`/api/git?path=${encodeURIComponent(repoPath)}`);
+      const res = await fetch(`/api/git?path=${encodeURIComponent(repoPath)}`, {
+        signal: controller.signal,
+      });
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
@@ -87,16 +98,20 @@ export function LocalChangesPanel({
         }));
       }
     } catch (e) {
-      console.error("Failed to fetch git status", e);
+      if ((e as Error).name !== "AbortError") {
+        console.error("Failed to fetch git status", e);
+      }
     } finally {
+      clearTimeout(timeout);
       setRefreshing(false);
     }
   }, [repoPath, setProjectState]);
 
   React.useEffect(() => {
     fetchStatus();
-    // Poll every 10s? Or rely on manual refresh/actions?
-    // Let's rely on actions for now + manual refresh
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [fetchStatus]);
 
   const handleStage = async (file: string) => {
@@ -159,22 +174,32 @@ export function LocalChangesPanel({
 
   const handlePush = async () => {
     setLoading(true);
-    await fetch("/api/git", {
-      method: "POST",
-      body: JSON.stringify({ action: "push", repoPath }),
-    });
-    setLoading(false);
-    fetchStatus();
+    try {
+      await fetch("/api/git", {
+        method: "POST",
+        body: JSON.stringify({ action: "push", repoPath }),
+      });
+    } catch (e) {
+      console.error("Push failed", e);
+    } finally {
+      setLoading(false);
+      fetchStatus();
+    }
   };
 
   const handlePull = async () => {
     setLoading(true);
-    await fetch("/api/git", {
-      method: "POST",
-      body: JSON.stringify({ action: "pull", repoPath }),
-    });
-    setLoading(false);
-    fetchStatus();
+    try {
+      await fetch("/api/git", {
+        method: "POST",
+        body: JSON.stringify({ action: "pull", repoPath }),
+      });
+    } catch (e) {
+      console.error("Pull failed", e);
+    } finally {
+      setLoading(false);
+      fetchStatus();
+    }
   };
 
   const stagedFiles = status?.files.filter((f) => f.status === "staged") || [];

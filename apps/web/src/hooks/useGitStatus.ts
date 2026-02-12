@@ -36,7 +36,9 @@ export function useGitStatusPoller() {
             isAppRunning: data.isRunning,
             isAppManaged: data.isManaged,
             appPid: data.pid || null,
-            gitStatus: data.gitStatus || null,
+            gitStatus: data.gitStatus
+              ? { ...data.gitStatus, lastPolledAt: Date.now() }
+              : null,
           }));
         }
       } catch (e) {

@@ -158,10 +158,7 @@ export function Header() {
 
               const { gitStatus } = store.getProjectState();
               const hasGitChanges =
-                mode === "review" &&
-                (gitStatus?.hasChanges ||
-                  (gitStatus?.ahead || 0) > 0 ||
-                  (gitStatus?.behind || 0) > 0);
+                mode === "review" && gitStatus?.hasChanges === true;
 
               const shortcutMap: Record<string, string> = {
                 ai: "A",

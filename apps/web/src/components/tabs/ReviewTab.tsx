@@ -906,9 +906,7 @@ export function ReviewTab() {
             title="Local Changes"
           >
             <GitBranch className="w-5 h-5" />
-            {(store.getProjectState().gitStatus?.hasChanges ||
-              (store.getProjectState().gitStatus?.ahead || 0) > 0 ||
-              (store.getProjectState().gitStatus?.behind || 0) > 0) && (
+            {store.getProjectState().gitStatus?.hasChanges === true && (
               <span
                 className={`absolute top-2 right-1/2 translate-x-4 w-2.5 h-2.5 ${themeColor.dot} rounded-full border-2 border-background shadow-[0_0_10px_rgba(59,130,246,0.6)]`}
               />

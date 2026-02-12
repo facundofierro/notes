@@ -87,6 +87,7 @@ export interface ProjectState {
     behind: number;
     hasChanges: boolean;
     branch: string;
+    lastPolledAt?: number;
   } | null;
 }
 
