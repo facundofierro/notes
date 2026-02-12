@@ -507,7 +507,14 @@ export function ReviewTab() {
 
   const [fileTree, setFileTree] = React.useState<FileNode | null>(null);
   const [leftSidebarView, setLeftSidebarView] =
-    React.useState<LeftSidebarView>("files");
+    React.useState<LeftSidebarView>("changes");
+
+  // Sync leftSidebarView with viewMode to default to "changes" when entering Review mode
+  React.useEffect(() => {
+    if (viewMode === "review") {
+      setLeftSidebarView("changes");
+    }
+  }, [viewMode]);
 
   // -- Files View State --
   const [tabs, setTabs] = React.useState<any[]>([
