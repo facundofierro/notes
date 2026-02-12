@@ -36,6 +36,21 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     listModelsCommand: null,
     promptFlag: null,
   },
+  auggie: {
+    name: "Auggie CLI",
+    command: "auggie",
+    type: "cli",
+    modelFlag: "--model",
+    listModelsCommand: null,
+    promptFlag: "--print",
+    supportedModels: [
+      "claude-haiku-4.5",
+      "claude-opus-4.5",
+      "claude-sonnet-4.5",
+      "gpt-5.1",
+      "gpt-5.2",
+    ],
+  },
   cursor: {
     name: "Cursor",
     command: "cursor-agent",
@@ -252,7 +267,7 @@ export async function getModelsForTool(
   const tool = AGENT_TOOLS[toolName];
 
   if (!tool.listModelsCommand) {
-    return [];
+    return tool.supportedModels ? [...tool.supportedModels] : [];
   }
 
   try {
