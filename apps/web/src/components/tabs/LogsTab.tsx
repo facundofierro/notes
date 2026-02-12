@@ -12,17 +12,13 @@ const TerminalViewer = dynamic(
 );
 
 export function LogsTab() {
-  const { terminals, activeTerminalId } = useHomeStore((s) => {
+  const terminals = useHomeStore((s) => {
     const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
-    return {
-      terminals: pState?.terminals || [],
-      activeTerminalId: pState?.activeTerminalId || "logs",
-    };
-  }, (oldVal, newVal) => {
-    return (
-      oldVal.terminals === newVal.terminals &&
-      oldVal.activeTerminalId === newVal.activeTerminalId
-    );
+    return pState?.terminals || [];
+  });
+  const activeTerminalId = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return pState?.activeTerminalId || "logs";
   });
 
   const setActiveTerminalId = useHomeStore((s) => s.setActiveTerminalId);

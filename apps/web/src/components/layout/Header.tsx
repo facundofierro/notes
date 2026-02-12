@@ -39,25 +39,26 @@ export function Header() {
   // Defer persisted viewMode until after hydration to avoid SSR mismatch
   const [hasMounted, setHasMounted] = React.useState(false);
 
-  const { viewMode, isAppRunning, isAppManaged, lastTerminalActivity, gitStatus } =
-    useHomeStore((s) => {
-      const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
-      return {
-        viewMode: pState?.viewMode || "kanban",
-        isAppRunning: pState?.isAppRunning || false,
-        isAppManaged: pState?.isAppManaged || false,
-        lastTerminalActivity: pState?.lastTerminalActivity || 0,
-        gitStatus: pState?.gitStatus || null,
-      };
-    }, (oldVal, newVal) => {
-      return (
-        oldVal.viewMode === newVal.viewMode &&
-        oldVal.isAppRunning === newVal.isAppRunning &&
-        oldVal.isAppManaged === newVal.isAppManaged &&
-        oldVal.lastTerminalActivity === newVal.lastTerminalActivity &&
-        oldVal.gitStatus?.hasChanges === newVal.gitStatus?.hasChanges
-      );
-    });
+  const viewMode = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return pState?.viewMode || "kanban";
+  });
+  const isAppRunning = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return pState?.isAppRunning || false;
+  });
+  const isAppManaged = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return pState?.isAppManaged || false;
+  });
+  const lastTerminalActivity = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return pState?.lastTerminalActivity || 0;
+  });
+  const gitStatus = useHomeStore((s) => {
+    const pState = s.selectedRepo ? s.projectStates[s.selectedRepo] : null;
+    return pState?.gitStatus || null;
+  });
   const [isTerminalReceiving, setIsTerminalReceiving] = React.useState(false);
 
   React.useEffect(() => setHasMounted(true), []);
