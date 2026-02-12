@@ -14,6 +14,10 @@
     "web:dev": "pnpm --filter @agelum/web dev",
     "web:build": "pnpm --filter @agelum/web build",
     "web:start": "pnpm --filter @agelum/web start",
+    "chrome:dev": "pnpm --filter @agelum/chrome-plugin dev",
+    "chrome:build": "pnpm --filter @agelum/chrome-plugin build",
+    "site:dev": "pnpm --filter @agelum/site dev",
+    "site:build": "pnpm --filter @agelum/site build",
     "electron:dev": "pnpm --filter @agelum/electron dev",
     "electron:start": "pnpm --filter @agelum/electron start",
     "electron:build": "pnpm --filter @agelum/electron build"

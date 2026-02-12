@@ -35,6 +35,14 @@ export interface ApiKeyConfig {
   baseURL?: string;
 }
 
+export interface PluginApiKey {
+  id: string;
+  key: string; // SHA-256 hash
+  name: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
 export interface UserSettings {
   theme: "light" | "dark" | "system";
   language: string;
@@ -61,6 +69,7 @@ export interface UserSettings {
   aiModel: string;
   aiProvider: string;
   apiKeys: ApiKeyConfig[];
+  pluginApiKeys?: PluginApiKey[];
   projects: ProjectConfig[];
   enabledAgents: string[];
   stagehandApiKey: string;

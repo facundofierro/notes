@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   Terminal,
   Eye,
+  Key,
 } from "lucide-react";
 import { SettingsProjects } from "./SettingsProjects";
 import { SettingsAgents } from "./SettingsAgents";
@@ -21,6 +22,7 @@ import { SettingsDefaults } from "./SettingsDefaults";
 import { SettingsWorkflows } from "./SettingsWorkflows";
 import { ProjectSettings } from "./ProjectSettings";
 import { SettingsLLM } from "./SettingsLLM";
+import { SettingsPlugin } from "./SettingsPlugin";
 import { useHomeStore } from "@/store/useHomeStore";
 
 interface SettingsDialogProps {
@@ -41,6 +43,7 @@ type Tab =
   | "project-config"
   | "project-commands"
   | "project-preview"
+  | "plugin"
   | "llm";
 
 export function SettingsDialog({
@@ -195,6 +198,12 @@ export function SettingsDialog({
       hidden: !!projectName,
     },
     {
+      id: "plugin",
+      label: "Chrome Plugin",
+      icon: Key,
+      hidden: !!projectName,
+    },
+    {
       id: "defaults",
       label: "Global Defaults",
       icon: SettingsIcon,
@@ -308,6 +317,9 @@ export function SettingsDialog({
           )}
           {activeTab === "llm" && (
             <SettingsLLM settings={localSettings} onChange={handleChange} />
+          )}
+          {activeTab === "plugin" && (
+            <SettingsPlugin />
           )}
           {activeTab === "workflows" && (
             <SettingsWorkflows

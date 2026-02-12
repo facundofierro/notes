@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Agelum Issue Reporter",
+  "version": "0.1.0",
+  "description": "Report issues directly from your browser to Agelum.",
+  "permissions": ["activeTab", "sidePanel", "storage", "tabs"],
+  "action": {
+    "default_popup": "popup/index.html"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": ["<all_urls>"]
+}
