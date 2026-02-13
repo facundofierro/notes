@@ -28,5 +28,4 @@ linux:
   target:
     - target: AppImage
     - target: deb
-    - target: rpm
   category: Development
