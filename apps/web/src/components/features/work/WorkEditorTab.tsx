@@ -81,6 +81,21 @@ export function WorkEditorTab({
     );
   }, [repositories, selectedRepo, settings.projects]);
 
+  const handleRefresh = React.useCallback(async () => {
+    if (!selectedFile?.path) return;
+    try {
+      const res = await fetch(
+        `/api/file?path=${encodeURIComponent(selectedFile.path)}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        handleFileChange({ path: selectedFile.path, content: data.content });
+      }
+    } catch (error) {
+      console.error("Failed to refresh file:", error);
+    }
+  }, [selectedFile, handleFileChange]);
+
   if (!selectedFile) return null;
 
   return (
@@ -89,7 +104,7 @@ export function WorkEditorTab({
       onFileChange={handleFileChange}
       onBack={onBack}
       onRename={onRename}
-      onRefresh={onRefresh}
+      onRefresh={onRefresh || handleRefresh}
       viewMode={viewMode}
       selectedRepo={selectedRepo}
       basePath={basePath}

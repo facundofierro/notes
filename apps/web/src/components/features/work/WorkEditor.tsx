@@ -169,9 +169,31 @@ export function WorkEditor({
         return merged;
       });
 
-      // Invalidate cached file content so re-navigating fetches fresh data
-      if (newPulses.has("plan")) setPlanFile(null);
-      if (newPulses.has("summary")) setSummaryFile(null);
+      // Handle Task Refresh: if active view is task and it changed, refresh
+      if (newPulses.has("task") && taskSubView === "task") {
+        console.log("[WorkEditor] Task modified while active, refreshing...");
+        onRefresh?.();
+      }
+
+      // Handle Plan: switch to plan if it was created (detected), or refresh if active
+      if (newPulses.has("plan")) {
+        console.log("[WorkEditor] Plan change detected");
+        setPlanFile(null); // Invalidate cache to trigger re-fetch
+        if (taskSubView !== "plan") {
+          console.log("[WorkEditor] Switching to Plan view");
+          setTaskSubView("plan");
+        }
+      }
+
+      // Handle Summary: switch to summary if it was created (detected), or refresh if active
+      if (newPulses.has("summary")) {
+        console.log("[WorkEditor] Summary change detected");
+        setSummaryFile(null); // Invalidate cache to trigger re-fetch
+        if (taskSubView !== "summary") {
+          console.log("[WorkEditor] Switching to Summary view");
+          setTaskSubView("summary");
+        }
+      }
 
       const timeout = setTimeout(() => {
         setPulseTabs((prev) => {
@@ -183,7 +205,15 @@ export function WorkEditor({
 
       return () => clearTimeout(timeout);
     }
-  }, [lastChangeDetected, file.path, planPath, summaryPath, resolveAbsPath]);
+  }, [
+    lastChangeDetected,
+    file.path,
+    planPath,
+    summaryPath,
+    resolveAbsPath,
+    onRefresh,
+    taskSubView,
+  ]);
 
   // Extract tests path from task file content
   React.useEffect(() => {
@@ -383,14 +413,14 @@ export function WorkEditor({
 
   const pulseStyle = `
     @keyframes tab-pulse-highlight {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-      50% { box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.5); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+      50% { box-shadow: 0 0 8px 2px rgba(168, 85, 247, 0.5); }
     }
   `;
 
   const getPulseClass = (tab: string) =>
     pulseTabs.has(tab)
-      ? "ring-1 ring-blue-500/70 shadow-[0_0_8px_2px_rgba(59,130,246,0.4)]"
+      ? "ring-1 ring-purple-500/70 shadow-[0_0_8px_2px_rgba(168,85,247,0.4)]"
       : "";
 
   const headerCenter = showTaskSwitcher ? (

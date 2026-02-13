@@ -9,7 +9,7 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Agelum - AI Document Manager",
+  title: "Agelum Notes",
   description: "Manage AI documents inside development projects",
 };
 
