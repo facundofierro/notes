@@ -838,6 +838,7 @@ export function BrowserTab({ repoName }: { repoName: string }) {
           onToolSelect={setSelectedToolLocal}
           onTaskCreated={() => {}}
           screenshotDisplaySize={screenshotDisplaySize}
+          currentUrl={iframeUrl || ""}
         />
       )}
     </div>

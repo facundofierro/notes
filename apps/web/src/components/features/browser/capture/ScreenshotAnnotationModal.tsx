@@ -269,43 +269,6 @@ export function ScreenshotAnnotationModal({
               )}
           </svg>
 
-          {/* Annotation badges */}
-          {annotations.map((ann) => {
-            let badgeX, badgeY;
-            if (
-              ann.type === "arrow" &&
-              ann.endX !== undefined &&
-              ann.endY !== undefined
-            ) {
-              badgeX = ann.endX + 15;
-              badgeY = ann.endY - 15;
-            } else {
-              badgeX = (ann.x || 0) + (ann.width || 0) + 15;
-              badgeY = (ann.y || 0) - 15;
-            }
-
-            return (
-              <div
-                key={`badge-${ann.id}`}
-                className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-[10px] border-2 font-medium pointer-events-auto cursor-pointer transition-all ${
-                  selectedAnnotationId === ann.id
-                    ? "bg-white text-black border-white scale-110"
-                    : "bg-black text-white border-white"
-                }`}
-                style={{
-                  left: badgeX,
-                  top: badgeY,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectAnnotation(ann.id);
-                }}
-              >
-                {ann.id}
-              </div>
-            );
-          })}
-
           {/* Remove label for remove annotations */}
           {annotations.map((ann) => {
             if (ann.type === "remove") {

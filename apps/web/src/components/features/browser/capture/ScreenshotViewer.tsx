@@ -1,10 +1,7 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import { Square, Trash2, ArrowRight, X, CheckCircle2 } from "lucide-react";
 import { Annotation, AnnotationType } from "@/types/entities";
-import {
-  computeArrowheadPoints,
-  ANNOTATION_COLORS,
-} from "@agelum/annotation";
+import { computeArrowheadPoints, ANNOTATION_COLORS } from "@agelum/annotation";
 
 interface ScreenshotViewerProps {
   screenshot: string;
@@ -306,45 +303,6 @@ export function ScreenshotViewer({
                 />
               )}
           </svg>
-
-          {/* Annotation badges */}
-          {annotations.map((ann) => {
-            const isSelected = selectedAnnotationId === ann.id;
-            const imgLeft = screenshotImageRef.current?.offsetLeft || 0;
-            const imgTop = screenshotImageRef.current?.offsetTop || 0;
-            const badgeX = (ann.x || 0) + imgLeft;
-            const badgeY = (ann.y || 0) + imgTop;
-
-            const badgeBgMap = {
-              modify: "bg-orange-500",
-              remove: "bg-red-600",
-              arrow: "bg-blue-600",
-            } as const;
-            const bgColor = badgeBgMap[ann.type] || "bg-slate-700";
-            const glowColor = ANNOTATION_COLORS[ann.type]?.glow || "rgba(0,0,0,0.3)";
-
-            return (
-              <div
-                key={`badge-${ann.id}`}
-                className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-[10px] border-2 border-white text-white font-bold pointer-events-auto cursor-pointer transition-all -translate-x-1/2 -translate-y-1/2 ${bgColor} ${
-                  isSelected ? "scale-110 z-10" : "hover:scale-105"
-                }`}
-                style={{
-                  left: badgeX,
-                  top: badgeY,
-                  boxShadow: isSelected
-                    ? `0 0 12px 4px ${glowColor}`
-                    : `0 2px 4px rgba(0,0,0,0.3)`,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectAnnotation(ann.id);
-                }}
-              >
-                {ann.id}
-              </div>
-            );
-          })}
 
           {/* Remove label for remove annotations */}
           {annotations.map((ann) => {

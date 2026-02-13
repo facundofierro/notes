@@ -21,6 +21,25 @@ export interface PanelProps {
   screenshotDisplaySize?: { width: number; height: number } | null;
   onRequestCapture?: () => Promise<string | null>;
   onTaskCreated?: () => void;
+  currentUrl?: string;
+}
+
+export type Mode = "screen" | "properties" | "prompt";
+
+export interface ChangeEntry {
+  id: string;
+  timestamp: string;
+  selector: string;
+  property: string;
+  previousValue: string;
+  nextValue: string;
+  source: "props" | "css";
+}
+
+export interface ElementSelectionInfo {
+  selector: string;
+  tagName: string;
+  textSnippet: string;
 }
 
 export interface PanelDefinition {

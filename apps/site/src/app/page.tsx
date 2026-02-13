@@ -100,13 +100,6 @@ const downloadPlans = [
 export default function HomePage() {
   return (
     <main>
-      <header className="container top-nav fade-in">
-        <div className="brand-logo" aria-label="Agelum notes">
-          <span className="brand-agelum">Agelum</span>
-          <span className="brand-notes">notes</span>
-        </div>
-      </header>
-
       <section className="hero section">
         <div className="container hero-content">
           <div className="fade-in text-center">
@@ -225,12 +218,6 @@ export default function HomePage() {
               Replace scattered docs and rigid PM tools with a markdown-native workspace. Customize your workflow,
               extend with plugins, and run everything from the Agelum CLI.
             </p>
-            <div className="hero-ctas">
-              <a className="btn btn-primary" href="#download">
-                Download for Free
-              </a>
-            </div>
-            <span className="trust">Free download • macOS • Windows • Linux</span>
           </div>
         </div>
       </section>

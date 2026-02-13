@@ -116,6 +116,7 @@ export function TaskPanel({
   selectedTool,
   onToolSelect,
   screenshotDisplaySize,
+  currentUrl,
 }: PanelProps) {
   const [mode, setMode] = useState<Mode>("screen");
 
@@ -1036,6 +1037,7 @@ export function TaskPanel({
       if (mode === "screen") {
         taskTitle = `UI Fixes`;
         taskBody = `Source: Browser Screenshot
+URL: ${currentUrl || "N/A"}
 
 `;
 
@@ -1072,12 +1074,12 @@ ${generalPrompt}
 
             let actionPhrase = "we want to do this modification:";
             if (ann.type === "remove") {
-              actionPhrase = "we need to remove these components.";
+              actionPhrase = "remove these components.";
             } else if (ann.type === "arrow") {
               actionPhrase = "we need to move that.";
             }
 
-            taskBody += `${ann.id}. Where is the ${colorName} ${shapeName} with number ${ann.id} ${actionPhrase} ${promptValue || "No instructions provided."}
+            taskBody += `${ann.id}. Analize the image above and where is the ${colorName} ${shapeName} with number ${ann.id} ${actionPhrase} ${promptValue || ""}
 `;
           });
           taskBody += `
@@ -1085,10 +1087,11 @@ ${generalPrompt}
         }
       } else if (mode === "prompt") {
         taskTitle = `Browser Task`;
-        taskBody = promptText;
+        taskBody = `URL: ${currentUrl || "N/A"}\n\n${promptText}`;
       } else if (mode === "properties") {
         taskTitle = `Style Tweaks`;
         taskBody = `Source: Browser Properties Editor
+URL: ${currentUrl || "N/A"}
 
 `;
         if (selectedElementInfo) {
