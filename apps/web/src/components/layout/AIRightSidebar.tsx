@@ -824,8 +824,18 @@ Cancelled`
 
   const uploadAndInsertImage = React.useCallback(
     async (file: File) => {
+      const projectCwd =
+        projectPath ||
+        (basePath && selectedRepo
+          ? `${basePath}/${selectedRepo}`.replace(/\/+/g, "/")
+          : undefined);
+
       const formData = new FormData();
       formData.append("file", file);
+      if (projectCwd) {
+        formData.append("projectPath", projectCwd);
+      }
+
       try {
         const res = await fetch("/api/upload", {
           method: "POST",
@@ -833,17 +843,18 @@ Cancelled`
         });
         const data = await res.json();
         if (data.path) {
+          const displayPath = data.fullPath || data.path;
           setPromptText((prev) =>
             prev
-              ? `${prev}\n![${data.name}](${data.path})`
-              : `![${data.name}](${data.path})`,
+              ? `${prev}\n![${data.name}](${displayPath})`
+              : `![${data.name}](${displayPath})`,
           );
         }
       } catch (error) {
         console.error("Upload failed:", error);
       }
     },
-    [setPromptText],
+    [setPromptText, projectPath, basePath, selectedRepo],
   );
 
   const handleFileUpload = React.useCallback(

@@ -76,7 +76,7 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: null,
-    supportedModels: ["claude-3-5-sonnet"],
+    supportedModels: ["claude-opus-4.6", "claude-sonnet-4.5", "claude-haiku-4.5"],
   },
   gemini: {
     name: "Gemini cli",
@@ -85,7 +85,7 @@ export const AGENT_TOOLS: Record<string, AgentTool> = {
     modelFlag: "--model",
     listModelsCommand: null,
     promptFlag: "-i",
-    supportedModels: ["gemini-1.5-pro", "gemini-1.5-flash"],
+    supportedModels: ["gemini-3", "gemini-2.5"],
   },
   kimi: {
     name: "Kimi",

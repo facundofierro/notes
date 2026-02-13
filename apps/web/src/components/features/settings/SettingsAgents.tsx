@@ -1,7 +1,14 @@
 import * as React from "react";
-import { Switch } from "@agelum/shadcn";
+import {
+  Switch,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@agelum/shadcn";
 import { UserSettings } from "@/hooks/use-settings";
-import { Terminal, Globe, Monitor } from "lucide-react";
+import { Terminal, Globe, Monitor, Settings } from "lucide-react";
 
 interface SettingsAgentsProps {
   settings: UserSettings;
@@ -33,6 +40,24 @@ export function SettingsAgents({ settings, onChange }: SettingsAgentsProps) {
         current.filter((n) => n !== name),
       );
     }
+  };
+
+  const updateToolModel = (toolName: string, model: string) => {
+    const currentSettings = settings.agentToolSettings || {};
+    const toolSettings = currentSettings[toolName] || {
+      defaultPermissions: false,
+      defaultModel: "",
+      cliParameters: "",
+      workflowOverrides: {},
+    };
+
+    onChange("agentToolSettings", {
+      ...currentSettings,
+      [toolName]: {
+        ...toolSettings,
+        defaultModel: model === "default" ? "" : model,
+      },
+    });
   };
 
   const getToolIcon = (type: string) => {
@@ -80,8 +105,23 @@ export function SettingsAgents({ settings, onChange }: SettingsAgentsProps) {
               {tool.available ? "Available" : "Not installed"}
             </div>
             {tool.supportedModels && tool.supportedModels.length > 0 && (
-              <div className="text-[10px] text-muted-foreground/70 truncate">
-                {tool.supportedModels.join(", ")}
+              <div className="mt-1.5">
+                <Select
+                  value={settings.agentToolSettings?.[tool.name]?.defaultModel || "default"}
+                  onValueChange={(v) => updateToolModel(tool.name, v)}
+                >
+                  <SelectTrigger className="h-6 text-[10px] bg-background/30 border-border/50 hover:bg-background/50 transition-colors">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-secondary border-border min-w-[120px]">
+                    <SelectItem value="default" className="text-[10px]">Default</SelectItem>
+                    {tool.supportedModels.map((m: string) => (
+                      <SelectItem key={m} value={m} className="text-[10px]">
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
