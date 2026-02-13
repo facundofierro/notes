@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+
 
 interface ExecutionViewProps {
   executionId: string;
@@ -145,11 +147,12 @@ export function ExecutionView({
                         : "border-white/[0.04] hover:border-white/[0.08]",
                     )}
                   >
-                    <img
+                    <ImageWithFallback
                       src={url}
                       alt={`Screenshot ${i + 1}`}
                       className="w-full h-auto object-contain max-h-[200px] bg-black"
                     />
+
                     <div className="px-3 py-1.5 bg-white/[0.02] text-[10px] text-zinc-500">
                       Step {i + 1}
                     </div>
@@ -212,11 +215,12 @@ export function ExecutionView({
             >
               <X className="w-4 h-4" />
             </Button>
-            <img
+            <ImageWithFallback
               src={selectedScreenshot}
               alt="Screenshot"
               className="max-w-full max-h-[85vh] rounded-xl border border-white/[0.08] shadow-2xl"
             />
+
           </div>
         </div>
       )}

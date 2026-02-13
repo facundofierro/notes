@@ -5,6 +5,8 @@ import { IframeCaptureInjector } from "@/components/features/browser/capture/Ifr
 import { ScreenshotViewer } from "@/components/features/browser/capture/ScreenshotViewer";
 import { useHomeStore, ProjectState } from "@/store/useHomeStore";
 import { toast } from "@agelum/shadcn";
+import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+
 
 export function BrowserTab({ repoName }: { repoName: string }) {
   const isElectron = useHomeStore((s) => s.isElectron);
@@ -675,15 +677,13 @@ export function BrowserTab({ repoName }: { repoName: string }) {
               className={`p-2 rounded-lg transition-colors ${activeBrowserPageIndex === idx ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:bg-accent"}`}
               title={idx === 0 ? "Project Page" : url}
             >
-              {browserPagesFavicons[idx] ? (
-                <img
-                  src={browserPagesFavicons[idx]}
-                  className="w-5 h-5 rounded-sm object-cover"
-                  alt="Tab Icon"
-                />
-              ) : (
-                <Globe className="w-5 h-5" />
-              )}
+              <ImageWithFallback
+                src={browserPagesFavicons[idx]}
+                className="w-5 h-5 rounded-sm object-cover"
+                fallback={<Globe className="w-5 h-5" />}
+              />
+
+
             </button>
           </div>
         ))}

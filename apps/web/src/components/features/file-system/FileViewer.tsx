@@ -13,7 +13,10 @@ import {
   History,
   Copy,
   Check,
+  Image as ImageIcon,
 } from "lucide-react";
+import { ImageWithFallback } from "@/components/shared/ImageWithFallback";
+
 import dynamic from "next/dynamic";
 import { TestSteps } from "../testing/TestSteps";
 import { TestResults } from "../testing/TestResults";
@@ -538,12 +541,22 @@ export default function FileViewer({
             /\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)$/i,
           ) ? (
           <div className="flex justify-center items-center h-full bg-secondary/10">
-            <img
+            <ImageWithFallback
               src={`/api/image?path=${encodeURIComponent(file.path)}`}
               alt={displayedFileName}
               className="max-w-full max-h-full object-contain"
+              fallback={
+                <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 text-center">
+                  <ImageIcon className="w-16 h-16 opacity-20" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Failed to load image</p>
+                    <p className="text-xs opacity-50">The file might be corrupt or the path is incorrect</p>
+                  </div>
+                </div>
+              }
             />
           </div>
+
         ) : displayedFileName.match(/\.(mp4|webm|mov)$/i) ? (
           <div className="flex justify-center items-center h-full bg-secondary/10">
             <video
