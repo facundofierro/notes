@@ -6,5 +6,9 @@
     "start": "pnpm start"
   },
   "url": "http://localhost:6500/",
-  "autoRun": false
+  "autoRun": false,
+  "browserPages": [
+    "https://vercel.com/new/import?buildCommand=turbo%20run%20build&framework=vite&hasTrialAvailable=0&id=1157352113&ignoreBuildCommand=npx%20turbo-ignore&installCommand=pnpm%20install&name=notes&owner=facundofierro&path=apps%2Fchrome-plugin&project-name=notes-chrome-plugin&provider=github&remainingProjects=5&s=https%3A%2F%2Fgithub.com%2Ffacundofierro%2Fnotes&teamSlug=kadiel&totalProjects=5",
+    "https://github.com/facundofierro/notes"
+  ]
 }
