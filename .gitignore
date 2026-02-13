@@ -13,7 +13,7 @@ dist/
 cli/target/
 
 # pnpm
-pnpm-lock.yaml
+# pnpm-lock.yaml (Removed to allow Docker/CI builds)
 
 # OS
 .DS_Store

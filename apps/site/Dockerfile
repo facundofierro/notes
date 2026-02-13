@@ -2,13 +2,12 @@
 FROM node:20-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm install -g pnpm@9.0.0 turbo
-
+RUN npm install -g pnpm@9.0.0
 # Builder stage
 FROM base AS builder
 WORKDIR /app
 COPY . .
-RUN turbo prune @agelum/site --docker
+RUN npx turbo prune @agelum/site --docker
 
 # Installer stage
 FROM base AS installer
