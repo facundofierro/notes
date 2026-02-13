@@ -1,5 +1,6 @@
 appId: com.agelum.notes
 productName: Agelum
+artifactName: "${productName}-${version}-${arch}.${ext}"
 directories:
   output: dist
 files:
@@ -23,6 +24,7 @@ win:
     - target: nsis
     - target: zip
 linux:
+  executableName: agelum
   target:
     - target: AppImage
     - target: deb
