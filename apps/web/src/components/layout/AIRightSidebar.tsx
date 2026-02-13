@@ -75,15 +75,15 @@ export function AIRightSidebar({
   isCentered = false,
 }: AIRightSidebarProps) {
   const { buildToolPrompt } = usePromptBuilder();
-  const {
-    registerTerminalSession,
-    updateTerminalSession,
-    removeTerminalSession,
-    getTerminalSessionForContext,
-    setTabFile,
-    setSelectedFile,
-    setFileModified,
-  } = useHomeStore();
+  const registerTerminalSession = useHomeStore((s) => s.registerTerminalSession);
+  const updateTerminalSession = useHomeStore((s) => s.updateTerminalSession);
+  const removeTerminalSession = useHomeStore((s) => s.removeTerminalSession);
+  const getTerminalSessionForContext = useHomeStore(
+    (s) => s.getTerminalSessionForContext,
+  );
+  const setTabFile = useHomeStore((s) => s.setTabFile);
+  const setSelectedFile = useHomeStore((s) => s.setSelectedFile);
+  const setFileModified = useHomeStore((s) => s.setFileModified);
   const terminalAbortControllerRef = React.useRef<AbortController | null>(null);
   const recognitionRef = React.useRef<any>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -283,34 +283,41 @@ export function AIRightSidebar({
       if (absPath) filesToMonitor.push(absPath);
     }
 
-    const pollStats = async () => {
-      for (const monitorPath of filesToMonitor) {
-        try {
-          const res = await fetch(
-            `/api/file?path=${encodeURIComponent(monitorPath)}&statsOnly=true`,
-          );
-          if (!res.ok) continue;
-          const data = await res.json();
-          if (!data.exists) continue;
+    const isPollingRef = { current: false };
 
-          const knownMtime = knownMtimesRef.current[monitorPath];
-          if (knownMtime !== undefined && data.mtime !== knownMtime) {
-            setFileModified(monitorPath, Date.now());
+    const pollStats = async () => {
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
+      try {
+        for (const monitorPath of filesToMonitor) {
+          try {
+            const res = await fetch(
+              `/api/file?path=${encodeURIComponent(monitorPath)}&statsOnly=true`,
+            );
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (!data.exists) continue;
+
+            const knownMtime = knownMtimesRef.current[monitorPath];
+            if (knownMtime !== undefined && data.mtime !== knownMtime) {
+              setFileModified(monitorPath, Date.now());
+            }
+            knownMtimesRef.current[monitorPath] = data.mtime;
+          } catch {
+            // Ignore polling errors
           }
-          knownMtimesRef.current[monitorPath] = data.mtime;
-        } catch {
-          // Ignore polling errors
         }
+      } finally {
+        isPollingRef.current = false;
       }
     };
 
     // Initial poll to seed known mtimes
     pollStats();
 
-    const intervalId = setInterval(pollStats, 2000);
+    const intervalId = setInterval(pollStats, 5000);
     return () => {
       clearInterval(intervalId);
-      knownMtimesRef.current = {};
     };
   }, [
     isTerminalRunning,

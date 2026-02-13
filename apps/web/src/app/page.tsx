@@ -219,8 +219,8 @@ function ProjectView({
 
   // Check app status once on mount
   React.useEffect(() => {
-    // Skip if this is the selected repo, as the global poller handles it
-    if (repoName === selectedRepo) return;
+    // Only fetch status for the selected repo
+    if (repoName !== selectedRepo) return;
 
     let cancelled = false;
     (async () => {
@@ -246,7 +246,7 @@ function ProjectView({
 
   // Stream logs for this project
   React.useEffect(() => {
-    if (!logStreamPid) return;
+    if (!logStreamPid || repoName !== selectedRepo) return;
     let cancelled = false;
     let hasLoggedRecently = false;
     let startTimeoutId: number | null = null;
@@ -329,6 +329,7 @@ function ProjectView({
     logStreamPid,
     repoName,
     currentProjectConfig?.url,
+    selectedRepo,
     setProjectStateForRepo,
   ]);
 
@@ -337,37 +338,39 @@ function ProjectView({
       ? "absolute inset-0 flex z-10"
       : "absolute inset-0 flex z-0 opacity-0 pointer-events-none";
 
+  const isSelected = repoName === selectedRepo;
+
   return (
     <div className="flex overflow-hidden flex-1 relative">
       <div className={tabClass("kanban")}>
-        <TasksTab />
+        {viewMode === "kanban" && <TasksTab />}
       </div>
       <div className={tabClass("docs")}>
-        <DocsTab />
+        {viewMode === "docs" && <DocsTab />}
       </div>
       <div className={tabClass("tools")}>
-        <ToolsTab />
+        {viewMode === "tools" && <ToolsTab />}
       </div>
       <div className={tabClass("ai")}>
-        <AITab />
+        {viewMode === "ai" && <AITab />}
       </div>
       <div className={tabClass("tests")}>
-        <TestsTab />
+        {viewMode === "tests" && <TestsTab />}
       </div>
       <div className={tabClass("ideas")}>
-        <IdeasTab />
+        {viewMode === "ideas" && <IdeasTab />}
       </div>
       <div className={tabClass("epics")}>
-        <EpicsTab />
+        {viewMode === "epics" && <EpicsTab />}
       </div>
       <div className={tabClass("review")}>
-        <ReviewTab />
+        {viewMode === "review" && <ReviewTab />}
       </div>
       <div className={tabClass("logs")}>
-        <LogsTab />
+        {viewMode === "logs" && <LogsTab />}
       </div>
       <div className={tabClass("browser")}>
-        <BrowserTab repoName={repoName} />
+        {viewMode === "browser" && <BrowserTab repoName={repoName} />}
       </div>
     </div>
   );

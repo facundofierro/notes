@@ -304,7 +304,7 @@ export function WorkEditor({
       // Clear plan file when not in plan view
       setPlanLoading(false);
     }
-  }, [taskSubView, planPath, projectPath, basePath, selectedRepo]);
+  }, [taskSubView, planPath, projectPath, basePath, selectedRepo, planFile]);
 
   // Fetch summary content when switching to summary view
   React.useEffect(() => {
@@ -352,7 +352,7 @@ export function WorkEditor({
     } else if (taskSubView !== "summary") {
       setSummaryLoading(false);
     }
-  }, [taskSubView, summaryPath, projectPath, basePath, selectedRepo]);
+  }, [taskSubView, summaryPath, projectPath, basePath, selectedRepo, summaryFile]);
 
   const handleSaveFile = async (opts: { path: string; content: string }) => {
     if (onSave) {
@@ -470,6 +470,10 @@ export function WorkEditor({
       </div>
     </div>
   );
+
+  const aiFile = React.useMemo(() => 
+    file ? ({ ...file, planPath: planPathForAI } as any) : null,
+  [file, planPathForAI]);
 
   return (
     <div className="flex h-full min-w-0 overflow-hidden">
@@ -651,7 +655,8 @@ export function WorkEditor({
         projectPath={projectPath}
         agentTools={agentTools}
         viewMode={viewMode}
-        file={file ? ({ ...file, planPath: planPathForAI } as any) : null} // Pass planPath so start mode can use plan file
+        file={aiFile}
+ // Pass planPath so start mode can use plan file
         // Actually, if we are viewing the Plan, maybe we want the context to be the Plan?
         // But the prompt builder logic I added uses `file.path` to determine context.
         // If I pass `planFile`, it might think it's just a generic file.

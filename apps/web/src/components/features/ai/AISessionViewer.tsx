@@ -13,7 +13,12 @@ interface AISessionViewerProps {
 }
 
 export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AISessionViewerProps) {
-  const store = useHomeStore();
+  const repositories = useHomeStore((s) => s.repositories);
+  const selectedRepo = useHomeStore((s) => s.selectedRepo);
+  const updateTerminalSession = useHomeStore((s) => s.updateTerminalSession);
+  const basePath = useHomeStore((s) => s.basePath);
+  const agentTools = useHomeStore((s) => s.agentTools);
+  const getProjectState = useHomeStore((s) => s.getProjectState);
   const [fileContent, setFileContent] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -26,7 +31,7 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
     const fileName = oldPath.split("/").pop() || "";
     if (!fileName) return null;
 
-    const repoName = session.projectName || store.selectedRepo;
+    const repoName = session.projectName || selectedRepo;
     if (!repoName) return null;
 
     // Remove any existing timestamp prefix from the filename to get the base task name
@@ -57,7 +62,7 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
 
       if (match) {
         // Resolve absolute path
-        const repo = store.repositories.find((r) => r.name === repoName);
+        const repo = repositories.find((r) => r.name === repoName);
         if (repo) {
           // Normalize path: match.path is relative to repo root
           return `${repo.path}/${match.path}`;
@@ -67,7 +72,7 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
       console.error("Error searching for moved task:", err);
     }
     return null;
-  }, [session.projectName, store.selectedRepo, store.repositories]);
+  }, [session.projectName, selectedRepo, repositories]);
 
   React.useEffect(() => {
     if (!session.filePath) {
@@ -91,7 +96,7 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
             const newPath = await findTaskPath(path);
             if (newPath && newPath !== path) {
               // Update session in store
-              store.updateTerminalSession(session.processId, { filePath: newPath });
+              updateTerminalSession(session.processId, { filePath: newPath });
               // The effect will re-run automatically since session.filePath changed
               return;
             }
@@ -111,13 +116,17 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
     };
 
     loadContent(session.filePath);
-  }, [session.filePath, session.processId, findTaskPath, store]);
+  }, [session.filePath, session.processId, findTaskPath, updateTerminalSession]);
 
   // Poll for file changes while session is running
   React.useEffect(() => {
     if (!session.filePath || !session.isRunning || isEditing) return;
 
+    const isPollingRef = { current: false };
+
     const intervalId = setInterval(() => {
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
       fetch(`/api/file?path=${encodeURIComponent(session.filePath!)}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load file");
@@ -131,17 +140,20 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
         })
         .catch((err) => {
           console.error("Failed to poll session file:", err);
+        })
+        .finally(() => {
+          isPollingRef.current = false;
         });
-    }, 2000);
+    }, 5000);
 
     return () => clearInterval(intervalId);
   }, [session.filePath, session.isRunning, isEditing]);
 
   const projectPath = React.useMemo(() => {
-    const repoName = session.projectName || store.selectedRepo;
+    const repoName = session.projectName || selectedRepo;
     if (!repoName) return null;
-    return store.repositories.find((r) => r.name === repoName)?.path || null;
-  }, [session.projectName, store.selectedRepo, store.repositories]);
+    return repositories.find((r) => r.name === repoName)?.path || null;
+  }, [session.projectName, selectedRepo, repositories]);
 
   return (
     <div className="flex-1 overflow-hidden relative w-full h-full flex flex-col">
@@ -166,11 +178,11 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
               .then((data) => setFileContent(data.content))
               .catch(console.error);
           }}
-          viewMode={store.getProjectState().viewMode}
-          selectedRepo={session.projectName || store.selectedRepo}
-          basePath={store.basePath}
+          viewMode={getProjectState().viewMode}
+          selectedRepo={session.projectName || selectedRepo}
+          basePath={basePath}
           projectPath={projectPath}
-          agentTools={store.agentTools}
+          agentTools={agentTools}
             workEditorEditing={isEditing}
             onWorkEditorEditingChange={setIsEditing}
             workDocIsDraft={false}
