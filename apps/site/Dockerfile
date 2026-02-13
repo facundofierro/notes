@@ -16,7 +16,7 @@ WORKDIR /app
 # First copy the pruned package.json and lockfile
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copy the rest of the pruned files and build
 COPY --from=builder /app/out/full/ .
