@@ -26,7 +26,7 @@ function viewKey(winId, tabIndex) {
 function startNextServer() {
   const serverPath = path.join(
     process.resourcesPath,
-    "app",
+    "web-standalone",
     "apps",
     "web",
     "server.js",

@@ -5,10 +5,11 @@
   "main": "src/main.js",
   "scripts": {
     "dev": "electron ./src/main.js",
-    "build": "electron-builder build",
-    "build:mac": "electron-builder build --mac",
-    "build:win": "electron-builder build --win",
-    "build:linux": "electron-builder build --linux",
+    "prebuild": "rm -rf standalone-build && mkdir -p standalone-build && cp -RL ../web/.next/standalone/* standalone-build/ && mkdir -p standalone-build/apps/web/.next && cp -RL ../web/public standalone-build/apps/web/ && cp -RL ../web/.next/static standalone-build/apps/web/.next/ 2>/dev/null || true",
+    "build": "pnpm prebuild && electron-builder build",
+    "build:mac": "pnpm prebuild && electron-builder build --mac",
+    "build:win": "pnpm prebuild && electron-builder build --win",
+    "build:linux": "pnpm prebuild && electron-builder build --linux",
     "start": "electron ./src/main.js"
   },
   "devDependencies": {
