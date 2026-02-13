@@ -1097,10 +1097,10 @@ Cancelled`
       style={{ width: effectiveStyleWidth }}
       className={`flex overflow-hidden flex-col bg-background border-l border-border transition-all duration-300 ${effectiveWidthClass} ${isCentered ? "items-center !w-full !border-l-0" : ""} ${className}`}
     >
-      <div className={`flex flex-col flex-1 ${isCentered ? "max-w-4xl w-full" : "w-full"}`}>
+      <div className={`flex flex-col flex-1 min-h-0 ${isCentered ? "max-w-4xl w-full" : "w-full"}`}>
       {/* Terminal View */}
       <div
-        className={`flex overflow-hidden flex-col flex-1 h-full ${rightSidebarView === "terminal" ? "" : "hidden"}`}
+        className={`flex overflow-hidden flex-col flex-1 h-full min-h-0 ${rightSidebarView === "terminal" ? "" : "hidden"}`}
       >
         <div className="flex-1 min-h-0 bg-black relative">
           {terminalOutput || isTerminalRunning ? (
@@ -1156,7 +1156,7 @@ Cancelled`
 
       {/* Iframe View */}
       <div
-        className={`flex overflow-hidden flex-col flex-1 h-full ${rightSidebarView === "iframe" ? "" : "hidden"}`}
+        className={`flex overflow-hidden flex-col flex-1 h-full min-h-0 ${rightSidebarView === "iframe" ? "" : "hidden"}`}
       >
         <div className="relative flex-1 min-h-0 bg-black">
           {iframeUrl ? (
@@ -1201,7 +1201,7 @@ Cancelled`
 
       {/* Prompt View */}
       <div
-        className={`flex overflow-hidden flex-col flex-1 ${rightSidebarView === "prompt" ? "" : "hidden"}`}
+        className={`flex overflow-hidden flex-col flex-1 min-h-0 ${rightSidebarView === "prompt" ? "" : "hidden"}`}
       >
         <div className="flex gap-2 p-3 border-b border-border">
           {viewMode === "tests" && file ? (
@@ -1343,7 +1343,7 @@ Cancelled`
           </div>
         </div>
 
-        <div className="flex overflow-auto flex-col flex-1 p-3 border-b border-border">
+        <div className="flex overflow-auto flex-col flex-1 min-h-0 p-3 border-b border-border">
           <div
             className={`grid gap-3 ${showThreeCols ? "grid-cols-3" : "grid-cols-2"}`}
           >

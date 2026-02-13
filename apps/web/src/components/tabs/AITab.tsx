@@ -221,7 +221,7 @@ export function AITab() {
       </div>
 
       {/* Right Content - AI Tools (Wide Mode) */}
-      <div className="flex-1 flex flex-col relative overflow-hidden">
+      <div className="flex-1 flex flex-col relative overflow-hidden min-h-0">
         {selectedSession &&
         (selectedSession.filePath || !selectedSession.isRunning) ? (
           <AISessionViewer session={selectedSession} sidebarWideWidth="50vw" />

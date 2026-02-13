@@ -156,7 +156,7 @@ export function AISessionViewer({ session, sidebarWidth, sidebarWideWidth }: AIS
   }, [session.projectName, selectedRepo, repositories]);
 
   return (
-    <div className="flex-1 overflow-hidden relative w-full h-full flex flex-col">
+    <div className="flex-1 overflow-hidden relative w-full h-full flex flex-col min-h-0">
       {isLoading ? (
         <div className="flex items-center justify-center h-full">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />

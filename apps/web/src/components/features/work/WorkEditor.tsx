@@ -476,8 +476,8 @@ export function WorkEditor({
   [file, planPathForAI]);
 
   return (
-    <div className="flex h-full min-w-0 overflow-hidden">
-      <div className="flex flex-col overflow-hidden flex-1 border-r border-border min-w-0">
+    <div className="flex h-full min-w-0 overflow-hidden min-h-0">
+      <div className="flex flex-col overflow-hidden flex-1 border-r border-border min-w-0 min-h-0">
         {taskSubView === "tests" && !testsPath ? (
           <div className="flex flex-col flex-1 bg-background">
             <EditorHeader />
