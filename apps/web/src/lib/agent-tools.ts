@@ -326,11 +326,6 @@ export function buildAgentCommand(
     if (toolName === "claude") {
       args.push("--dangerously-skip-permissions");
     }
-    // Append permission text to prompt if not already there
-    if (!prompt.includes("[SYSTEM] You have permission")) {
-      prompt +=
-        "\n\n[SYSTEM] You have permission to read/write files and execute commands.";
-    }
   }
 
   if (effectiveModel && tool.modelFlag) {

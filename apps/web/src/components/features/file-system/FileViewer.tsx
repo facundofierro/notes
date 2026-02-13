@@ -11,6 +11,8 @@ import {
   Code,
   ListTree,
   History,
+  Copy,
+  Check,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { TestSteps } from "../testing/TestSteps";
@@ -92,6 +94,7 @@ export default function FileViewer({
   const [renameValue, setRenameValue] = useState("");
   const [isRenamingSaving, setIsRenamingSaving] = useState(false);
   const [editorInstance, setEditorInstance] = useState<any>(null);
+  const [pathCopied, setPathCopied] = useState(false);
 
   useEffect(() => {
     if (file?.line && editorInstance) {
@@ -603,10 +606,33 @@ export default function FileViewer({
           />
         )}
       </div>
-      <div className="px-3 py-1 border-t bg-secondary border-border">
-        <span className="text-[10px] text-muted-foreground font-mono">
+      <div className="px-3 py-1 border-t bg-secondary border-border flex items-center gap-2 group/footer overflow-hidden">
+        <span className="text-[10px] text-muted-foreground font-mono truncate shrink-0 max-w-[70%]">
           {file.path}
         </span>
+        <button
+          onClick={() => {
+            if (file?.path) {
+              navigator.clipboard.writeText(file.path);
+              setPathCopied(true);
+              setTimeout(() => setPathCopied(false), 2000);
+            }
+          }}
+          className="opacity-0 group-hover/footer:opacity-100 flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold text-muted-foreground hover:text-white hover:bg-white/10 transition-all shrink-0"
+          title="Copy full path"
+        >
+          {pathCopied ? (
+            <>
+              <Check className="w-3 h-3 text-emerald-400" />
+              <span>COPIED</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3 h-3" />
+              <span>COPY PATH</span>
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

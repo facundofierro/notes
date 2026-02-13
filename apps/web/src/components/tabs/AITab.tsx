@@ -6,10 +6,11 @@ import { AIRightSidebar } from "@/components/layout/AIRightSidebar";
 import { formatDistanceToNow } from "date-fns";
 import { AISessionViewer } from "@/components/features/ai/AISessionViewer";
 import { TerminalSessionInfo } from "@/store/useHomeStore";
-import { Clock, Zap } from "lucide-react";
+import { Clock, Zap, Copy, Check } from "lucide-react";
 
 export function AITab() {
   const store = useHomeStore();
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const {
     selectedRepo,
     setSelectedRepo,
@@ -141,7 +142,7 @@ export function AITab() {
                       }
                     }}
                     className={`
-                      flex flex-col gap-1 p-3 rounded-lg text-left transition-all
+                      flex flex-col gap-1 p-3 rounded-lg text-left transition-all relative group/card
                       ${
                         isSelected
                           ? "bg-amber-900/20 border border-amber-600/50"
@@ -180,11 +181,36 @@ export function AITab() {
                       {truncatePrompt(session.prompt, 80)}
                     </div>
 
-                    {/* Time */}
-                    <div className="text-[10px] text-muted-foreground/60 mt-0.5">
-                      {formatDistanceToNow(session.startedAt, {
-                        addSuffix: true,
-                      })}
+                    {/* Time & Copy Button */}
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <div className="text-[10px] text-muted-foreground/60 leading-none">
+                        {formatDistanceToNow(session.startedAt, {
+                          addSuffix: true,
+                        })}
+                      </div>
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (session.prompt) {
+                            navigator.clipboard.writeText(session.prompt);
+                            setCopiedId(session.processId);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }
+                        }}
+                        className="opacity-0 group-hover/card:opacity-100 flex items-center gap-1 text-[10px] font-bold text-amber-500/70 hover:text-amber-400 transition-all cursor-pointer bg-amber-500/5 px-2 py-0.5 rounded-md border border-amber-500/20"
+                      >
+                        {copiedId === session.processId ? (
+                          <>
+                            <Check className="w-2.5 h-2.5" />
+                            <span>COPIED</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-2.5 h-2.5" />
+                            <span>COPY</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </button>
                 );
