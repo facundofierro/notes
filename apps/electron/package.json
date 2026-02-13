@@ -2,7 +2,7 @@
   "name": "@agelum/electron",
   "version": "0.1.0",
   "private": true,
-  "description": "Agelum - AI Document Management Tool",
+  "description": "Agelum Notes",
   "author": {
     "name": "Agelum",
     "email": "notes@agelum.com"
