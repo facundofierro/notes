@@ -20,7 +20,10 @@
     "site:build": "pnpm --filter @agelum/site build",
     "electron:dev": "pnpm --filter @agelum/electron dev",
     "electron:start": "pnpm --filter @agelum/electron start",
-    "electron:build": "pnpm --filter @agelum/electron build"
+    "electron:build": "pnpm --filter @agelum/electron build",
+    "electron:build:mac": "pnpm --filter @agelum/electron build:mac",
+    "electron:build:win": "pnpm --filter @agelum/electron build:win",
+    "electron:build:linux": "pnpm --filter @agelum/electron build:linux"
   },
   "devDependencies": {
     "prettier": "^3.0.0",

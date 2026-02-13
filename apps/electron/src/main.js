@@ -29,8 +29,6 @@ function startNextServer() {
     "app",
     "apps",
     "web",
-    ".next",
-    "standalone",
     "server.js",
   );
 

@@ -100,35 +100,42 @@ const downloadPlans = [
 export default function HomePage() {
   return (
     <main>
+      <header className="container top-nav fade-in">
+        <div className="brand-logo" aria-label="Agelum notes">
+          <span className="brand-agelum">Agelum</span>
+          <span className="brand-notes">notes</span>
+        </div>
+      </header>
+
       <section className="hero section">
-        <div className="container hero-grid">
-          <div className="fade-in">
+        <div className="container hero-content">
+          <div className="fade-in text-center">
             <span className="eyebrow">
               <Sparkles size={14} />
               New release
             </span>
-            <div className="brand-logo" aria-label="Agelum notes">
-              <span className="brand-agelum">Agelum</span>
-              <span className="brand-notes">notes</span>
-            </div>
             <h1 className="hero-title">Your Code Deserves Better Notes</h1>
-            <p className="hero-subtitle">
+            <p className="hero-subtitle mx-auto">
               The AI-ready project management tool that lives in your repo. Markdown-native and customizable for teams,
               solo builders, and AI-first workflows.
             </p>
-            <div className="hero-ctas">
+            <div className="hero-ctas justify-center">
               <a className="btn btn-primary" href="#download">
                 Download for Free <ArrowRight size={16} />
               </a>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="screenshot-frame fade-in delay-1" aria-label="Agelum Notes application screenshot">
+      <section className="section pt-0">
+        <div className="container fade-in delay-1">
+          <div className="screenshot-frame" aria-label="Agelum Notes application screenshot">
             <Image
               src="/screenshoot.png"
               alt="Agelum Notes application screenshot"
-              width={1200}
-              height={760}
+              width={1600}
+              height={900}
               className="screenshot-image"
               priority
             />

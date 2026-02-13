@@ -90,6 +90,16 @@ p {
   padding-bottom: 4.5rem;
 }
 
+.hero-content {
+  margin: 0 auto;
+}
+
+.top-nav {
+  padding: 2rem 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: 1.06fr 0.94fr;
@@ -97,11 +107,28 @@ p {
   align-items: center;
 }
 
+/* Helper Classes */
+.text-center {
+  text-align: center;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.pt-0 {
+  padding-top: 0 !important;
+}
+
 .brand-logo {
-  margin-top: 0.7rem;
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.6rem;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .brand-agelum {
@@ -120,6 +147,7 @@ p {
   transform: rotate(-5deg);
   display: inline-block;
   line-height: 1;
+  margin-top: -0.7rem;
 }
 
 .hero-title {
@@ -350,6 +378,11 @@ p {
 @media (max-width: 640px) {
   .container {
     width: min(1120px, calc(100% - 1.5rem));
+  }
+
+  .top-nav {
+    justify-content: center;
+    padding: 1.5rem 0;
   }
 
   .section {
