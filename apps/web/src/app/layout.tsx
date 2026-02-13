@@ -11,6 +11,9 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Agelum Notes",
   description: "Manage AI documents inside development projects",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({

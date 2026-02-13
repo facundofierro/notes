@@ -23,7 +23,12 @@
     "electron:build": "pnpm --filter @agelum/electron build",
     "electron:build:mac": "pnpm --filter @agelum/electron build:mac",
     "electron:build:win": "pnpm --filter @agelum/electron build:win",
-    "electron:build:linux": "pnpm --filter @agelum/electron build:linux"
+    "electron:build:linux": "pnpm --filter @agelum/electron build:linux",
+    "electron:build:docker": "pnpm --filter @agelum/electron build:docker",
+    "electron:publish": "pnpm --filter @agelum/electron publish",
+    "electron:publish:mac": "pnpm --filter @agelum/electron publish:mac",
+    "electron:publish:win": "pnpm --filter @agelum/electron publish:win",
+    "electron:publish:linux": "pnpm --filter @agelum/electron publish:linux"
   },
   "devDependencies": {
     "prettier": "^3.0.0",

@@ -325,6 +325,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     backgroundColor: "#0b0b0b",
+    icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

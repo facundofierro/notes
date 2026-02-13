@@ -1,6 +1,10 @@
 appId: com.agelum.notes
 productName: Agelum
 artifactName: "${productName}-${version}-${arch}.${ext}"
+publish:
+  provider: github
+  owner: facundofierro
+  repo: notes
 directories:
   output: dist
 files:
@@ -22,10 +26,20 @@ mac:
 win:
   target:
     - target: nsis
+      arch:
+        - x64
     - target: zip
+      arch:
+        - x64
 linux:
   executableName: agelum
   target:
     - target: AppImage
+      arch:
+        - x64
+        - arm64
     - target: deb
+      arch:
+        - x64
+        - arm64
   category: Development

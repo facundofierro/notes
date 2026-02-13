@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Agelum Notes | Markdown-Native Project Management for Developers",
   description:
     "Bring order to your development workflow with no vendor lock-in. Agelum Notes is markdown-native, AI-ready, and built for developers.",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({
