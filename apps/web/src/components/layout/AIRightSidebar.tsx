@@ -271,24 +271,24 @@ export function AIRightSidebar({
 
     // Determine which files to monitor based on docAiMode
     const filesToMonitor: string[] = [];
-    filesToMonitor.push(file.path);
-
-    if (docAiMode === "plan" && lastGeneratedPlanPath) {
+    if (docAiMode === "modify") {
+      filesToMonitor.push(file.path);
+    } else if (docAiMode === "plan" && lastGeneratedPlanPath) {
       const absPath = resolveAbsolutePath(lastGeneratedPlanPath);
       if (absPath) filesToMonitor.push(absPath);
-    }
-
-    if (docAiMode === "start" && lastGeneratedSummaryPath) {
+    } else if (docAiMode === "start" && lastGeneratedSummaryPath) {
       const absPath = resolveAbsolutePath(lastGeneratedSummaryPath);
       if (absPath) filesToMonitor.push(absPath);
     }
 
     const isPollingRef = { current: false };
 
+    let intervalId: any;
     const pollStats = async () => {
       if (isPollingRef.current) return;
       isPollingRef.current = true;
       try {
+        let detected = false;
         for (const monitorPath of filesToMonitor) {
           try {
             const res = await fetch(
@@ -300,12 +300,25 @@ export function AIRightSidebar({
 
             const knownMtime = knownMtimesRef.current[monitorPath];
             if (knownMtime !== undefined && data.mtime !== knownMtime) {
+              console.log(`[AIRightSidebar] Detected modification: ${monitorPath}`);
               setFileModified(monitorPath, Date.now());
+              detected = true;
+            } else if (knownMtime === undefined) {
+              knownMtimesRef.current[monitorPath] = data.mtime;
+              // For creation (if file didn't exist before in this session)
+              if (docAiMode === "plan" || docAiMode === "start") {
+                console.log(`[AIRightSidebar] Detected creation: ${monitorPath}`);
+                setFileModified(monitorPath, Date.now());
+                detected = true;
+              }
             }
-            knownMtimesRef.current[monitorPath] = data.mtime;
           } catch {
             // Ignore polling errors
           }
+        }
+        if (detected && intervalId) {
+          console.log("[AIRightSidebar] Stopping polling loop");
+          clearInterval(intervalId);
         }
       } finally {
         isPollingRef.current = false;
@@ -315,7 +328,7 @@ export function AIRightSidebar({
     // Initial poll to seed known mtimes
     pollStats();
 
-    const intervalId = setInterval(pollStats, 5000);
+    intervalId = setInterval(pollStats, 5000);
     return () => {
       clearInterval(intervalId);
     };

@@ -63,6 +63,18 @@ export function TerminalViewer({
     });
 
     term.onData((data) => {
+      // Filter out known terminal escape sequences that can accidentally appear on focus
+      // or as automated responses to queries. These often appear as '1;2c' or similar.
+      // DA responses: \x1b[>...c, \x1b[...c
+      // Focus reports: \x1b[I, \x1b[O
+      const isAutomatedSequence =
+        (data.startsWith("\x1b[") &&
+          (data.endsWith("c") || data.endsWith("I") || data.endsWith("O"))) ||
+        data === "\x1b[c" ||
+        data === "\x1b[0c";
+
+      if (isAutomatedSequence) return;
+
       onInputRef.current?.(data);
     });
 
