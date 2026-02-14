@@ -11,6 +11,7 @@ dist/
 .turbo/cookies/*
 .pnpm-store/*
 cli/target/*
+apps/site/public/downloads/*
 
 # pnpm
 # pnpm-lock.yaml (Removed to allow Docker/CI builds)
