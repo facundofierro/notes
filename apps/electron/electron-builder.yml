@@ -3,7 +3,7 @@ productName: Agelum
 artifactName: "${productName}-${version}-${arch}.${ext}"
 publish:
   provider: github
-  owner: facundofierro
+  owner: agelum
   repo: notes
 directories:
   output: dist
