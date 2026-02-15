@@ -6,7 +6,11 @@
     "dev": "next dev -p 6600",
     "build": "next build",
     "start": "next start -p 6600",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "next": "15.0.3",
@@ -14,7 +18,12 @@
     "react-dom": "^18.2.0",
     "lucide-react": "^0.400.0",
     "zod": "^3.23.8",
-    "gray-matter": "^4.0.3"
+    "gray-matter": "^4.0.3",
+    "next-auth": "^5.0.0-beta.25",
+    "@auth/drizzle-adapter": "^1.7.4",
+    "drizzle-orm": "^0.38.0",
+    "postgres": "^3.4.5",
+    "ioredis": "^5.4.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -23,6 +32,7 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "drizzle-kit": "^0.30.0"
   }
 }

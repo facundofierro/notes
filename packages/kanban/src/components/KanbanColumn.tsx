@@ -69,9 +69,12 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        "group flex h-full flex-1 basis-0 min-w-[160px] flex-col rounded-2xl transition-all duration-200",
+        "group flex h-full flex-col rounded-2xl transition-all duration-200",
         "bg-secondary/50 backdrop-blur-sm",
         "border border-border",
+        column.narrow
+          ? "flex-none w-[200px]"
+          : "flex-1 basis-0 min-w-[160px]",
         isOver && "bg-secondary border-blue-500/40",
       )}
     >

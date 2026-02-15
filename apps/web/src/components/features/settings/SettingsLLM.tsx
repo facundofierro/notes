@@ -1,5 +1,5 @@
 import * as React from "react";
-import { UserSettings, ApiKeyConfig } from "@/lib/settings";
+import { UserSettings, ApiKeyConfig } from "@/types/settings";
 import {
   Button,
   Input,

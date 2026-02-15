@@ -1,79 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { PluginApiKey } from "@/lib/settings";
+import {
+  UserSettings,
+  ProjectConfig,
+  WorkflowConfig,
+} from "@/types/settings";
 
-export interface ProjectConfig {
-  id: string;
-  name: string;
-  path: string;
-  type: "project" | "folder";
-  folderConfigId?: string; // Reference to parent folder config (for projects from containers)
-  workflowId?: string;
-  commands?: {
-    build?: string;
-    dev?: string;
-    run?: string;
-    start?: string;
-    stop?: string;
-  };
-  url?: string;
-  autoRun?: boolean;
-  browserPages?: string[];
-}
+export type { UserSettings, ProjectConfig, WorkflowConfig };
 
-export interface WorkflowConfig {
-  id: string;
-  name: string;
-  items: string[];
-}
-
-export interface UserSettings {
-  theme: "light" | "dark" | "system";
-  language: string;
-  notifications: boolean;
-  autoSave: boolean;
-  defaultView:
-    | "ideas"
-    | "docs"
-    | "plan"
-    | "epics"
-    | "kanban"
-    | "tests"
-    | "review"
-    | "browser"
-    | "logs"
-    | "ai"
-    | "commands"
-    | "cli-tools";
-  sidebarCollapsed: boolean;
-  editorFontSize: number;
-  editorFontFamily: string;
-  showLineNumbers: boolean;
-  wordWrap: boolean;
-  aiModel: string;
-  aiProvider: string;
-  apiKeys: {
-    id: string;
-    provider: "openai" | "google" | "anthropic" | "xai" | "openrouter";
-    name: string;
-    key: string;
-    baseURL?: string;
-  }[];
-  projects: ProjectConfig[];
-  enabledAgents: string[];
-  stagehandApiKey: string;
-  openaiApiKey: string;
-  anthropicApiKey: string;
-  googleApiKey: string;
-  grokApiKey: string;
-  workflows: WorkflowConfig[];
-
-  activeWorkflow: string;
-  createBranchPerTask: boolean;
-  pluginApiKeys?: PluginApiKey[];
-  agentToolSettings: Record<string, any>;
-}
 
 const defaultSettings: UserSettings = {
   theme: "dark",

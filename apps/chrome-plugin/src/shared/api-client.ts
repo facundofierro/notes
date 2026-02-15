@@ -7,15 +7,19 @@ export interface CreateReportRequest {
   screenshotDataUrl: string;
   state: string;
   sourceUrl: string;
+  reporter?: string;
+  priority?: "low" | "medium" | "high" | "urgent";
 }
 
 export async function createReport(settings: ConnectionSettings, report: CreateReportRequest) {
   const url = `${settings.serverUrl}/api/v1/reports`;
+  // Prefer OAuth token when available; fall back to API key
+  const authToken = settings.oauthToken || settings.apiKey;
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${settings.apiKey}`,
+      "Authorization": `Bearer ${authToken}`,
     },
     body: JSON.stringify(report),
   });

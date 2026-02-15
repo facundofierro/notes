@@ -24,10 +24,10 @@ interface KanbanCardProps {
 }
 
 const priorityConfig = {
-  low: { label: "Low", color: "text-muted-foreground" },
-  medium: { label: "Medium", color: "text-blue-500" },
-  high: { label: "High", color: "text-orange-500" },
-  urgent: { label: "Urgent", color: "text-red-500" },
+  low: { label: "Low", color: "text-yellow-500", borderColor: "border-l-yellow-500" },
+  medium: { label: "Medium", color: "text-orange-500", borderColor: "border-l-orange-500" },
+  high: { label: "High", color: "text-red-500", borderColor: "border-l-red-500" },
+  urgent: { label: "Urgent", color: "text-red-600", borderColor: "border-l-red-600" },
 };
 
 function getInitials(name: string): string {
@@ -129,6 +129,63 @@ export function KanbanCard({
     card.columnId === "done"
       ? parseTaskTitle(card.title)
       : { displayTitle: card.title, parsedDate: null };
+
+  const isInbox = card.columnId === "inbox";
+
+  // Compact inbox-specific card view
+  if (isInbox) {
+    const priorityBorder = card.priority
+      ? priorityConfig[card.priority].borderColor
+      : "border-l-sky-500";
+    const priorityColor = card.priority
+      ? priorityConfig[card.priority].color
+      : "text-sky-500";
+    const priorityLabel = card.priority
+      ? priorityConfig[card.priority].label
+      : null;
+    const reporter =
+      card.assignees && card.assignees.length > 0
+        ? card.assignees[0].name
+        : null;
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "group relative flex flex-col gap-1 rounded-lg p-2 transition-all duration-200",
+          "bg-card border-l-2",
+          priorityBorder,
+          "border border-border",
+          "shadow-sm shadow-black/10",
+          "hover:shadow-md hover:bg-secondary",
+          isCurrentlyDragging &&
+            "opacity-50 shadow-xl scale-[1.02] ring-1 ring-blue-500/40",
+          isOverlay && "rotate-2 shadow-2xl scale-105",
+          "cursor-grab active:cursor-grabbing",
+        )}
+        onClick={() => onClick?.(card)}
+        {...attributes}
+        {...listeners}
+      >
+        <h4 className="text-[12px] font-medium leading-snug text-foreground line-clamp-2">
+          {card.title}
+        </h4>
+        <div className="flex items-center justify-between gap-1 mt-0.5">
+          {reporter && (
+            <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+              {reporter}
+            </span>
+          )}
+          {priorityLabel && (
+            <span className={cn("text-[10px] font-semibold ml-auto", priorityColor)}>
+              {priorityLabel}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

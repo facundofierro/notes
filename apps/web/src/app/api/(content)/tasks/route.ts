@@ -16,10 +16,14 @@ interface Task {
     | "fixes"
     | "pending"
     | "doing"
-    | "done";
+    | "done"
+    | "inbox";
   createdAt: string;
   epic?: string;
   assignee?: string;
+  reporter?: string;
+  priority?: "low" | "medium" | "high" | "urgent";
+  sourceUrl?: string;
   path: string;
 }
 
@@ -72,6 +76,8 @@ function ensureAgelumStructure(agelumDir: string) {
     path.join("work", "tasks", "doing"),
     path.join("work", "tasks", "done"),
     path.join("work", "tasks", "fixes"),
+    path.join("work", "tasks", "inbox"),
+    path.join("work", "tasks", "images"),
     path.join("work", "tests"),
   ];
 
@@ -148,7 +154,7 @@ function updateMarkdownTitle(content: string, newTitle: string): string {
 
 function parseTaskFile(
   filePath: string,
-  state: "backlog" | "priority" | "pending" | "doing" | "done" | "fixes",
+  state: "backlog" | "priority" | "pending" | "doing" | "done" | "fixes" | "inbox",
   epic?: string,
 ): Task | null {
   try {
@@ -160,11 +166,20 @@ function parseTaskFile(
     const title = fileNameToId(fileName);
     let description = "";
     let assignee = "";
+    let reporter = "";
+    let priority: Task["priority"] | undefined;
+    let sourceUrl = "";
 
     if (frontmatterMatch) {
       const frontmatter = frontmatterMatch[1];
       description = frontmatter.match(/description:\s*(.+)/)?.[1] || "";
       assignee = frontmatter.match(/assignee:\s*(.+)/)?.[1]?.trim() || "";
+      reporter = frontmatter.match(/reporter:\s*(.+)/)?.[1]?.trim() || "";
+      sourceUrl = frontmatter.match(/source:\s*(.+)/)?.[1]?.trim() || "";
+      const rawPriority = frontmatter.match(/priority:\s*(.+)/)?.[1]?.trim();
+      if (rawPriority === "low" || rawPriority === "medium" || rawPriority === "high" || rawPriority === "urgent") {
+        priority = rawPriority;
+      }
     }
 
     const epicFromFrontmatter = frontmatterMatch?.[1]
@@ -180,6 +195,9 @@ function parseTaskFile(
       createdAt: stats.mtime.toISOString(),
       ...(finalEpic && { epic: finalEpic }),
       assignee,
+      ...(reporter && { reporter }),
+      ...(priority && { priority }),
+      ...(sourceUrl && { sourceUrl }),
       path: filePath,
     };
   } catch {
@@ -189,7 +207,7 @@ function parseTaskFile(
 
 function readTasksRecursively(
   dir: string,
-  state: "backlog" | "priority" | "pending" | "doing" | "done" | "fixes",
+  state: "backlog" | "priority" | "pending" | "doing" | "done" | "fixes" | "inbox",
 ): Task[] {
   const tasks: Task[] = [];
 
@@ -240,6 +258,7 @@ async function readTasks(repo: string): Promise<Task[]> {
     "doing",
     "done",
     "fixes",
+    "inbox",
   ] as const;
 
   for (const tasksRoot of roots) {
@@ -265,6 +284,9 @@ async function createTask(
     description?: string;
     state?: string;
     assignee?: string;
+    reporter?: string;
+    priority?: string;
+    sourceUrl?: string;
   },
 ): Promise<Task> {
   const { primaryAgelumDir } = await resolveRepoDirs(repo);
@@ -277,7 +299,8 @@ async function createTask(
       | "pending"
       | "doing"
       | "done"
-      | "fixes") || "pending";
+      | "fixes"
+      | "inbox") || "pending";
 
   const stateDir = path.join(primaryTasksRoot, state);
   fs.mkdirSync(stateDir, {
@@ -296,6 +319,9 @@ async function createTask(
     `created: ${createdAt}`,
     `state: ${state}`,
     ...(data.assignee ? [`assignee: ${data.assignee}`] : []),
+    ...(data.reporter ? [`reporter: ${data.reporter}`] : []),
+    ...(data.priority ? [`priority: ${data.priority}`] : []),
+    ...(data.sourceUrl ? [`source: ${data.sourceUrl}`] : []),
     "---",
   ];
   const frontmatter = `${frontmatterLines.join("\n")}\n`;
@@ -312,13 +338,16 @@ async function createTask(
     state,
     createdAt,
     assignee: "",
+    ...(data.reporter && { reporter: data.reporter }),
+    ...(data.priority && { priority: data.priority as Task["priority"] }),
+    ...(data.sourceUrl && { sourceUrl: data.sourceUrl }),
     path: filePath,
   };
 }
 
 function buildNewTaskMarkdown(opts: {
   createdAt: string;
-  state: "backlog" | "priority" | "pending" | "doing" | "done" | "fixes";
+  state: "backlog" | "priority" | "pending" | "doing" | "done" | "fixes" | "inbox";
   title: string;
   content: string;
 }): string {
@@ -359,7 +388,8 @@ async function createTaskFromContent(
       | "pending"
       | "doing"
       | "done"
-      | "fixes") || "pending";
+      | "fixes"
+      | "inbox") || "pending";
 
   const stateDir = path.join(primaryTasksRoot, state);
   fs.mkdirSync(stateDir, {
@@ -647,7 +677,8 @@ export async function POST(request: Request) {
               | "pending"
               | "doing"
               | "done"
-              | "fixes") || "pending";
+              | "fixes"
+              | "inbox") || "pending";
           const stateDir = path.join(primaryTasksRoot, state);
 
           // Find the most recently created task file in this state (check recursively for epic folders)

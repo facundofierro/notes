@@ -4,6 +4,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Generic invoke (kept for backwards compat)
   invoke: (channel, payload) =>
     ipcRenderer.invoke(channel, payload),
+  loadUrl: (url) => ipcRenderer.invoke("auth-view:open", url),
+  closeInternalView: () => ipcRenderer.send("auth-view:close"),
+  onAuthNavigated: (callback) => {
+    const handler = (_event, url) => callback(url);
+    ipcRenderer.on("auth-view:navigated", handler);
+    return () => ipcRenderer.removeListener("auth-view:navigated", handler);
+  },
+  onAuthToken: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("auth-view:token", handler);
+    return () => ipcRenderer.removeListener("auth-view:token", handler);
+  },
 
   // WebContentsView-based browser preview (supports multiple tabs via tabIndex)
   browserView: {

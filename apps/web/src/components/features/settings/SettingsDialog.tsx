@@ -319,7 +319,7 @@ export function SettingsDialog({
             <SettingsLLM settings={localSettings} onChange={handleChange} />
           )}
           {activeTab === "plugin" && (
-            <SettingsPlugin />
+            <SettingsPlugin projectName={projectName} />
           )}
           {activeTab === "workflows" && (
             <SettingsWorkflows

@@ -68,6 +68,21 @@ declare global {
 
   interface ElectronAPI {
     invoke: (channel: string, payload?: unknown) => Promise<unknown>;
+    loadUrl: (url: string) => Promise<void>;
+    closeInternalView: () => void;
+    onAuthNavigated: (callback: (url: string) => void) => () => void;
+    onAuthToken: (
+      callback: (payload: {
+        token: string;
+        user: {
+          email: string;
+          name: string;
+          image?: string;
+          provider?: string;
+        };
+        url: string;
+      }) => void,
+    ) => () => void;
     browserView: ElectronBrowserViewAPI;
     openExternal: (url: string) => void;
   }

@@ -54,3 +54,53 @@ export async function GET(request: Request) {
   const { data } = await ensureUsersConfig(repo);
   return NextResponse.json({ users: data.users });
 }
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { repo, email } = body;
+
+    if (!repo || !email) {
+      return NextResponse.json({ error: "repo and email are required" }, { status: 400 });
+    }
+
+    const { filePath, data } = await ensureUsersConfig(repo);
+    if (!filePath) {
+      return NextResponse.json({ error: "Repository not found" }, { status: 404 });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (data.users.includes(normalizedEmail)) {
+      return NextResponse.json({ users: data.users });
+    }
+
+    data.users.push(normalizedEmail);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    return NextResponse.json({ users: data.users });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to add user" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json();
+    const { repo, email } = body;
+
+    if (!repo || !email) {
+      return NextResponse.json({ error: "repo and email are required" }, { status: 400 });
+    }
+
+    const { filePath, data } = await ensureUsersConfig(repo);
+    if (!filePath) {
+      return NextResponse.json({ error: "Repository not found" }, { status: 404 });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    data.users = data.users.filter((u) => u !== normalizedEmail);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    return NextResponse.json({ users: data.users });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to remove user" }, { status: 500 });
+  }
+}

@@ -47,6 +47,7 @@ export interface KanbanColumn {
   title: string;
   color?: KanbanColumnColor;
   order?: number;
+  narrow?: boolean;
 }
 
 export interface KanbanBoardProps {

@@ -18,9 +18,99 @@ let nextProcess = null;
 // Track WebContentsView per BrowserWindow + tab index
 // Key format: "winId:tabIndex"
 const browserViews = new Map();
+const authViews = new Map();
 
 function viewKey(winId, tabIndex) {
   return `${winId}:${tabIndex}`;
+}
+
+function setAuthViewBounds(win, view) {
+  const { width, height } = win.getContentBounds();
+  const modalWidth = Math.min(920, Math.max(640, Math.floor(width * 0.8)));
+  const modalHeight = Math.min(760, Math.max(560, Math.floor(height * 0.85)));
+  const x = Math.floor((width - modalWidth) / 2);
+  const y = Math.floor((height - modalHeight) / 2);
+  view.setBounds({ x, y, width: modalWidth, height: modalHeight });
+}
+
+function closeAuthView(winId) {
+  const entry = authViews.get(winId);
+  if (!entry) return;
+  const win = BrowserWindow.fromId(winId);
+
+  if (win && !win.isDestroyed() && entry.attached) {
+    try {
+      win.contentView.removeChildView(entry.view);
+    } catch (_) {}
+  }
+
+  if (entry.resizeHandler && win && !win.isDestroyed()) {
+    win.removeListener("resize", entry.resizeHandler);
+  }
+
+  entry.attached = false;
+  entry.view.webContents.close();
+  authViews.delete(winId);
+}
+
+function maybeEmitAuthToken(win, url) {
+  try {
+    const parsed = new URL(url);
+    const token = parsed.searchParams.get("token");
+    const email = parsed.searchParams.get("email");
+    if (!token || !email || win.isDestroyed()) return;
+
+    win.webContents.send("auth-view:token", {
+      token,
+      user: {
+        email,
+        name: parsed.searchParams.get("name") || email,
+        image: parsed.searchParams.get("picture") || undefined,
+        provider: parsed.searchParams.get("provider") || undefined,
+      },
+      url,
+    });
+
+    closeAuthView(win.id);
+  } catch (_) {}
+}
+
+function getOrCreateAuthView(win) {
+  let entry = authViews.get(win.id);
+  if (entry) return entry;
+
+  const view = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  const resizeHandler = () => {
+    const current = authViews.get(win.id);
+    if (current?.attached) {
+      setAuthViewBounds(win, current.view);
+    }
+  };
+
+  entry = { view, attached: false, resizeHandler };
+  authViews.set(win.id, entry);
+  win.on("resize", resizeHandler);
+
+  const wc = view.webContents;
+  wc.on("did-navigate", (_event, url) => {
+    if (win.isDestroyed()) return;
+    win.webContents.send("auth-view:navigated", url);
+    maybeEmitAuthToken(win, url);
+  });
+  wc.on("did-navigate-in-page", (_event, url) => {
+    if (win.isDestroyed()) return;
+    win.webContents.send("auth-view:navigated", url);
+    maybeEmitAuthToken(win, url);
+  });
+
+  return entry;
 }
 
 function startNextServer() {
@@ -318,6 +408,33 @@ function setupIpcHandlers() {
   ipcMain.on("shell:open-external", (event, url) => {
     shell.openExternal(url);
   });
+
+  // Open URL in a dedicated internal auth WebContentsView.
+  ipcMain.handle("auth-view:open", async (event, url) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const entry = getOrCreateAuthView(win);
+
+    if (!entry.attached) {
+      win.contentView.addChildView(entry.view);
+      entry.attached = true;
+    }
+    setAuthViewBounds(win, entry.view);
+
+    try {
+      await entry.view.webContents.loadURL(url);
+    } catch (err) {
+      if (err.code !== "ERR_ABORTED") {
+        console.error(`Error loading auth URL ${url}:`, err);
+      }
+    }
+  });
+
+  ipcMain.on("auth-view:close", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    closeAuthView(win.id);
+  });
 }
 
 function createWindow() {
@@ -339,6 +456,7 @@ function createWindow() {
   // Clean up all WebContentsViews when window is closed
   win.on("closed", () => {
     destroyAllBrowserViews(win.id);
+    closeAuthView(win.id);
   });
 }
 

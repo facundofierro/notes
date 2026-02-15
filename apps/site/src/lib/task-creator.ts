@@ -10,6 +10,8 @@ export interface CreateTaskOptions {
   screenshotDataUrl: string;
   state: string;
   sourceUrl: string;
+  reporter?: string;
+  priority?: string;
 }
 
 const AGELUM_DIR = path.join(os.homedir(), ".agelum");
@@ -57,12 +59,15 @@ ${opts.description}
 ![Screenshot](./images/${fileName}.png)
 `;
 
-  const taskData = {
+  const taskData: Record<string, string> = {
     created: new Date().toISOString(),
     state: opts.state,
-    source: "chrome-plugin",
+    source: opts.sourceUrl || "chrome-plugin",
     title: opts.title,
   };
+
+  if (opts.reporter) taskData.reporter = opts.reporter;
+  if (opts.priority) taskData.priority = opts.priority;
 
   const fileContent = matter.stringify(content, taskData);
   const taskPath = path.join(tasksDir, `${fileName}.md`);

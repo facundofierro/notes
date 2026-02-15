@@ -4,6 +4,15 @@ import { getSettings } from "../shared/storage";
 import { createReport } from "../shared/api-client";
 import { Camera, Square, ArrowRight, Trash2, Send, CheckCircle2, Loader2, X } from "lucide-react";
 
+type Priority = "low" | "medium" | "high" | "urgent";
+
+const priorityOptions: { value: Priority; label: string; color: string }[] = [
+  { value: "low", label: "Low", color: "bg-yellow-500/20 text-yellow-500 border-yellow-500/40" },
+  { value: "medium", label: "Medium", color: "bg-orange-500/20 text-orange-500 border-orange-500/40" },
+  { value: "high", label: "High", color: "bg-red-500/20 text-red-500 border-red-500/40" },
+  { value: "urgent", label: "Urgent", color: "bg-red-700/20 text-red-400 border-red-700/40" },
+];
+
 type AppState = "idle" | "capturing" | "annotating" | "prompting" | "submitting" | "success" | "error";
 
 export default function App() {
@@ -14,6 +23,7 @@ export default function App() {
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState("");
+  const [priority, setPriority] = useState<Priority>("medium");
 
   useEffect(() => {
     const listener = (message: any) => {
@@ -56,7 +66,7 @@ export default function App() {
     setState("submitting");
     try {
       const settings = await getSettings();
-      if (!settings.apiKey) throw new Error("API Key not configured. Open settings (popup) to set it up.");
+      if (!settings.apiKey && !settings.oauthToken) throw new Error("Not authenticated. Open settings (popup) to configure your API key or login.");
 
       const burnedScreenshot = await burnAnnotations({
         screenshotDataUrl: screenshot!,
@@ -72,8 +82,10 @@ export default function App() {
         title: title || "Issue from Chrome Plugin",
         description,
         screenshotDataUrl: burnedScreenshot,
-        state: "fixes",
+        state: "inbox",
         sourceUrl,
+        reporter: settings.reporterEmail || undefined,
+        priority,
       });
 
       setState("success");
@@ -155,12 +167,31 @@ export default function App() {
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Report Title</label>
-            <input 
+            <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Broken login button"
               className="bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Priority</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {priorityOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPriority(opt.value)}
+                  className={`px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    priority === opt.value
+                      ? opt.color
+                      : "bg-secondary/30 text-muted-foreground border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
@@ -223,6 +254,7 @@ export default function App() {
               setScreenshot(null);
               setAnnotations([]);
               setTitle("");
+              setPriority("medium");
             }}
             className="mt-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-medium hover:bg-secondary/80 transition-all"
           >

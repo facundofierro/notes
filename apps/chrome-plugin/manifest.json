@@ -3,7 +3,7 @@
   "name": "Agelum Issue Reporter",
   "version": "0.1.0",
   "description": "Report issues directly from your browser to Agelum.",
-  "permissions": ["activeTab", "sidePanel", "storage", "tabs"],
+  "permissions": ["activeTab", "sidePanel", "storage", "tabs", "identity"],
   "action": {
     "default_popup": "popup/index.html"
   },

@@ -11,43 +11,53 @@ interface Task {
   id: string;
   title: string;
   description: string;
-  state: "backlog" | "priority" | "fixes" | "pending" | "doing" | "done";
+  state: "backlog" | "priority" | "fixes" | "pending" | "doing" | "done" | "inbox";
   createdAt: string;
   epic?: string;
   assignee?: string;
+  reporter?: string;
+  priority?: "low" | "medium" | "high" | "urgent";
+  sourceUrl?: string;
   path?: string;
 }
 
 const columns: KanbanColumnType[] = [
   {
+    id: "inbox",
+    title: "Inbox",
+    color: "sky",
+    order: 0,
+    narrow: true,
+  },
+  {
     id: "backlog",
     title: "Backlog",
     color: "gray",
-    order: 0,
+    order: 1,
   },
   {
     id: "fixes",
     title: "Fixes",
     color: "red",
-    order: 1,
+    order: 2,
   },
   {
     id: "pending",
     title: "Pending",
     color: "yellow",
-    order: 2,
+    order: 3,
   },
   {
     id: "doing",
     title: "Doing",
     color: "green",
-    order: 3,
+    order: 4,
   },
   {
     id: "done",
     title: "Done",
     color: "gray",
-    order: 4,
+    order: 5,
   },
 ];
 
@@ -77,7 +87,8 @@ export default function TaskKanban({
 
   const cards = useMemo<KanbanCardType[]>(() => {
     // Separate tasks by column to handle 'done' specially
-    const otherTasks = tasks.filter((t) => t.state !== "done");
+    const otherTasks = tasks.filter((t) => t.state !== "done" && t.state !== "inbox");
+    const inboxTasks = tasks.filter((t) => t.state === "inbox");
     let doneTasks = tasks.filter((t) => t.state === "done");
 
     // Sort done tasks by timestamp in title (descending)
@@ -111,26 +122,34 @@ export default function TaskKanban({
     // Limit to 10
     doneTasks = doneTasks.slice(0, 10);
 
-    const allVisibleTasks = [...otherTasks, ...doneTasks];
+    const allVisibleTasks = [...inboxTasks, ...otherTasks, ...doneTasks];
 
     // Re-assign order based on the new sorted list for 'done' column
     // For other columns, we keep existing order (based on index in original list effectively)
     // actually original code used `index` as order which is implicitly the creation/fetch order
     // We should map them to KanbanCardType
 
-    return allVisibleTasks.map((task, index) => ({
-      id: task.id,
-      title: task.title,
-      description: [
+    return allVisibleTasks.map((task, index) => {
+      const isInbox = task.state === "inbox";
+      const descriptionParts = [
         task.description,
         task.epic ? `Epic: ${task.epic}` : null,
         task.assignee ? `Assignee: ${task.assignee}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      columnId: task.state,
-      order: task.state === "done" ? index : index, // Order matters most within column
-    }));
+        isInbox && task.sourceUrl ? `From: ${task.sourceUrl}` : null,
+      ].filter(Boolean);
+
+      return {
+        id: task.id,
+        title: task.title,
+        description: descriptionParts.join("\n"),
+        columnId: task.state,
+        order: index,
+        priority: task.priority,
+        assignees: isInbox && task.reporter
+          ? [{ id: task.reporter, name: task.reporter }]
+          : undefined,
+      };
+    });
   }, [tasks]);
 
   const handleAddCard = useCallback(
